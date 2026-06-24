@@ -96,8 +96,8 @@ export class WasmBeatDetector {
     const scratchLen = Math.floor(frames / hop) + 2;
     const scratchPtr = ex.bd_malloc(scratchLen * 4);
 
-    // Write source (re-read heap each time; malloc may have grown memory).
-    let heap = new Float32Array(ex.memory.buffer);
+    // Write source (heap allocated above; the malloc calls already grew it).
+    const heap = new Float32Array(ex.memory.buffer);
     heap.set(left.subarray(0, frames), srcLPtr / 4);
     heap.set(right.subarray(0, frames), srcRPtr / 4);
 
@@ -122,7 +122,6 @@ export class WasmBeatDetector {
     ex.bd_free(srcLPtr);
     ex.bd_free(srcRPtr);
     ex.bd_free(scratchPtr);
-    void heap;
     return result;
   }
 }

@@ -32,7 +32,6 @@ import type {
 } from './protocol.js';
 
 // AudioWorkletProcessor globals (provided by the audio worklet global scope).
-declare const sampleRate: number;
 declare class AudioWorkletProcessor {
   readonly port: MessagePort;
   constructor();

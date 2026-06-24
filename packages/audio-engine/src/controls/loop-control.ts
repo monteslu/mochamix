@@ -43,7 +43,6 @@ export class LoopControl {
   private readonly offs: Array<() => void> = [];
 
   constructor(private readonly deps: LoopControlDeps) {
-    const { bus, group } = deps;
 
     this.on(DeckKeys.loopIn, () => this.setStart(deps.positionFrames()));
     this.on(DeckKeys.loopOut, () => this.setEnd(deps.positionFrames(), true));

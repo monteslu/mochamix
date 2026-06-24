@@ -89,11 +89,9 @@ function createWindow(): BrowserWindow {
   });
 
   win.webContents.on('console-message', (_e, _level, message) => {
-    // eslint-disable-next-line no-console
     console.log(`[renderer] ${message}`);
   });
   win.webContents.on('render-process-gone', (_e, details) => {
-    // eslint-disable-next-line no-console
     console.error(`[renderer] process gone: ${details.reason}`);
   });
 
