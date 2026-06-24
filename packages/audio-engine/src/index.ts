@@ -7,6 +7,8 @@
 
 export { Engine, type EngineOptions } from './engine.js';
 export { DeckPlayback, type DeckTrack } from './deck-playback.js';
+export { createMixBuses, headMixGains, type BusNodes, type BusType } from './mix-buses.js';
+export { AudioOutputRouter, type OutputDevice } from './audio-output.js';
 export { KeylockScaler } from './keylock-scaler.js';
 export type { Scaler, SourcePull } from './scaler.js';
 export { CueControl } from './controls/cue-control.js';

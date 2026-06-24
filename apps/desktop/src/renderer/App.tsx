@@ -4,25 +4,32 @@
  * autoplay policy (needs a user gesture).
  */
 
+import { useState } from 'react';
 import { DjProvider, useDj, NUM_DECKS } from './dj-context.js';
 import { Deck } from './components/Deck.js';
 import { Mixer } from './components/Mixer.js';
 import { Library } from './components/Library.js';
+import { AudioSettings } from './components/AudioSettings.js';
 
 function Stage(): React.JSX.Element {
   const { started, start } = useDj();
+  const [showAudio, setShowAudio] = useState(false);
 
   return (
     <div className="app">
       <div className="titlebar">
-        <span className="brand">internal-dj</span>
+        <span className="brand">dj-app</span>
         <span className="tagline">built for the love of it</span>
+        <button className="tiny audio-routing-btn" onClick={() => setShowAudio(true)}>
+          🔊 audio routing
+        </button>
         {!started && (
           <button className="start-audio" onClick={() => void start()}>
             ▶ start audio
           </button>
         )}
       </div>
+      {showAudio && <AudioSettings onClose={() => setShowAudio(false)} />}
       <main className="decks">
         <Deck deckIndex={0} />
         <Mixer />

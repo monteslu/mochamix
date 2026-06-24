@@ -22,6 +22,9 @@ import {
   type RegisteredControl,
 } from '@internal-dj/control-bus';
 import { createDeckGraph, eqKnobToDb, type DeckGraphNodes } from './deck-graph.js';
+import { createMixBuses, type BusNodes } from './mix-buses.js';
+import { AudioOutputRouter, type OutputDevice } from './audio-output.js';
+import type { BusType } from './mix-buses.js';
 import { crossfaderGainForChannel, orientationFromValue } from './crossfader.js';
 import type { DeckControlIndices, EngineMessage, WorkletMessage } from './protocol.js';
 import type { DecodedTrack } from './decoded-track.js';
@@ -53,7 +56,9 @@ export class Engine {
 
   private ctx: AudioContext | null = null;
   private node: AudioWorkletNode | null = null;
-  private master: GainNode | null = null;
+  private buses: BusNodes | null = null;
+  private busesDispose: (() => void) | null = null;
+  private router: AudioOutputRouter | null = null;
   private deckGraphs: DeckGraphNodes[] = [];
   private disconnects: Array<() => void> = [];
   private cueControls: CueControl[] = [];
@@ -90,24 +95,29 @@ export class Engine {
     this.node = node;
     node.port.onmessage = (e: MessageEvent<WorkletMessage>) => this.onWorkletMessage(e.data);
 
-    // Master sum → destination.
-    const master = new GainNode(ctx, { gain: this.bus.get(MASTER, MasterKeys.gain) });
-    master.connect(ctx.destination);
-    this.master = master;
+    // Output buses (master / booth / headphone-PFL), following Mixxx's model:
+    // one engine clock produces labeled bus outputs; the routing layer (the app)
+    // sends each bus to a chosen device. By default master → ctx.destination.
+    const { nodes: buses, dispose: busesDispose } = createMixBuses(ctx, this.bus);
+    this.buses = buses;
+    this.busesDispose = busesDispose;
+    // The router owns all bus→device routing (master defaults to ctx.destination).
+    this.router = new AudioOutputRouter(ctx, buses);
+    void this.router.setDevice('master', 'default');
 
-    // Build each deck strip and wire worklet output[d] → strip → master.
+    // Build each deck strip: output (post-xfader) → masterIn, pflOutput → pflIn.
     const deckIndices: DeckControlIndices[] = [];
     for (let d = 0; d < this.numDecks; d++) {
       const g = createDeckGraph(ctx);
       node.connect(g.input, d, 0);
-      g.output.connect(master);
+      g.output.connect(buses.masterIn);
+      g.pflOutput.connect(buses.pflIn);
       this.deckGraphs.push(g);
       deckIndices.push(this.deckIndexMap(d));
       this.wireDeckParams(d, g);
       this.installDeckControls(d, ctx.sampleRate);
       this.installQuickEffect(d, ctx, deckGroup(d + 1));
     }
-    this.wireMasterParams();
 
     // Smart Fader (our fork feature, 09): crossfader drives a tempo blend.
     this.smartFader = new SmartFader({
@@ -206,13 +216,31 @@ export class Engine {
     ] as const) {
       this.disconnects.push(this.bus.connect(grp2, key, recomputeXfader));
     }
+
+    // PFL gate: 0/1 from the deck's pfl (cue) control → headphone bus.
+    const setPfl = (v: number) => setParam(g.pflGate.gain, v > 0.5 ? 1 : 0);
+    setPfl(this.bus.get(grp, DeckKeys.pfl));
+    this.disconnects.push(this.bus.connect(grp, DeckKeys.pfl, setPfl));
   }
 
-  private wireMasterParams(): void {
-    const master = this.master!;
-    const setParam = (value: number) =>
-      master.gain.setTargetAtTime(value, this.ctx!.currentTime, RAMP / 3);
-    this.disconnects.push(this.bus.connect(MASTER, MasterKeys.gain, setParam));
+  /** The output bus nodes, for the multi-device routing layer. Null until started. */
+  getBuses(): BusNodes | null {
+    return this.buses;
+  }
+
+  /** List available output devices (for the routing UI). */
+  async listOutputDevices(): Promise<OutputDevice[]> {
+    return AudioOutputRouter.listOutputs();
+  }
+
+  /** Route a bus (master/booth/headphone) to a device id ('default' = ctx device). */
+  async setOutputDevice(bus: BusType, deviceId: string): Promise<void> {
+    await this.router?.setDevice(bus, deviceId);
+  }
+
+  /** The device currently assigned to a bus. */
+  getOutputDevice(bus: BusType): string {
+    return this.router?.getDevice(bus) ?? 'default';
   }
 
   /** Current play position of a deck in source frames (from the bus). */
@@ -384,6 +412,11 @@ export class Engine {
     this.loopControls = [];
     this.disconnects = [];
     this.deckGraphs = [];
+    this.router?.dispose();
+    this.router = null;
+    this.busesDispose?.();
+    this.busesDispose = null;
+    this.buses = null;
     this.node?.port.close();
     this.node = null;
     if (this.ctx) {

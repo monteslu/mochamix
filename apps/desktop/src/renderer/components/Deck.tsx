@@ -31,6 +31,7 @@ export function Deck({ deckIndex }: Props): React.JSX.Element {
   const [play, setPlay] = useControl(grp, DeckKeys.play);
   const [rate, setRate] = useControl(grp, DeckKeys.rate);
   const [keylock, setKeylock] = useControl(grp, DeckKeys.keylock);
+  const [pfl, setPfl] = useControl(grp, DeckKeys.pfl);
   const trackLoaded = useControlValue(grp, DeckKeys.trackLoaded);
   const duration = useControlValue(grp, DeckKeys.duration);
   const rateRatio = useControlValue(grp, DeckKeys.rateRatio);
@@ -204,6 +205,13 @@ export function Deck({ deckIndex }: Props): React.JSX.Element {
           disabled={!trackLoaded}
         >
           {play > 0.5 ? '❚❚' : '▶'}
+        </button>
+        <button
+          className={`pfl-btn ${pfl > 0.5 ? 'active' : ''}`}
+          onClick={() => setPfl(pfl > 0.5 ? 0 : 1)}
+          title="Headphone cue (PFL) — monitor this deck in the headphone bus"
+        >
+          🎧
         </button>
       </div>
 

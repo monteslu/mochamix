@@ -19,10 +19,18 @@ export interface DeckGraphNodes {
   crossfader: GainNode;
   /** QuickEffect insertion point (between EQ and volume). */
   quickFxIn: GainNode;
+  /**
+   * PFL gate: post-volume, pre-crossfader tap into the headphone bus. 0/1 driven
+   * by the deck's `pfl` (cue) control — you monitor a deck regardless of the
+   * crossfader position. Connect this to the headphone bus's pflIn.
+   */
+  pflGate: GainNode;
   /** The node to connect the worklet output into. */
   input: AudioNode;
-  /** The node that feeds the master sum. */
+  /** The node that feeds the master sum (post-crossfader). */
   output: AudioNode;
+  /** The node that feeds the PFL/headphone bus (post-pflGate). */
+  pflOutput: AudioNode;
 }
 
 /**
@@ -40,6 +48,8 @@ export function createDeckGraph(ctx: BaseAudioContext): DeckGraphNodes {
   // QuickEffect insertion point: a pass-through gain between EQ and volume. An
   // EffectUnit is spliced in here (eqHigh → quickFxIn → [unit] → volume).
   const quickFxIn = new GainNode(ctx, { gain: 1 });
+  // PFL tap: post-volume, pre-crossfader. 0 until the deck's pfl/cue is on.
+  const pflGate = new GainNode(ctx, { gain: 0 });
 
   // Chain: input → eqLow → eqMid → eqHigh → quickFxIn → volume → crossfader → output
   eqLow.connect(eqMid);
@@ -47,6 +57,7 @@ export function createDeckGraph(ctx: BaseAudioContext): DeckGraphNodes {
   eqHigh.connect(quickFxIn);
   quickFxIn.connect(volume); // default: no effect (direct)
   volume.connect(crossfader);
+  volume.connect(pflGate); // parallel cue tap, independent of the crossfader
 
   return {
     eqLow,
@@ -55,8 +66,10 @@ export function createDeckGraph(ctx: BaseAudioContext): DeckGraphNodes {
     volume,
     crossfader,
     quickFxIn,
+    pflGate,
     input: eqLow,
     output: crossfader,
+    pflOutput: pflGate,
   };
 }
 
