@@ -1,0 +1,21 @@
+{
+  "name": "@internal-dj/audio-engine",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The real-time audio engine: an AudioWorklet mixer + per-deck playback, reading control values from the control-bus SAB. Mirrors Mixxx's EngineMixer/EngineBuffer (04-audio-engine.md).",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./worklet": "./src/engine.worklet.ts"
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@internal-dj/control-bus": "*",
+    "soundtouchjs": "^0.3.0"
+  }
+}

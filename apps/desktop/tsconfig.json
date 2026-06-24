@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist-tsc",
+    "jsx": "react-jsx",
+    "lib": ["ES2023", "DOM", "DOM.Iterable", "WebWorker"],
+    "types": ["@webgpu/types", "vite/client"],
+    "composite": false,
+    "noEmit": true
+  },
+  "references": [
+    { "path": "../../packages/control-bus" },
+    { "path": "../../packages/audio-engine" },
+    { "path": "../../packages/codec" },
+    { "path": "../../packages/waveform" }
+  ],
+  "include": ["src/renderer/**/*", "src/shared/**/*"]
+}

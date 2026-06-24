@@ -1,0 +1,32 @@
+{
+  "name": "@internal-dj/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The internal-dj Electron app.",
+  "main": "dist-main/main/main.js",
+  "scripts": {
+    "build:renderer": "vite build",
+    "build:worklet": "vite build --config vite.worklet.config.ts",
+    "build:main": "tsc -p tsconfig.main.json",
+    "build": "npm run build:renderer && npm run build:worklet && npm run build:main",
+    "dev": "npm run build && electron . --dev",
+    "start": "electron ."
+  },
+  "dependencies": {
+    "@internal-dj/audio-engine": "*",
+    "@internal-dj/codec": "*",
+    "@internal-dj/control-bus": "*",
+    "@internal-dj/waveform": "*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "@webgpu/types": "^0.1.52",
+    "electron": "^33.0.0",
+    "vite": "^7.0.0"
+  }
+}

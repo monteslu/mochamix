@@ -1,0 +1,264 @@
+/**
+ * Engine — the renderer-side audio engine controller (the main-thread half of
+ * Mixxx's EngineMixer + PlayerManager, 03-architecture.md §4, 04-audio-engine.md
+ * §1). It:
+ *   - creates the AudioContext + loads the engine worklet
+ *   - hands the worklet the control SAB + per-deck control indices
+ *   - builds a Web Audio channel strip per deck (EQ/volume/crossfader)
+ *   - subscribes to the control bus and pushes values onto AudioParams (UI side)
+ *     and lets the worklet read the rest from the SAB (engine side)
+ *   - loads decoded tracks into shared sample buffers for the worklet
+ *
+ * The control bus is the single source of truth; this class is glue between it,
+ * the worklet, and the Web Audio graph.
+ */
+
+import {
+  ControlBus,
+  deck as deckGroup,
+  DeckKeys,
+  MASTER,
+  MasterKeys,
+  type RegisteredControl,
+} from '@internal-dj/control-bus';
+import { createDeckGraph, eqKnobToDb, type DeckGraphNodes } from './deck-graph.js';
+import { crossfaderGainForChannel, orientationFromValue } from './crossfader.js';
+import type { DeckControlIndices, EngineMessage, WorkletMessage } from './protocol.js';
+import type { DecodedTrack } from './decoded-track.js';
+
+export interface EngineOptions {
+  bus: ControlBus;
+  numDecks: number;
+  /** URL of the bundled engine worklet module (built by the app's bundler). */
+  workletUrl: string | URL;
+}
+
+const RAMP = 0.012; // 12ms param ramp — matches Mixxx's anti-zipper gain ramping
+
+function requireIndex(reg: RegisteredControl | undefined, what: string): number {
+  if (!reg) {
+    throw new Error(`Engine: control ${what} not registered (define standardControls first)`);
+  }
+  return reg.index;
+}
+
+export class Engine {
+  private readonly bus: ControlBus;
+  private readonly numDecks: number;
+  private readonly workletUrl: string | URL;
+
+  private ctx: AudioContext | null = null;
+  private node: AudioWorkletNode | null = null;
+  private master: GainNode | null = null;
+  private deckGraphs: DeckGraphNodes[] = [];
+  private disconnects: Array<() => void> = [];
+
+  constructor(opts: EngineOptions) {
+    this.bus = opts.bus;
+    this.numDecks = opts.numDecks;
+    this.workletUrl = opts.workletUrl;
+  }
+
+  get audioContext(): AudioContext | null {
+    return this.ctx;
+  }
+
+  /** Boot the audio graph. Must be called from a user gesture (autoplay policy). */
+  async start(): Promise<void> {
+    if (this.ctx) {
+      return;
+    }
+    const ctx = new AudioContext({ latencyHint: 'interactive' });
+    this.ctx = ctx;
+
+    await ctx.audioWorklet.addModule(this.workletUrl);
+
+    // The engine node has one output per deck (each is stereo).
+    const node = new AudioWorkletNode(ctx, 'internal-dj-engine', {
+      numberOfInputs: 0,
+      numberOfOutputs: this.numDecks,
+      outputChannelCount: new Array(this.numDecks).fill(2),
+    });
+    this.node = node;
+    node.port.onmessage = (e: MessageEvent<WorkletMessage>) => this.onWorkletMessage(e.data);
+
+    // Master sum → destination.
+    const master = new GainNode(ctx, { gain: this.bus.get(MASTER, MasterKeys.gain) });
+    master.connect(ctx.destination);
+    this.master = master;
+
+    // Build each deck strip and wire worklet output[d] → strip → master.
+    const deckIndices: DeckControlIndices[] = [];
+    for (let d = 0; d < this.numDecks; d++) {
+      const g = createDeckGraph(ctx);
+      node.connect(g.input, d, 0);
+      g.output.connect(master);
+      this.deckGraphs.push(g);
+      deckIndices.push(this.deckIndexMap(d));
+      this.wireDeckParams(d, g);
+    }
+    this.wireMasterParams();
+
+    // Initialize the worklet with the control SAB + index maps.
+    const sab = this.bus.sab;
+    if (!sab) {
+      throw new Error('Engine requires the ControlBus to have a SAB mirror enabled');
+    }
+    const init: EngineMessage = {
+      type: 'init',
+      controlBuffer: sab.buffer,
+      controlCapacity: sab.capacity,
+      numDecks: this.numDecks,
+      deckIndices,
+      sampleRate: ctx.sampleRate,
+    };
+    node.port.postMessage(init);
+
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
+  }
+
+  /** Resolve the SAB index map the worklet needs for deck `d` (0-based). */
+  private deckIndexMap(d: number): DeckControlIndices {
+    const g = deckGroup(d + 1);
+    const r = (key: string) => requireIndex(this.bus.registration(g, key), `${g},${key}`);
+    return {
+      play: r(DeckKeys.play),
+      playPosition: r(DeckKeys.playPosition),
+      rate: r(DeckKeys.rate),
+      rateRange: r(DeckKeys.rateRange),
+      rateDirection: r(DeckKeys.rateDirection),
+      rateRatio: r(DeckKeys.rateRatio),
+      keylock: r(DeckKeys.keylock),
+      pregain: r(DeckKeys.pregain),
+      volume: r(DeckKeys.volume),
+      trackLoaded: r(DeckKeys.trackLoaded),
+      trackSamples: r(DeckKeys.trackSamples),
+      duration: r(DeckKeys.duration),
+    };
+  }
+
+  /** Subscribe to a deck's UI-side controls and push them onto AudioParams. */
+  private wireDeckParams(d: number, g: DeckGraphNodes): void {
+    const grp = deckGroup(d + 1);
+    const setParam = (param: AudioParam, value: number) => {
+      const t = this.ctx!.currentTime;
+      param.setTargetAtTime(value, t, RAMP / 3);
+    };
+
+    // volume
+    setParam(g.volume.gain, this.bus.get(grp, DeckKeys.volume));
+    this.disconnects.push(
+      this.bus.connect(grp, DeckKeys.volume, (v) => setParam(g.volume.gain, v)),
+    );
+
+    // EQ bands (knob 0..1..4 → dB)
+    const eqBands: Array<[string, BiquadFilterNode]> = [
+      [DeckKeys.eqLow, g.eqLow],
+      [DeckKeys.eqMid, g.eqMid],
+      [DeckKeys.eqHigh, g.eqHigh],
+    ];
+    for (const [key, filter] of eqBands) {
+      filter.gain.value = eqKnobToDb(this.bus.get(grp, key));
+      this.disconnects.push(
+        this.bus.connect(grp, key, (v) => setParam(filter.gain, eqKnobToDb(v))),
+      );
+    }
+
+    // crossfader: recompute this deck's contribution gain whenever crossfader,
+    // curve, reverse, or this deck's orientation changes.
+    const recomputeXfader = () => {
+      const orientation = orientationFromValue(this.bus.get(grp, DeckKeys.orientation));
+      const gain = crossfaderGainForChannel(
+        orientation,
+        this.bus.get(MASTER, MasterKeys.crossfader),
+        this.bus.get(MASTER, MasterKeys.crossfaderCurve),
+        this.bus.get(MASTER, MasterKeys.crossfaderReverse) > 0.5,
+      );
+      setParam(g.crossfader.gain, gain);
+    };
+    recomputeXfader();
+    for (const [grp2, key] of [
+      [MASTER, MasterKeys.crossfader],
+      [MASTER, MasterKeys.crossfaderCurve],
+      [MASTER, MasterKeys.crossfaderReverse],
+      [grp, DeckKeys.orientation],
+    ] as const) {
+      this.disconnects.push(this.bus.connect(grp2, key, recomputeXfader));
+    }
+  }
+
+  private wireMasterParams(): void {
+    const master = this.master!;
+    const setParam = (value: number) =>
+      master.gain.setTargetAtTime(value, this.ctx!.currentTime, RAMP / 3);
+    this.disconnects.push(this.bus.connect(MASTER, MasterKeys.gain, setParam));
+  }
+
+  /** Load a decoded track into a deck (ships sample data to the worklet via SAB). */
+  loadTrack(d: number, track: DecodedTrack): void {
+    if (!this.node) {
+      throw new Error('Engine not started');
+    }
+    const msg: EngineMessage = {
+      type: 'loadTrack',
+      deck: d,
+      sampleBuffer: track.sampleBuffer,
+      channels: track.channels,
+      frames: track.frames,
+      trackSampleRate: track.sampleRate,
+    };
+    this.node.port.postMessage(msg);
+    // Reflect file-derived controls on the bus (UI reads these).
+    const g = deckGroup(d + 1);
+    this.bus.set(g, DeckKeys.duration, track.frames / track.sampleRate);
+    this.bus.set(g, DeckKeys.trackSamples, track.frames);
+    this.bus.set(g, DeckKeys.trackLoaded, 1);
+    if (track.bpm) {
+      this.bus.set(g, DeckKeys.fileBpm, track.bpm);
+    }
+  }
+
+  /** Eject a deck. */
+  eject(d: number): void {
+    this.node?.port.postMessage({ type: 'eject', deck: d } satisfies EngineMessage);
+    const g = deckGroup(d + 1);
+    this.bus.set(g, DeckKeys.play, 0);
+    this.bus.set(g, DeckKeys.trackLoaded, 0);
+  }
+
+  /** Seek a deck to a 0..1 fraction. */
+  seekFraction(d: number, fraction: number): void {
+    if (!this.node) {
+      return;
+    }
+    const frames = this.bus.get(deckGroup(d + 1), DeckKeys.trackSamples);
+    this.node.port.postMessage({
+      type: 'seek',
+      deck: d,
+      frame: fraction * frames,
+    } satisfies EngineMessage);
+  }
+
+  private onWorkletMessage(msg: WorkletMessage): void {
+    if (msg.type === 'trackEnded') {
+      // The worklet already set play=0 in the SAB; reflect it on the bus so the UI updates.
+      this.bus.set(deckGroup(msg.deck + 1), DeckKeys.play, 0);
+    }
+  }
+
+  async dispose(): Promise<void> {
+    for (const off of this.disconnects) {
+      off();
+    }
+    this.disconnects = [];
+    this.deckGraphs = [];
+    this.node?.port.close();
+    this.node = null;
+    if (this.ctx) {
+      await this.ctx.close();
+      this.ctx = null;
+    }
+  }
+}

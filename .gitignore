@@ -1,0 +1,21 @@
+# deps
+node_modules/
+
+# build output
+dist/
+dist-*/
+out/
+*.tsbuildinfo
+
+# electron-builder
+release/
+
+# logs
+*.log
+
+# os
+.DS_Store
+
+# reference clones (kept locally, not committed) — see 08-source-map.md / README
+/vendor/mixxx-src/
+/vendor/mixxx-monteslu/

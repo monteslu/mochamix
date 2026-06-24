@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/control-bus" },
+    { "path": "./packages/audio-engine" },
+    { "path": "./packages/codec" },
+    { "path": "./packages/waveform" },
+    { "path": "./apps/desktop" }
+  ]
+}
