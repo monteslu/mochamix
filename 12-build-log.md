@@ -335,7 +335,7 @@ not the final state. Mixxx's own C/C++ for each is the source to Emscripten-comp
 | Pregain multiply | `engine.worklet.ts` | real-time | LOW | Trivial; fold into the WASM resampler output, or use a GainNode (it's already going to a GainNode-based strip — can drop the worklet pregain entirely). |
 | Interleave/deinterleave for SoundTouch | `keylock-scaler.ts` | real-time when keylock on | MED | Goes away when we swap soundtouchjs (JS port) for SoundTouch/RubberBand compiled to WASM, which can take planar or do the interleave in C. |
 | VU mean-of-abs | `vu-meter.ts` | real-time, cheap | LOW | Small; convert with the resampler WASM or leave (a few hundred abs/adds per block). |
-| Onset envelope + autocorrelation | `beat-detector.ts` | OFFLINE (worker, once/track) | MED | Not real-time, but still JS heavy lifting. Convert to WASM-SIMD (or swap for essentia.js/qm-dsp-WASM, the documented M5 plan). |
+| ~~Onset envelope + autocorrelation~~ | ~~`beat-detector.ts`~~ | OFFLINE (worker) | ~~MED~~ | **✅ DONE — `csrc/beatdetect.c` → WASM+SIMD, `WasmBeatDetector`, used by the analysis worker. Detects 120/128/90 BPM in tests. JS `detectBeats` kept as the reference impl.** |
 
 **Decision for M8 (effects): use NATIVE Web Audio nodes wherever possible.** A `BiquadFilterNode`,
 `DelayNode`, `ConvolverNode`, `WaveShaperNode` runs its DSP in the browser's optimized C++, NOT in JS —
@@ -345,7 +345,7 @@ per-sample) staying in JS is fine — that's orchestration, not heavy lifting.
 
 **Conversion is tracked, not forgotten.** The JS-loop hot paths above get WASM-SIMD replacements behind
 the existing interfaces (Scaler, the worklet) — the interfaces were designed so the impl swaps without
-touching callers. Priority order: ~~deck-playback resampler (HIGH)~~ ✅ → keylock WASM → beat-detector → VU.
+touching callers. Priority order: ~~deck-playback resampler (HIGH)~~ ✅ → ~~beat-detector~~ ✅ → keylock WASM → VU.
 
 ### The WASM toolchain works in this env (emcc 4.0.18 at /home/monteslu/code/mine/emsdk)
 `source /home/monteslu/code/mine/emsdk/emsdk_env.sh` then `emcc`. Also rustc/wasm-pack/clang available.

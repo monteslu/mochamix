@@ -6,10 +6,13 @@
 
 /// <reference lib="webworker" />
 
-import { detectBeats } from './beat-detector.js';
+import { WasmBeatDetector } from '@internal-dj/dsp-wasm';
 import type { AnalyzeRequest, AnalyzeResponse } from './worker-protocol.js';
 
 declare const self: DedicatedWorkerGlobalScope;
+
+// One detector instance per worker (the WASM module is reused across tracks).
+const detector = new WasmBeatDetector();
 
 self.onmessage = (e: MessageEvent<AnalyzeRequest>) => {
   const msg = e.data;
@@ -21,7 +24,7 @@ self.onmessage = (e: MessageEvent<AnalyzeRequest>) => {
   for (let c = 0; c < msg.channels; c++) {
     channels.push(all.subarray(c * msg.frames, (c + 1) * msg.frames));
   }
-  const r = detectBeats(channels, msg.frames, msg.sampleRate);
+  const r = detector.detect(channels, msg.frames, msg.sampleRate);
   const res: AnalyzeResponse = {
     type: 'analyzed',
     id: msg.id,

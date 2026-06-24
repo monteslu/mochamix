@@ -25,6 +25,20 @@ const modules = [
     src: 'resampler.c',
     exports: ['_resampler_pull', '_resampler_last_position', '_resampler_last_produced', '_malloc', '_free'],
   },
+  {
+    name: 'beatdetect',
+    src: 'beatdetect.c',
+    exports: [
+      '_beatdetect_run',
+      '_beatdetect_bpm',
+      '_beatdetect_first_beat_frame',
+      '_beatdetect_confidence',
+      '_bd_malloc',
+      '_bd_free',
+    ],
+    // A full track's stereo float source can be large; allow the heap to grow.
+    growMemory: true,
+  },
 ];
 
 for (const m of modules) {
@@ -39,8 +53,9 @@ for (const m of modules) {
       '--no-entry',
       '-s', 'STANDALONE_WASM=1',
       '-s', `EXPORTED_FUNCTIONS=${JSON.stringify(m.exports)}`,
-      '-s', 'ALLOW_MEMORY_GROWTH=0',
+      '-s', `ALLOW_MEMORY_GROWTH=${m.growMemory ? 1 : 0}`,
       '-s', 'INITIAL_MEMORY=33554432',
+      ...(m.growMemory ? ['-s', 'MAXIMUM_MEMORY=536870912'] : []),
       '-o', out,
     ],
     { stdio: 'inherit' },

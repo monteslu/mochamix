@@ -7,3 +7,8 @@ export {
   type PullParams,
   type PullOutcome,
 } from './resampler.js';
+export {
+  WasmBeatDetector,
+  type BeatResult,
+  type BeatDetectOptions,
+} from './beatdetect.js';
