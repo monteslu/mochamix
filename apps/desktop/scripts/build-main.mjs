@@ -36,8 +36,9 @@ await build({
 await build({
   ...common,
   format: 'cjs',
-  entryPoints: [`${root}/src/main/preload.cts`],
-  outfile: `${root}/dist-main/preload.cjs`,
+  entryPoints: [`${root}/src/main/preload.cts`, `${root}/src/main/preload-verify.cts`],
+  outdir: `${root}/dist-main`,
+  outExtension: { '.js': '.cjs' },
   banner: {},
 });
 

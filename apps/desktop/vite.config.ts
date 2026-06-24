@@ -21,12 +21,19 @@ export default defineConfig({
       '@internal-dj/codec': pkg('codec'),
       '@internal-dj/waveform': pkg('waveform'),
       '@internal-dj/analysis': pkg('analysis'),
+      '@internal-dj/dsp-wasm': pkg('dsp-wasm'),
     },
   },
   build: {
     outDir: fileURLToPath(new URL('./dist-renderer', import.meta.url)),
     emptyOutDir: true,
     target: 'esnext', // Electron's Chromium is current; we can use the latest
+    rollupOptions: {
+      input: {
+        index: fileURLToPath(new URL('./src/renderer/index.html', import.meta.url)),
+        verify: fileURLToPath(new URL('./src/renderer/verify.html', import.meta.url)),
+      },
+    },
   },
   worker: {
     format: 'es',
