@@ -95,11 +95,15 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
 
         engine.loadTrack(deckIndex, track);
 
-        // Analyze BPM/beatgrid off-thread; set file_bpm when done (drives
-        // beatloops, sync, smart fader).
+        // Analyze BPM/beatgrid/key off-thread; set controls when done (drives
+        // beatloops, sync, smart fader, grid display, key badge).
         void analysis.analyze(track).then((r) => {
           if (r.bpm > 0) {
             bus.set(grp, DeckKeys.fileBpm, r.bpm);
+            bus.set(grp, DeckKeys.firstBeatFrame, r.firstBeatFrame);
+          }
+          if (r.camelot) {
+            setDeckTrack(deckIndex, { key: r.camelot });
           }
         });
       } finally {
@@ -109,12 +113,26 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
     [engine, bus, analysis, grp, started, start, deckIndex],
   );
 
+  // Fetch embedded cover art for a path → object URL on the deck store.
+  const fetchCover = useCallback(
+    async (path?: string) => {
+      if (!path) return;
+      const cover = await window.dj.trackCover(path);
+      if (cover) {
+        const url = URL.createObjectURL(new Blob([cover.data], { type: cover.mime }));
+        setDeckTrack(deckIndex, { coverUrl: url });
+      }
+    },
+    [deckIndex],
+  );
+
   const onLoadClick = useCallback(async () => {
     const file = await window.dj.openTrack();
     if (file) {
       await loadFile(file);
+      void fetchCover(file.path);
     }
-  }, [loadFile]);
+  }, [loadFile, fetchCover]);
 
   const onDrop = useCallback(
     async (e: React.DragEvent) => {
@@ -127,12 +145,13 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
       if (f.path) {
         const file = await window.dj.readTrack(f.path);
         await loadFile(file);
+        void fetchCover(f.path);
       } else {
         const data = await f.arrayBuffer();
         await loadFile({ name: f.name, data });
       }
     },
-    [loadFile],
+    [loadFile, fetchCover],
   );
 
   const togglePlay = useCallback(async () => {

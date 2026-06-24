@@ -10,24 +10,25 @@ import { useDj, NUM_DECKS } from '../dj-context.js';
 import { decodeArrayBuffer } from '@internal-dj/codec';
 import { computePeakSet, detailBucketsForDuration } from '@internal-dj/waveform';
 import { deck as deckGroup, DeckKeys } from '@internal-dj/control-bus';
+import { setDeckTrack } from '../deck-state.js';
 
 type SortCol = 'artist' | 'title' | 'album' | 'bpm' | 'duration' | 'genre';
 
 // Demo rows for visual development (?demo) — no DB/IPC needed.
 const DEMO_TRACKS: LibTrack[] = (
   [
-    ['Com Truise', 'Flightwave', 'In Decay', 'Synthwave', 128, 372],
-    ['Bonobo', 'Kerala', 'Migration', 'Electronic', 122, 314],
-    ['Tycho', 'Awake', 'Awake', 'Ambient', 115, 320],
-    ['Jon Hopkins', 'Emerald Rush', 'Singularity', 'Techno', 126, 365],
-    ['Four Tet', 'Two Thousand and Seventeen', 'New Energy', 'Electronic', 110, 248],
-    ['Rival Consoles', 'Recovery', 'Persona', 'Electronic', 120, 386],
-    ['Floating Points', 'Last Bloom', 'Crush', 'Electronic', 130, 290],
-    ['Boards of Canada', 'Roygbiv', 'Music Has the Right…', 'IDM', 95, 154],
-    ['Aphex Twin', 'Xtal', 'Selected Ambient Works', 'IDM', 124, 293],
-    ['Daft Punk', 'Veridis Quo', 'Discovery', 'House', 112, 345],
-    ['Caribou', 'Odessa', 'Swim', 'Electronic', 118, 358],
-    ['Moderat', 'A New Error', 'Moderat', 'Electronic', 100, 437],
+    ['Com Truise', 'Flightwave', 'In Decay', 'Synthwave', 128, 372, '8A'],
+    ['Bonobo', 'Kerala', 'Migration', 'Electronic', 122, 314, '5A'],
+    ['Tycho', 'Awake', 'Awake', 'Ambient', 115, 320, '11B'],
+    ['Jon Hopkins', 'Emerald Rush', 'Singularity', 'Techno', 126, 365, '4A'],
+    ['Four Tet', 'Two Thousand and Seventeen', 'New Energy', 'Electronic', 110, 248, '7A'],
+    ['Rival Consoles', 'Recovery', 'Persona', 'Electronic', 120, 386, '2A'],
+    ['Floating Points', 'Last Bloom', 'Crush', 'Electronic', 130, 290, '9B'],
+    ['Boards of Canada', 'Roygbiv', 'Music Has the Right…', 'IDM', 95, 154, '6A'],
+    ['Aphex Twin', 'Xtal', 'Selected Ambient Works', 'IDM', 124, 293, '12A'],
+    ['Daft Punk', 'Veridis Quo', 'Discovery', 'House', 112, 345, '1B'],
+    ['Caribou', 'Odessa', 'Swim', 'Electronic', 118, 358, '10A'],
+    ['Moderat', 'A New Error', 'Moderat', 'Electronic', 100, 437, '3A'],
   ] as const
 ).map((t, i) => ({
   id: i + 1,
@@ -42,14 +43,14 @@ const DEMO_TRACKS: LibTrack[] = (
   bitrate: 1000,
   bpm: t[4],
   firstBeatFrame: 0,
-  key: null,
+  key: t[6],
   rating: 0,
   timesPlayed: 0,
   filetype: 'flac',
 }));
 
 export function Library(): React.JSX.Element {
-  const { engine, bus, started, start } = useDj();
+  const { engine, bus, analysis, started, start } = useDj();
   const [tracks, setTracks] = useState<LibTrack[]>([]);
   const [search, setSearch] = useState('');
   const [sortCol, setSortCol] = useState<SortCol>('artist');
@@ -120,20 +121,51 @@ export function Library(): React.JSX.Element {
       }
       const dur = decoded.frames / decoded.sampleRate;
       const peaks = computePeakSet(channelData, decoded.frames, detailBucketsForDuration(dur));
-      // stash peaks on a window cache the Deck reads (simple handoff for now)
-      (window as unknown as { __peaks?: Record<number, unknown> }).__peaks ??= {};
-      (window as unknown as { __peaks: Record<number, unknown> }).__peaks[deckIndex] = peaks;
+
       window.dispatchEvent(
-        new CustomEvent('deck-track-loaded', { detail: { deckIndex, peaks, track } }),
+        new CustomEvent('deck-track-loaded', {
+          detail: {
+            deckIndex,
+            peaks,
+            track: {
+              title: track.title,
+              artist: track.artist,
+              album: track.album,
+              key: track.key,
+              filename: track.filename,
+            },
+          },
+        }),
       );
 
       engine.loadTrack(deckIndex, decoded);
+      const g = deckGroup(deckIndex + 1);
       if (track.bpm > 0) {
-        bus.set(deckGroup(deckIndex + 1), DeckKeys.fileBpm, track.bpm);
+        bus.set(g, DeckKeys.fileBpm, track.bpm);
       }
       void window.dj.libraryIncrementPlay(track.id);
+
+      // cover art
+      void window.dj.trackCover(track.location).then((cover) => {
+        if (cover) {
+          const url = URL.createObjectURL(new Blob([cover.data], { type: cover.mime }));
+          setDeckTrack(deckIndex, { coverUrl: url });
+        }
+      });
+
+      // analyze if BPM/key missing
+      if (track.bpm <= 0 || !track.key) {
+        void analysis.analyze(decoded).then((r) => {
+          if (r.bpm > 0) {
+            bus.set(g, DeckKeys.fileBpm, r.bpm);
+            bus.set(g, DeckKeys.firstBeatFrame, r.firstBeatFrame);
+          }
+          if (r.camelot) setDeckTrack(deckIndex, { key: r.camelot });
+          void window.dj.librarySetAnalysis(track.id, { bpm: r.bpm, firstBeatFrame: r.firstBeatFrame });
+        });
+      }
     },
-    [engine, bus, started, start],
+    [engine, bus, analysis, started, start],
   );
 
   const toggleSort = (col: SortCol) => {
@@ -166,12 +198,19 @@ export function Library(): React.JSX.Element {
         <table className="library-table">
           <thead>
             <tr>
-              {(['artist', 'title', 'album', 'genre', 'bpm', 'duration'] as SortCol[]).map((c) => (
+              {(['artist', 'title', 'album', 'genre', 'bpm'] as SortCol[]).map((c) => (
                 <th key={c} onClick={() => toggleSort(c)} className={sortCol === c ? 'sorted' : ''}>
                   {c.toUpperCase()}
                   {sortCol === c ? (sortDesc ? ' ▼' : ' ▲') : ''}
                 </th>
               ))}
+              <th>KEY</th>
+              <th
+                onClick={() => toggleSort('duration')}
+                className={sortCol === 'duration' ? 'sorted' : ''}
+              >
+                TIME{sortCol === 'duration' ? (sortDesc ? ' ▼' : ' ▲') : ''}
+              </th>
               <th>LOAD</th>
             </tr>
           </thead>
@@ -188,6 +227,7 @@ export function Library(): React.JSX.Element {
                 <td>{t.album}</td>
                 <td>{t.genre}</td>
                 <td className="num">{t.bpm > 0 ? t.bpm.toFixed(0) : ''}</td>
+                <td className="lib-key">{t.key ?? ''}</td>
                 <td className="num">{fmtDur(t.duration)}</td>
                 <td className="load-cells">
                   {Array.from({ length: NUM_DECKS }, (_, d) => (

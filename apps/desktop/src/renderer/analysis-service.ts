@@ -11,6 +11,8 @@ export interface BeatGridResult {
   bpm: number;
   firstBeatFrame: number;
   confidence: number;
+  key: string;
+  camelot: string;
 }
 
 export class AnalysisService {
@@ -33,6 +35,8 @@ export class AnalysisService {
             bpm: msg.bpm,
             firstBeatFrame: msg.firstBeatFrame,
             confidence: msg.confidence,
+            key: msg.key,
+            camelot: msg.camelot,
           });
         }
       }

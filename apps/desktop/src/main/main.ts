@@ -132,7 +132,7 @@ ipcMain.handle('dialog:openTrack', async () => {
   const path = result.filePaths[0]!;
   const buf = await readFile(path);
   const arrayBuffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-  return { name: path.split(/[\\/]/).pop() ?? 'track', data: arrayBuffer };
+  return { name: path.split(/[\\/]/).pop() ?? 'track', data: arrayBuffer, path };
 });
 
 // IPC: read a dropped file path's bytes.
@@ -160,6 +160,7 @@ ipcMain.handle('library:setAnalysis', (_e, id: number, a: { bpm?: number; firstB
   getLibrary().setAnalysis(id, a),
 );
 ipcMain.handle('library:incrementPlay', (_e, id: number) => getLibrary().incrementPlayCount(id));
+ipcMain.handle('track:cover', (_e, path: string) => getLibrary().getCover(path));
 
 // IPC: save a recording (WAV ArrayBuffer) to disk. Defaults to a Recordings
 // folder with a timestamped name; offers a Save dialog.

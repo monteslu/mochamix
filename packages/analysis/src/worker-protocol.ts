@@ -20,4 +20,8 @@ export interface AnalyzeResponse {
   bpm: number;
   firstBeatFrame: number;
   confidence: number;
+  /** Musical key, e.g. "Am" (or '' if not detected). */
+  key: string;
+  /** Camelot code, e.g. "8A". */
+  camelot: string;
 }

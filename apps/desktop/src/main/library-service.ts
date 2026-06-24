@@ -135,6 +135,20 @@ export class LibraryService {
     this.db.setAnalysis(trackId, a);
   }
 
+  /** Extract the embedded cover image for a file path. Returns {data, mime} or null. */
+  async getCover(path: string): Promise<{ data: ArrayBuffer; mime: string } | null> {
+    try {
+      const meta = await parseFile(path, { skipCovers: false });
+      const pic = meta.common.picture?.[0];
+      if (!pic) return null;
+      const u8 = pic.data;
+      const ab = u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength);
+      return { data: ab as ArrayBuffer, mime: pic.format || 'image/jpeg' };
+    } catch {
+      return null;
+    }
+  }
+
   incrementPlayCount(id: number): void {
     this.db.incrementPlayCount(id);
   }

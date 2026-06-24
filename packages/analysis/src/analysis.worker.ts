@@ -7,6 +7,7 @@
 /// <reference lib="webworker" />
 
 import { WasmBeatDetector } from '@internal-dj/dsp-wasm';
+import { detectKey } from './key-detector.js';
 import type { AnalyzeRequest, AnalyzeResponse } from './worker-protocol.js';
 
 declare const self: DedicatedWorkerGlobalScope;
@@ -25,12 +26,15 @@ self.onmessage = (e: MessageEvent<AnalyzeRequest>) => {
     channels.push(all.subarray(c * msg.frames, (c + 1) * msg.frames));
   }
   const r = detector.detect(channels, msg.frames, msg.sampleRate);
+  const k = detectKey(channels, msg.frames, msg.sampleRate);
   const res: AnalyzeResponse = {
     type: 'analyzed',
     id: msg.id,
     bpm: r.bpm,
     firstBeatFrame: r.firstBeatFrame,
     confidence: r.confidence,
+    key: k.name,
+    camelot: k.camelot,
   };
   self.postMessage(res);
 };

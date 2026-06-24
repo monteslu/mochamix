@@ -7,6 +7,8 @@
 export interface LoadedFile {
   name: string;
   data: ArrayBuffer;
+  /** Absolute path (when known), so cover art can be read. */
+  path?: string;
 }
 
 /** A library track row (mirrors @internal-dj/db TrackRow; kept local to avoid a
@@ -65,4 +67,7 @@ export interface DjApi {
 
   /** Save a recording (WAV bytes) to disk; returns the path or null if canceled. */
   saveRecording: (wav: ArrayBuffer) => Promise<string | null>;
+
+  /** Read embedded cover art for a file path; returns bytes + mime, or null. */
+  trackCover: (path: string) => Promise<{ data: ArrayBuffer; mime: string } | null>;
 }

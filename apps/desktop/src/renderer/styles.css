@@ -827,6 +827,12 @@ body,
   font-variant-numeric: tabular-nums;
   color: var(--text-dim);
 }
+.library-table td.lib-key {
+  font-variant-numeric: tabular-nums;
+  color: var(--cue);
+  font-weight: 600;
+  font-size: 12px;
+}
 .library-table tbody tr {
   cursor: default;
 }
