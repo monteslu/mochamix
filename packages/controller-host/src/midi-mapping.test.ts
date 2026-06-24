@@ -89,7 +89,8 @@ describe('MidiRouter', () => {
     const mapping = parseMidiMapping(SAMPLE_XML);
     const sent: Array<[number, number, number]> = [];
     const scripts = {
-      'TestController.playPress': vi.fn((_ch: number, _ctrl: number, value: number) => {
+      'TestController.playPress': vi.fn((..._args: Array<number | string>) => {
+        const value = _args[2] as number;
         if (value > 0) {
           const cur = engine.getValue('[Channel1]', 'play');
           engine.setValue('[Channel1]', 'play', cur > 0 ? 0 : 1);

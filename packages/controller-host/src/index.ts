@@ -30,3 +30,8 @@ export {
   type ScriptFunctions,
   type MidiSend,
 } from './midi-router.js';
+export {
+  runMappingScript,
+  type MidiGlobal,
+  type RunMappingResult,
+} from './script-runtime.js';

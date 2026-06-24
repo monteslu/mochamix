@@ -19,6 +19,7 @@ import {
 import { ControlBus, standardControls, type Group, type Key } from '@internal-dj/control-bus';
 import { Engine } from '@internal-dj/audio-engine';
 import { AnalysisService } from './analysis-service.js';
+import { ControllerService } from './controller-service.js';
 
 export const NUM_DECKS = 2;
 // 2 decks each carry 36 hotcues × 6 keys + loops + beatloops, so the surface is
@@ -29,6 +30,7 @@ export interface DjRuntime {
   bus: ControlBus;
   engine: Engine;
   analysis: AnalysisService;
+  controllers: ControllerService;
   /** True once the AudioContext has been started (needs a user gesture). */
   started: boolean;
   start: () => Promise<void>;
@@ -36,7 +38,12 @@ export interface DjRuntime {
 
 const DjContext = createContext<DjRuntime | null>(null);
 
-function buildRuntime(): { bus: ControlBus; engine: Engine; analysis: AnalysisService } {
+function buildRuntime(): {
+  bus: ControlBus;
+  engine: Engine;
+  analysis: AnalysisService;
+  controllers: ControllerService;
+} {
   const bus = new ControlBus({
     sab: { capacity: SAB_CAPACITY },
     // M1: persistence is in-memory only (no disk yet). Wire to electron-store later.
@@ -50,7 +57,8 @@ function buildRuntime(): { bus: ControlBus; engine: Engine; analysis: AnalysisSe
 
   const engine = new Engine({ bus, numDecks: NUM_DECKS, workletUrl });
   const analysis = new AnalysisService();
-  return { bus, engine, analysis };
+  const controllers = new ControllerService(bus);
+  return { bus, engine, analysis, controllers };
 }
 
 export function DjProvider({ children }: { children: ReactNode }): React.JSX.Element {
@@ -69,6 +77,7 @@ export function DjProvider({ children }: { children: ReactNode }): React.JSX.Ele
     return () => {
       void runtime.engine.dispose();
       runtime.analysis.dispose();
+      runtime.controllers.dispose();
     };
   }, [runtime]);
 
@@ -78,6 +87,7 @@ export function DjProvider({ children }: { children: ReactNode }): React.JSX.Ele
         bus: runtime.bus,
         engine: runtime.engine,
         analysis: runtime.analysis,
+        controllers: runtime.controllers,
         started,
         start,
       }}

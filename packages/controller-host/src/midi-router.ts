@@ -19,8 +19,12 @@ import {
 } from './midi-mapping.js';
 import type { ControlBus } from '@internal-dj/control-bus';
 
-/** A loaded script's callable surface: function-name → fn. */
-export type ScriptFunctions = Record<string, (...args: number[]) => void>;
+/**
+ * A loaded script's callable surface: function-name → fn. Mixxx input handlers
+ * receive (channel, control, value, status, group) — the trailing `group` is a
+ * string, so args are number|string.
+ */
+export type ScriptFunctions = Record<string, (...args: Array<number | string>) => void>;
 
 /** Sends a 3-byte MIDI message to the device. */
 export type MidiSend = (status: number, data1: number, data2: number) => void;
