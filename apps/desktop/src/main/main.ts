@@ -27,24 +27,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const RENDERER_DIR = join(__dirname, '../dist-renderer');
 const isDev = process.argv.includes('--dev');
 
-// Display backend: on a Wayland session (no $DISPLAY but $WAYLAND_DISPLAY set),
-// Electron's default X11 ozone path fails with "Missing X server or $DISPLAY".
-// Use the Wayland ozone backend there. Must be set before app is ready. The user
-// can override with their own --ozone-platform / --ozone-platform-hint flag.
-if (
-  process.platform === 'linux' &&
-  !process.argv.some((a) => a.startsWith('--ozone-platform'))
-) {
-  const hasX = !!process.env.DISPLAY;
-  const hasWayland = !!process.env.WAYLAND_DISPLAY;
-  if (hasWayland && !hasX) {
-    app.commandLine.appendSwitch('ozone-platform', 'wayland');
-  } else if (hasWayland) {
-    // Both available: let Electron pick (prefers Wayland when sensible).
-    app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
-    app.commandLine.appendSwitch('enable-features', 'UseOzonePlatform');
-  }
-}
+// NOTE: the Wayland-vs-X11 display backend is selected via the
+// ELECTRON_OZONE_PLATFORM_HINT=auto env var set by scripts/run-electron.mjs —
+// it must be set BEFORE Electron's early init (app.commandLine switches are read
+// too late and the X11 path crashes first).
 
 const SCHEME = 'app';
 const ISOLATION_HEADERS = {
