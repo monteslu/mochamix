@@ -13,11 +13,12 @@ import {
   type PeakData,
 } from '@internal-dj/waveform';
 import { useDj, useControl, useControlValue } from '../dj-context.js';
-import { WaveformView } from './WaveformView.js';
 import { Knob } from './Knob.js';
 import { HotcueRow } from './HotcueRow.js';
 import { LoopRow } from './LoopRow.js';
 import { QuickEffect } from './QuickEffect.js';
+import { Platter } from './Platter.js';
+import { setDeckTrack, useDeckTrack } from '../deck-state.js';
 
 interface Props {
   deckIndex: number; // 0-based
@@ -35,26 +36,28 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
   const duration = useControlValue(grp, DeckKeys.duration);
   const rateRatio = useControlValue(grp, DeckKeys.rateRatio);
 
-  const [trackName, setTrackName] = useState<string>('');
-  const [detail, setDetail] = useState<PeakData | null>(null);
-  const [overview, setOverview] = useState<PeakData | null>(null);
   const [loading, setLoading] = useState(false);
+  const deckTrack = useDeckTrack(deckIndex);
+  const trackName = deckTrack.artist
+    ? `${deckTrack.artist} - ${deckTrack.title ?? ''}`
+    : (deckTrack.title ?? '');
 
-  // Listen for library-initiated loads targeting this deck (peaks + name handoff).
+  // Library-initiated loads (peaks + metadata) write to the shared deck store.
   useEffect(() => {
     const handler = (e: Event) => {
-      const detailEv = (e as CustomEvent).detail as {
+      const ev = (e as CustomEvent).detail as {
         deckIndex: number;
         peaks: { detail: PeakData; overview: PeakData };
-        track: { title: string | null; artist: string | null; filename: string };
+        track: { title: string | null; artist: string | null; album?: string | null; filename: string; coverUrl?: string | null };
       };
-      if (detailEv.deckIndex !== deckIndex) {
-        return;
-      }
-      setDetail(detailEv.peaks.detail);
-      setOverview(detailEv.peaks.overview);
-      const t = detailEv.track;
-      setTrackName(t.artist ? `${t.artist} - ${t.title ?? t.filename}` : (t.title ?? t.filename));
+      if (ev.deckIndex !== deckIndex) return;
+      setDeckTrack(deckIndex, {
+        peaks: ev.peaks,
+        title: ev.track.title ?? ev.track.filename,
+        artist: ev.track.artist,
+        album: ev.track.album ?? null,
+        coverUrl: ev.track.coverUrl ?? null,
+      });
     };
     window.addEventListener('deck-track-loaded', handler);
     return () => window.removeEventListener('deck-track-loaded', handler);
@@ -77,16 +80,20 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
           channelData.push(all.subarray(c * track.frames, (c + 1) * track.frames));
         }
         const durationSec = track.frames / track.sampleRate;
-        const { detail: d, overview: o } = computePeakSet(
+        const peaks = computePeakSet(
           channelData,
           track.frames,
           detailBucketsForDuration(durationSec),
         );
-        setDetail(d);
-        setOverview(o);
+        setDeckTrack(deckIndex, {
+          peaks,
+          title: file.name.replace(/\.[^.]+$/, ''),
+          artist: null,
+          album: null,
+          coverUrl: null,
+        });
 
         engine.loadTrack(deckIndex, track);
-        setTrackName(file.name);
 
         // Analyze BPM/beatgrid off-thread; set file_bpm when done (drives
         // beatloops, sync, smart fader).
@@ -135,11 +142,6 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
     setPlay(play > 0.5 ? 0 : 1);
   }, [started, start, play, setPlay]);
 
-  const onSeek = useCallback(
-    (fraction: number) => engine.seekFraction(deckIndex, fraction),
-    [engine, deckIndex],
-  );
-
   const cue = useCallback(() => {
     // M1 cue = jump to start + stop (full cue modes arrive in M4).
     setPlay(0);
@@ -163,6 +165,7 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
 
   const effectiveBpm = useControlValue(grp, DeckKeys.fileBpm) * rateRatio;
   const posFraction = useControlValue(grp, DeckKeys.playPosition);
+  const deckKey = deckTrack.key;
 
   return (
     <section
@@ -171,28 +174,35 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
       onDrop={onDrop}
       aria-label={`Deck ${deckIndex + 1}`}
     >
-      <header className="deck-header">
-        <span className="deck-label">DECK {deckIndex + 1}</span>
-        <span className={`deck-track ${trackName ? '' : 'empty'}`} title={trackName}>
-          {trackName || 'no track loaded'}
-        </span>
-        <button className="tiny" onClick={onLoadClick} disabled={loading}>
-          {loading ? '…' : 'load'}
-        </button>
-      </header>
-
-      <WaveformView
-        deckIndex={deckIndex}
-        detail={detail}
-        overview={overview}
-        onSeek={onSeek}
-      />
-
-      <div className="deck-readout">
-        <span className="deck-time">{formatTime(duration * posFraction)}</span>
-        <span className="deck-readout-total">-{formatTime(duration * (1 - posFraction))}</span>
-        <span className="deck-bpm">{effectiveBpm > 0 ? effectiveBpm.toFixed(1) : '--.-'}</span>
-        <span className="deck-rate">{rateRatio >= 1 ? '+' : ''}{((rateRatio - 1) * 100).toFixed(1)}%</span>
+      {/* top: spinning platter + track info */}
+      <div className="deck-top">
+        <Platter deckIndex={deckIndex} coverUrl={deckTrack.coverUrl} />
+        <div className="deck-info">
+          <div className="deck-info-head">
+            <span className="deck-label">{deckIndex + 1}</span>
+            <span className={`deck-title ${trackName ? '' : 'empty'}`} title={trackName}>
+              {deckTrack.title ?? 'no track loaded'}
+            </span>
+            <button className="tiny" onClick={onLoadClick} disabled={loading}>
+              {loading ? '…' : 'load'}
+            </button>
+          </div>
+          <div className="deck-artist">{deckTrack.artist ?? ' '}</div>
+          <div className="deck-readout">
+            <span className="deck-time">{formatTime(duration * posFraction)}</span>
+            <span className="deck-readout-total">
+              -{formatTime(duration * (1 - posFraction))}
+            </span>
+            {deckKey && <span className="deck-key">{deckKey}</span>}
+          </div>
+          <div className="deck-bpmrow">
+            <span className="deck-bpm">{effectiveBpm > 0 ? effectiveBpm.toFixed(1) : '--.-'}</span>
+            <span className="deck-rate">
+              {rateRatio >= 1 ? '+' : ''}
+              {((rateRatio - 1) * 100).toFixed(1)}%
+            </span>
+          </div>
+        </div>
       </div>
 
       <div className="deck-transport">
@@ -207,9 +217,22 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
           {play > 0.5 ? '❚❚' : '▶'}
         </button>
         <button
+          className={`tiny ${keylock > 0.5 ? 'active' : ''}`}
+          onClick={() => setKeylock(keylock > 0.5 ? 0 : 1)}
+          title="keylock (master tempo)"
+        >
+          🔒
+        </button>
+        <button className="tiny bend" onPointerDown={() => startBend(-1)} title="pitch bend down">
+          ‹
+        </button>
+        <button className="tiny bend" onPointerDown={() => startBend(1)} title="pitch bend up">
+          ›
+        </button>
+        <button
           className={`pfl-btn ${pfl > 0.5 ? 'active' : ''}`}
           onClick={() => setPfl(pfl > 0.5 ? 0 : 1)}
-          title="Headphone cue (PFL) — monitor this deck in the headphone bus"
+          title="Headphone cue (PFL)"
         >
           🎧
         </button>
@@ -223,25 +246,7 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
         <Knob group={grp} ckey={DeckKeys.eqMid} label="MID" min={0} max={4} center={1} />
         <Knob group={grp} ckey={DeckKeys.eqLow} label="LOW" min={0} max={4} center={1} />
         <QuickEffect deckIndex={deckIndex} />
-        <div className="deck-extras">
-          <button
-            className={`tiny ${keylock > 0.5 ? 'active' : ''}`}
-            onClick={() => setKeylock(keylock > 0.5 ? 0 : 1)}
-            title="keylock (master tempo)"
-          >
-            🔒
-          </button>
-          <button className="tiny bend" onPointerDown={() => startBend(-1)} title="pitch bend down">
-            ‹
-          </button>
-          <button className="tiny bend" onPointerDown={() => startBend(1)} title="pitch bend up">
-            ›
-          </button>
-        </div>
       </div>
-
-      {/* silence unused import warning while bus is reserved for future direct reads */}
-      <span hidden>{bus ? '' : ''}</span>
     </section>
   );
 }

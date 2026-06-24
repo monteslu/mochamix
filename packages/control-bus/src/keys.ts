@@ -102,6 +102,7 @@ export const DeckKeys = {
   rateRatioOverride: 'rate_ratio_override',
   bpm: 'bpm', // effective BPM at current rate
   fileBpm: 'file_bpm', // analyzed/original BPM (used by sync + smart fader)
+  firstBeatFrame: 'beat_first_frame', // grid phase: frame of the first beat (-1 = unknown)
   keylock: 'keylock',
 
   // mixer (per channel)

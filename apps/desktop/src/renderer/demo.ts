@@ -14,6 +14,7 @@ import {
   MasterKeys,
   type ControlBus,
 } from '@internal-dj/control-bus';
+import { setDeckTrack } from './deck-state.js';
 
 export function isDemo(): boolean {
   return new URLSearchParams(location.search).has('demo');
@@ -39,8 +40,8 @@ function fakePeaks(frames: number, sampleRate: number): { detail: PeakData; over
 }
 
 const TRACKS = [
-  { artist: 'Com Truise', title: 'Flightwave', bpm: 128 },
-  { artist: 'Bonobo', title: 'Kerala', bpm: 122 },
+  { artist: 'Com Truise', title: 'Flightwave', album: 'In Decay', bpm: 128, key: '8A' },
+  { artist: 'Bonobo', title: 'Kerala', album: 'Migration', bpm: 122, key: '5A' },
 ];
 
 /** Seed both decks with demo state. Call once after the React tree mounts. */
@@ -56,19 +57,23 @@ export function seedDemo(bus: ControlBus): void {
     bus.set(g, DeckKeys.trackSamples, frames);
     bus.set(g, DeckKeys.duration, frames / sampleRate);
     bus.set(g, DeckKeys.fileBpm, t.bpm);
+    bus.set(g, DeckKeys.firstBeatFrame, sampleRate * 0.05);
     bus.set(g, DeckKeys.playPosition, d === 0 ? 0.34 : 0.52);
     if (d === 0) bus.set(g, DeckKeys.play, 1);
-    // a few hotcues
-    for (let n = 1; n <= 4; n++) {
-      bus.set(g, hotcuePositionKey(n), frames * (0.1 + n * 0.18));
+    // hotcues across the track
+    for (let n = 1; n <= 6; n++) {
+      bus.set(g, hotcuePositionKey(n), frames * (0.08 + n * 0.14));
       bus.set(g, hotcueEnabledKey(n), 1);
     }
 
-    window.dispatchEvent(
-      new CustomEvent('deck-track-loaded', {
-        detail: { deckIndex: d, peaks, track: { ...t, filename: `${t.title}.flac` } },
-      }),
-    );
+    setDeckTrack(d, {
+      peaks,
+      title: t.title,
+      artist: t.artist,
+      album: t.album,
+      key: t.key,
+      coverUrl: null,
+    });
   }
   bus.set(MASTER, MasterKeys.crossfader, -0.25);
 }

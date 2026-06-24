@@ -51,6 +51,7 @@ function deckControls(g: string): ControlDef[] {
     { group: g, key: DeckKeys.rateRatioOverride, default: 0, description: 'Sync/SmartFader ratio override; 0=off' },
     { group: g, key: DeckKeys.bpm, default: 0, description: 'Effective BPM' },
     { group: g, key: DeckKeys.fileBpm, default: 0, description: 'Analyzed/original BPM' },
+    { group: g, key: DeckKeys.firstBeatFrame, default: -1, description: 'Grid phase (first beat frame)' },
     { group: g, key: DeckKeys.keylock, default: 0, persist: true, description: 'Keylock on/off' },
 
     // mixer
