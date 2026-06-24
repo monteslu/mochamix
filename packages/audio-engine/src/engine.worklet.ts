@@ -24,6 +24,7 @@
 import { wrapSab, sabRead, sabWrite, type SabLayout } from '@internal-dj/control-bus';
 import { DeckPlayback } from './deck-playback.js';
 import { calculateSpeed } from './rate.js';
+import { VuMeter } from './vu-meter.js';
 import type {
   DeckControlIndices,
   EngineMessage,
@@ -49,15 +50,21 @@ declare function registerProcessor(
 interface DeckSlot {
   playback: DeckPlayback;
   indices: DeckControlIndices;
+  vu: VuMeter;
+  /** Last volume-fader value, captured for the VU publish. */
+  lastVolume: number;
   /** How often to publish play position back to the bus (in blocks). */
   positionPublishCounter: number;
 }
 
 const POSITION_PUBLISH_EVERY = 4; // ~every 4 blocks (~11ms @48k/128) → smooth UI, low churn
+// VU publish cadence: ~30Hz. At 48k/128 a block is ~2.67ms, so ~11 blocks ≈ 30Hz.
+const VU_PUBLISH_EVERY = 11;
 
 class EngineProcessor extends AudioWorkletProcessor {
   private control: SabLayout | null = null;
   private decks: DeckSlot[] = [];
+  private vuCounter = 0;
 
   constructor() {
     super();
@@ -72,8 +79,11 @@ class EngineProcessor extends AudioWorkletProcessor {
         this.decks = msg.deckIndices.map((indices) => ({
           playback: new DeckPlayback(msg.sampleRate),
           indices,
+          vu: new VuMeter(),
+          lastVolume: 1,
           positionPublishCounter: 0,
         }));
+        this.vuCounter = 0;
         break;
       }
       case 'loadTrack': {
@@ -164,6 +174,12 @@ class EngineProcessor extends AudioWorkletProcessor {
         }
       }
 
+      // Meter the (post-pregain) deck signal. Measure channel 0 (cheap; stereo
+      // VU split can come later). Applies the volume fader's contribution so the
+      // meter reflects what's sent to the mix.
+      const volume = sabRead(control, idx.volume);
+      slot.vu.process(out[0]!, numFrames);
+
       // Publish effective rate ratio + position (rate-limited).
       sabWrite(control, idx.rateRatio, speed);
       if (++slot.positionPublishCounter >= POSITION_PUBLISH_EVERY) {
@@ -175,6 +191,20 @@ class EngineProcessor extends AudioWorkletProcessor {
       if (playing && !stillPlaying && slot.playback.hasTrack()) {
         sabWrite(control, idx.play, 0);
         this.port.postMessage({ type: 'trackEnded', deck: d });
+      }
+
+      // Stash volume for the VU publish below (avoids a second sabRead).
+      slot.lastVolume = volume;
+    }
+
+    // Publish VU meters at ~30Hz (one cadence for all decks).
+    if (++this.vuCounter >= VU_PUBLISH_EVERY) {
+      this.vuCounter = 0;
+      for (const slot of this.decks) {
+        const scaled = Math.min(1, slot.vu.getLevel() * (slot.lastVolume ?? 1));
+        sabWrite(control, slot.indices.vuMeter, scaled);
+        sabWrite(control, slot.indices.peakIndicator, slot.vu.isClipped() ? 1 : 0);
+        slot.vu.resetPeak();
       }
     }
 

@@ -150,6 +150,8 @@ export class Engine {
       trackLoaded: r(DeckKeys.trackLoaded),
       trackSamples: r(DeckKeys.trackSamples),
       duration: r(DeckKeys.duration),
+      vuMeter: r(DeckKeys.vuMeter),
+      peakIndicator: r(DeckKeys.peakIndicator),
     };
   }
 

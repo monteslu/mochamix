@@ -21,6 +21,7 @@ export {
 export { SmartFader, type SmartFaderDeps } from './sync/smart-fader.js';
 export { sliderFromRateRatio } from './rate.js';
 export { calculateSpeed, rateRatioFromSlider } from './rate.js';
+export { VuMeter } from './vu-meter.js';
 export {
   getXfadeGains,
   crossfaderGainForChannel,

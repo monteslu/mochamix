@@ -17,6 +17,7 @@ import { WaveformView } from './WaveformView.js';
 import { Knob } from './Knob.js';
 import { HotcueRow } from './HotcueRow.js';
 import { LoopRow } from './LoopRow.js';
+import { VuMeterBar } from './VuMeterBar.js';
 
 interface Props {
   deckIndex: number; // 0-based
@@ -124,6 +125,21 @@ export function Deck({ deckIndex }: Props): React.JSX.Element {
     engine.seekFraction(deckIndex, 0);
   }, [setPlay, engine, deckIndex]);
 
+  // Temporary pitch bend: while held, add a small offset to the rate slider; on
+  // release, restore. For manual beatmatching (nudge a deck into phase).
+  const startBend = useCallback(
+    (dir: number) => {
+      const base = bus.get(grp, DeckKeys.rate);
+      bus.set(grp, DeckKeys.rate, base + dir * 0.08);
+      const end = () => {
+        bus.set(grp, DeckKeys.rate, base);
+        window.removeEventListener('pointerup', end);
+      };
+      window.addEventListener('pointerup', end);
+    },
+    [bus, grp],
+  );
+
   const effectiveBpm = useControlValue(grp, DeckKeys.fileBpm) * rateRatio;
 
   return (
@@ -180,7 +196,13 @@ export function Deck({ deckIndex }: Props): React.JSX.Element {
       </div>
 
       <div className="deck-tempo">
-        <label>TEMPO</label>
+        <button
+          className="tiny bend"
+          onPointerDown={() => startBend(-1)}
+          title="pitch bend down (hold)"
+        >
+          ‹
+        </button>
         <input
           type="range"
           min={-1}
@@ -191,6 +213,13 @@ export function Deck({ deckIndex }: Props): React.JSX.Element {
           className="tempo-slider"
           aria-label={`Deck ${deckIndex + 1} tempo`}
         />
+        <button
+          className="tiny bend"
+          onPointerDown={() => startBend(1)}
+          title="pitch bend up (hold)"
+        >
+          ›
+        </button>
         <button className="tiny" onClick={() => setRate(0)} title="reset tempo">
           0
         </button>
@@ -205,6 +234,7 @@ export function Deck({ deckIndex }: Props): React.JSX.Element {
 
       <div className="deck-volume">
         <Knob group={grp} ckey={DeckKeys.volume} label="VOL" min={0} max={1} center={1} />
+        <VuMeterBar deckIndex={deckIndex} />
       </div>
 
       {/* silence unused import warning while bus is reserved for future direct reads */}

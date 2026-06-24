@@ -223,13 +223,53 @@ body,
   letter-spacing: 0.5px;
 }
 
+/* vu meter */
+.deck-volume {
+  align-items: center;
+}
+.vu-meter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  height: 44px;
+}
+.vu-clip {
+  width: 8px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--danger);
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.vu-track {
+  width: 8px;
+  flex: 1;
+  background: #0a0c10;
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column-reverse;
+  overflow: hidden;
+}
+.vu-fill {
+  width: 100%;
+  height: 0%;
+  background: linear-gradient(0deg, var(--play) 0%, var(--play) 60%, var(--cue) 82%, var(--danger) 100%);
+}
+
 /* tempo */
 .deck-tempo {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 11px;
   color: var(--text-dim);
+}
+.bend {
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 8px;
 }
 .tempo-slider {
   flex: 1;

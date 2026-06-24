@@ -312,9 +312,19 @@ worker, beat-accurate loops, and the Smart Fader tempo blend all live. The fork 
 re-architecture and is cleaner than the C++ original (one control + the override, no sync-engine
 surgery).
 
+### M3 leftovers — DONE (VU + pitch-bend)
+- `vu-meter.ts` — `VuMeter`: mean-of-abs, fast-attack/slow-decay smoothing, peak-hold + clip flag.
+  Worklet runs one per deck, meters the post-pregain signal, publishes vu_meter + peak_indicator to the
+  SAB at ~30Hz (every 11 blocks @48k/128), volume-scaled. 5 tests (attack>decay, slow decay, clip).
+- `VuMeterBar` UI — rAF-polls the bus value, sqrt-scaled vertical bar with a clip light. No React churn.
+- Temporary pitch-bend buttons (‹ ›) — hold to nudge the rate ±0.08 for manual beatmatch; release
+  restores. Pure UI (offset the rate control), no engine change.
+- PFL/headphone cue DEFERRED — needs the multi-output-device work (the documented M3 friction, 10 §4a).
+  Low value solo (you hear the main mix); revisit if a real 2-output setup matters.
+
 ### Where we are after session 1
-M1 (first light) · M2 (keylock) · M4 (cues/loops) · M5 (analysis/sync/smartfader) all COMPLETE.
-6 packages + the Electron app, 76 tests, boots cross-origin-isolated with WebGPU. Skipped M3 (mixer
-polish — M1 already gave a working mixer). Remaining: M3 leftovers (PFL cue, VU, temp pitch-bend), M6
-(library/SQLite), M7 (controllers/Web MIDI + Mixxx mappings), M8 (effects), M9 (record/broadcast/stems).
-Everything pending a human ear/eye test on real hardware (no display + no Electron binary in this env).
+M1 (first light) · M2 (keylock) · M3 (mixer: EQ/xfader/VU/pitch-bend) · M4 (cues/loops) ·
+M5 (analysis/sync/smartfader) all COMPLETE. 6 packages + the Electron app, 81 tests, boots
+cross-origin-isolated with WebGPU. Remaining: M6 (library/SQLite), M7 (controllers/Web MIDI + Mixxx
+mappings), M8 (effects), M9 (record/broadcast/stems), + PFL cue. Everything pending a human ear/eye test
+on real hardware (no display + no Electron binary in this env).

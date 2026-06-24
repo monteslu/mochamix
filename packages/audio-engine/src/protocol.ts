@@ -25,6 +25,8 @@ export interface DeckControlIndices {
   trackLoaded: number;
   trackSamples: number;
   duration: number;
+  vuMeter: number;
+  peakIndicator: number;
 }
 
 /** Static engine configuration sent once at init. */
