@@ -17,4 +17,5 @@ export {
   type Marker,
   type LoopRegion,
   type Overlay,
+  type ScrollOverlay,
 } from './render-canvas2d.js';

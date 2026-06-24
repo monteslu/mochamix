@@ -66,7 +66,7 @@ app.whenReady().then(async () => {
     },
   });
   win.webContents.on('console-message', (_e, _l, m) => console.log('[r]', m));
-  await win.loadURL(`${SCHEME}://app/index.html`);
+  await win.loadURL(`${SCHEME}://app/index.html?demo`);
   // Give React + fonts time to settle.
   await new Promise((r) => setTimeout(r, 2500));
   const img = await win.webContents.capturePage();

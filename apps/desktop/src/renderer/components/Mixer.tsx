@@ -24,8 +24,8 @@ export function Mixer(): React.JSX.Element {
 
   return (
     <section className="mixer" aria-label="Mixer">
+      <div className="mixer-title">MASTER</div>
       <div className="mixer-master">
-        <label>MASTER</label>
         <input
           type="range"
           min={0}
@@ -36,10 +36,11 @@ export function Mixer(): React.JSX.Element {
           className="master-gain"
           aria-label="Master gain"
         />
+        <label>{gain.toFixed(1)}</label>
       </div>
 
       <div className="mixer-xfader">
-        <span className="xfader-end">A</span>
+        <span className="xfader-end a">A</span>
         <input
           type="range"
           min={-1}
@@ -50,7 +51,7 @@ export function Mixer(): React.JSX.Element {
           className="xfader-slider"
           aria-label="Crossfader"
         />
-        <span className="xfader-end">B</span>
+        <span className="xfader-end b">B</span>
         <button className="tiny" onClick={() => setXfader(0)} title="center crossfader">
           ◇
         </button>

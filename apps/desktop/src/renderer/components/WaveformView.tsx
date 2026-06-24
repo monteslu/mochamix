@@ -87,7 +87,12 @@ export function WaveformView({
         drawOverview(overviewCanvas, overview, fraction, DEFAULT_COLORS, overlay);
       }
       if (scrollCanvas && detail) {
-        drawScrolling(scrollCanvas, detail, positionFrames, framesPerPx, DEFAULT_COLORS);
+        const fileBpm = bus.get(grp, DeckKeys.fileBpm);
+        const framesPerBeat = fileBpm > 0 ? (60 / fileBpm) * 48000 : 0;
+        drawScrolling(scrollCanvas, detail, positionFrames, framesPerPx, DEFAULT_COLORS, {
+          firstBeatFrame: 0,
+          framesPerBeat,
+        });
       }
       raf = requestAnimationFrame(tick);
     };

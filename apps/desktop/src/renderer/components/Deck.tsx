@@ -22,9 +22,10 @@ import { QuickEffect } from './QuickEffect.js';
 
 interface Props {
   deckIndex: number; // 0-based
+  side?: 'left' | 'right';
 }
 
-export function Deck({ deckIndex }: Props): React.JSX.Element {
+export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
   const { engine, bus, analysis, started, start } = useDj();
   const grp = deckGroup(deckIndex + 1);
 
@@ -163,6 +164,7 @@ export function Deck({ deckIndex }: Props): React.JSX.Element {
   );
 
   const effectiveBpm = useControlValue(grp, DeckKeys.fileBpm) * rateRatio;
+  const posFraction = useControlValue(grp, DeckKeys.playPosition);
 
   return (
     <section
@@ -173,11 +175,11 @@ export function Deck({ deckIndex }: Props): React.JSX.Element {
     >
       <header className="deck-header">
         <span className="deck-label">DECK {deckIndex + 1}</span>
-        <span className="deck-track" title={trackName}>
+        <span className={`deck-track ${trackName ? '' : 'empty'}`} title={trackName}>
           {trackName || 'no track loaded'}
         </span>
-        <button onClick={onLoadClick} disabled={loading}>
-          {loading ? 'loading…' : 'load'}
+        <button className="tiny" onClick={onLoadClick} disabled={loading}>
+          {loading ? '…' : 'load'}
         </button>
       </header>
 
@@ -189,10 +191,10 @@ export function Deck({ deckIndex }: Props): React.JSX.Element {
       />
 
       <div className="deck-readout">
-        <span>{formatTime(duration * useControlValue(grp, DeckKeys.playPosition))}</span>
-        <span className="deck-readout-total">{formatTime(duration)}</span>
-        {effectiveBpm > 0 && <span className="deck-bpm">{effectiveBpm.toFixed(1)} BPM</span>}
-        <span className="deck-rate">{((rateRatio - 1) * 100).toFixed(1)}%</span>
+        <span className="deck-time">{formatTime(duration * posFraction)}</span>
+        <span className="deck-readout-total">-{formatTime(duration * (1 - posFraction))}</span>
+        <span className="deck-bpm">{effectiveBpm > 0 ? effectiveBpm.toFixed(1) : '--.-'}</span>
+        <span className="deck-rate">{rateRatio >= 1 ? '+' : ''}{((rateRatio - 1) * 100).toFixed(1)}%</span>
       </div>
 
       <div className="deck-transport">

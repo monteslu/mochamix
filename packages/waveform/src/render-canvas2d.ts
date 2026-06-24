@@ -128,12 +128,47 @@ export function drawOverview(
  * controls zoom (source frames per canvas pixel). The playhead sits at canvas
  * center; the waveform scrolls under it. Uses the detailed peak set.
  */
+/**
+ * Amplitude → color, approximating the pro DJ convention (low energy = cool/blue,
+ * high energy = warm). Until real 4-band data lands, we grade by overall peak so
+ * the waveform reads as colorful + alive rather than a flat monochrome block.
+ * `played` dims/desaturates the already-played portion.
+ */
+function ampColor(amp01: number, played: boolean): string {
+  // low → teal/blue, mid → green, high → warm
+  let r: number, g: number, b: number;
+  if (amp01 < 0.5) {
+    const t = amp01 / 0.5;
+    r = 30 + t * 20;
+    g = 120 + t * 110;
+    b = 220 - t * 90;
+  } else {
+    const t = (amp01 - 0.5) / 0.5;
+    r = 50 + t * 200;
+    g = 230 - t * 60;
+    b = 130 - t * 90;
+  }
+  if (played) {
+    r *= 0.45;
+    g *= 0.45;
+    b *= 0.45;
+  }
+  return `rgb(${r | 0},${g | 0},${b | 0})`;
+}
+
+export interface ScrollOverlay {
+  /** Beat grid: frame of the first beat + frames per beat (0 = no grid). */
+  firstBeatFrame?: number;
+  framesPerBeat?: number;
+}
+
 export function drawScrolling(
   canvas: HTMLCanvasElement | OffscreenCanvas,
   detail: PeakData,
   positionFrames: number,
   framesPerPx: number,
-  colors: WaveformColors = DEFAULT_COLORS,
+  _colors: WaveformColors = DEFAULT_COLORS,
+  overlay?: ScrollOverlay,
 ): void {
   const ctx = canvas.getContext('2d') as
     | CanvasRenderingContext2D
@@ -146,41 +181,49 @@ export function drawScrolling(
   const h = canvas.height;
   const mid = h / 2;
   const centerX = w / 2;
-
-  ctx.fillStyle = colors.background;
-  ctx.fillRect(0, 0, w, h);
-
-  ctx.strokeStyle = colors.axis;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(0, mid);
-  ctx.lineTo(w, mid);
-  ctx.stroke();
-
   const { peaks, framesPerBucket, length } = detail;
 
-  ctx.strokeStyle = colors.wave;
-  ctx.beginPath();
+  // background gradient
+  const bg = ctx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, '#0c1018');
+  bg.addColorStop(0.5, '#06090e');
+  bg.addColorStop(1, '#0c1018');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+
+  // beat grid (white ticks; brighter downbeat every 4)
+  if (overlay?.framesPerBeat && overlay.framesPerBeat > 0) {
+    const fpb = overlay.framesPerBeat;
+    const first = overlay.firstBeatFrame ?? 0;
+    const leftFrame = positionFrames - centerX * framesPerPx;
+    const rightFrame = positionFrames + centerX * framesPerPx;
+    let n = Math.ceil((leftFrame - first) / fpb);
+    for (;;) {
+      const bf = first + n * fpb;
+      if (bf > rightFrame) break;
+      const x = centerX + (bf - positionFrames) / framesPerPx;
+      const down = ((n % 4) + 4) % 4 === 0;
+      ctx.fillStyle = down ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.08)';
+      ctx.fillRect(x, 0, down ? 1.5 : 1, h);
+      n++;
+    }
+  }
+
+  // waveform columns, colored by amplitude, dimmed when played
   for (let x = 0; x < w; x++) {
     const frame = positionFrames + (x - centerX) * framesPerPx;
-    if (frame < 0) {
-      continue;
-    }
+    if (frame < 0) continue;
     const b = Math.floor(frame / framesPerBucket);
-    if (b >= length) {
-      break;
-    }
-    const amp = (peaks[b]! / 255) * mid;
-    ctx.moveTo(x + 0.5, mid - amp);
-    ctx.lineTo(x + 0.5, mid + amp);
+    if (b >= length) break;
+    const amp01 = peaks[b]! / 255;
+    const amp = amp01 * mid * 0.92;
+    ctx.fillStyle = ampColor(amp01, x < centerX);
+    ctx.fillRect(x, mid - amp, 1, amp * 2);
   }
-  ctx.stroke();
 
-  // playhead at center
-  ctx.strokeStyle = colors.playhead;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(centerX + 0.5, 0);
-  ctx.lineTo(centerX + 0.5, h);
-  ctx.stroke();
+  // center playhead — glowing line
+  ctx.fillStyle = 'rgba(255,90,90,0.18)';
+  ctx.fillRect(centerX - 2, 0, 4, h);
+  ctx.fillStyle = '#ff5a5a';
+  ctx.fillRect(centerX - 0.5, 0, 1.5, h);
 }

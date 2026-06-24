@@ -13,6 +13,41 @@ import { deck as deckGroup, DeckKeys } from '@internal-dj/control-bus';
 
 type SortCol = 'artist' | 'title' | 'album' | 'bpm' | 'duration' | 'genre';
 
+// Demo rows for visual development (?demo) — no DB/IPC needed.
+const DEMO_TRACKS: LibTrack[] = (
+  [
+    ['Com Truise', 'Flightwave', 'In Decay', 'Synthwave', 128, 372],
+    ['Bonobo', 'Kerala', 'Migration', 'Electronic', 122, 314],
+    ['Tycho', 'Awake', 'Awake', 'Ambient', 115, 320],
+    ['Jon Hopkins', 'Emerald Rush', 'Singularity', 'Techno', 126, 365],
+    ['Four Tet', 'Two Thousand and Seventeen', 'New Energy', 'Electronic', 110, 248],
+    ['Rival Consoles', 'Recovery', 'Persona', 'Electronic', 120, 386],
+    ['Floating Points', 'Last Bloom', 'Crush', 'Electronic', 130, 290],
+    ['Boards of Canada', 'Roygbiv', 'Music Has the Right…', 'IDM', 95, 154],
+    ['Aphex Twin', 'Xtal', 'Selected Ambient Works', 'IDM', 124, 293],
+    ['Daft Punk', 'Veridis Quo', 'Discovery', 'House', 112, 345],
+    ['Caribou', 'Odessa', 'Swim', 'Electronic', 118, 358],
+    ['Moderat', 'A New Error', 'Moderat', 'Electronic', 100, 437],
+  ] as const
+).map((t, i) => ({
+  id: i + 1,
+  location: `/music/${t[1]}.flac`,
+  filename: `${t[1]}.flac`,
+  artist: t[0],
+  title: t[1],
+  album: t[2],
+  genre: t[3],
+  year: '2017',
+  duration: t[5],
+  bitrate: 1000,
+  bpm: t[4],
+  firstBeatFrame: 0,
+  key: null,
+  rating: 0,
+  timesPlayed: 0,
+  filetype: 'flac',
+}));
+
 export function Library(): React.JSX.Element {
   const { engine, bus, started, start } = useDj();
   const [tracks, setTracks] = useState<LibTrack[]>([]);
@@ -25,6 +60,10 @@ export function Library(): React.JSX.Element {
   const [dbError, setDbError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
+    if (new URLSearchParams(location.search).has('demo')) {
+      setTracks(DEMO_TRACKS);
+      return;
+    }
     try {
       const rows = await window.dj.libraryQuery({
         search,
