@@ -71,8 +71,10 @@ body,
 }
 
 .app {
-  /* --console-h is set by the Splitter drag; defaults to a flexible share. */
-  --console-h: minmax(220px, 1fr);
+  /* --console-h is set by the Splitter drag; defaults to a flexible share. The
+     console (decks+mixer) is information-dense but fixed-ish in what it needs, so
+     it gets a smaller share and the library (song list) gets the rest. */
+  --console-h: minmax(180px, 0.7fr);
   /* library row min/ratio — presets tune these. */
   --library-min: 120px;
   --library-fr: 1fr;
@@ -93,8 +95,8 @@ body,
    performance = balanced (default); library = bigger browser; minimal = decks
    take the room, browser shrinks to a strip. */
 .app[data-layout='performance'] {
-  --console-h: minmax(220px, 1fr);
-  --library-fr: 1fr;
+  --console-h: minmax(180px, 0.7fr);
+  --library-fr: 1.3fr;
 }
 .app[data-layout='library'] {
   --console-h: minmax(200px, 0.7fr);
@@ -279,10 +281,10 @@ body,
   background: linear-gradient(180deg, var(--panel), var(--bg-2));
   border: 1px solid var(--edge);
   border-radius: var(--radius);
-  padding: calc(12px * var(--u)) calc(14px * var(--u));
+  padding: calc(8px * var(--u)) calc(12px * var(--u));
   display: flex;
   flex-direction: column;
-  gap: var(--gap);
+  gap: calc(var(--gap) * 0.7);
   min-width: 0;
   min-height: 0;
   /* container query context: the deck reflows based on ITS OWN width, not the
@@ -628,10 +630,10 @@ body,
 .hotcue-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 5px;
+  gap: 4px;
 }
 .hotcue-pad {
-  padding: 11px 0;
+  padding: 6px 0;
   font-size: 11px;
   font-weight: 600;
   background: linear-gradient(180deg, var(--panel-2), #141923);
