@@ -133,12 +133,21 @@ export class WaveformGL {
     // crash the React tree that constructs this.
     let gl: WebGLRenderingContext | null = null;
     try {
-      gl = canvas.getContext('webgl', {
+      // Match the context attrs that butterchurn (WebGL, proven working on this
+      // same AMD+Wayland machine) uses. The key one is alpha:FALSE — an
+      // alpha:true canvas forces Chromium to import an alpha-format dmabuf for
+      // compositing, which is the eglCreateImage EGL_BAD_MATCH (0x3009) that
+      // crash-loops the GPU process on this driver. An OPAQUE canvas imports
+      // fine. Prefer webgl2 (like butterchurn), fall back to webgl1.
+      const attrs: WebGLContextAttributes = {
         antialias: false,
         depth: false,
-        alpha: true,
+        stencil: false,
+        alpha: false,
         premultipliedAlpha: false,
-      }) as WebGLRenderingContext | null;
+      };
+      gl = (canvas.getContext('webgl2', attrs) ??
+        canvas.getContext('webgl', attrs)) as WebGLRenderingContext | null;
     } catch {
       gl = null;
     }

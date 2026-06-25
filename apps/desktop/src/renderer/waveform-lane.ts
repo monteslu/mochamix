@@ -32,10 +32,10 @@ export class WaveformLaneController {
     private readonly framesPerPx: number,
   ) {
     this.group = deckGroup(deckIndex + 1);
-    // WebGL is opt-in (?gl) for now: a canvas can only be GL OR 2D, and the
-    // Canvas2D path is the verified-working default. Once the GL texture path is
-    // confirmed on real hardware this flips back to the default.
-    this.useGl = new URLSearchParams(location.search).has('gl');
+    // WebGL is the default renderer (GPU). It crash-looped on Electron 33's
+    // Chromium (the AMD+Wayland eglCreateImage bug) but is FIXED in Electron 42 +
+    // verified working (ANGLE / AMD RX 7600). ?nogl forces the Canvas2D path.
+    this.useGl = !new URLSearchParams(location.search).has('nogl');
     if (this.useGl) this.gl = new WaveformGL(canvas);
 
     // size the backing store on real resize only (not per frame)

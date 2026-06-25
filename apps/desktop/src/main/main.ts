@@ -32,13 +32,23 @@ const isDev = process.argv.includes('--dev');
 // (.config/@internal-dj/desktop) — fragile for file creation. Use a flat name.
 app.setName('dj-app');
 
+// WebGPU enablement. MUST be set here (module load, before app ready) — switches
+// applied inside whenReady() are read too late. Stem separation (Demucs) + future
+// ML run on WebGPU compute, so this is load-bearing, not optional:
+//   enable-unsafe-webgpu : makes navigator.gpu appear in Electron on Linux
+//   enable-features=Vulkan : provides the Dawn backend — without it WebGPU is
+//        absent or "super slow" (per loukai's verified config). Linux→Vulkan,
+//        macOS→Metal, Windows→D3D12 under the hood.
+app.commandLine.appendSwitch('enable-unsafe-webgpu');
+app.commandLine.appendSwitch('enable-features', 'Vulkan');
+
 // NOTE: the GPU crash-loop on Linux ("eglCreateImage failed / OzoneImageBacking
 // ... GPU process exited unexpectedly") is Chromium's NATIVE-Wayland backend
 // being incompatible with the Vulkan/GPU path. It's fixed by running under X11
 // ozone (XWayland), selected via ELECTRON_OZONE_PLATFORM_HINT in
 // scripts/run-electron.mjs — that env var must be set BEFORE Electron's early
 // init (app.commandLine switches are read too late). Same fix loukai uses. No
-// GPU command-line switches here: they were guesses that didn't address the
+// other GPU command-line switches: they were guesses that didn't address the
 // actual native-Wayland cause.
 
 
@@ -235,9 +245,7 @@ ipcMain.handle('library:scan', async (e) => {
 });
 
 app.whenReady().then(() => {
-  // We require WebGPU (no fallback — 10 §0a). Enable unsafe in case a platform gates it.
-  app.commandLine.appendSwitch('enable-unsafe-webgpu');
-
+  // (WebGPU switches are set at module load above — too late if done here.)
   protocol.handle(SCHEME, handleAppProtocol);
 
   createWindow();

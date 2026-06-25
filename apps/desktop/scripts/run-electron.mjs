@@ -15,24 +15,14 @@ const require = createRequire(import.meta.url);
 const electron = require('electron'); // resolves to the binary path string
 
 const env = { ...process.env };
-if (process.platform === 'linux') {
-  // Default to X11 ozone (XWayland) on Linux. Chromium's NATIVE-Wayland backend
-  // is incompatible with the Vulkan/GPU path on many setups — the GPU process
-  // crash-loops ("eglCreateImage failed / OzoneImageBacking ... GPU process
-  // exited unexpectedly"), pegging the app to ~30fps and blanking GPU canvases.
-  // Running under XWayland avoids the broken native-Wayland dmabuf import while
-  // keeping full GPU acceleration + WebGL/WebGPU. This is the same fix loukai
-  // uses (`--ozone-platform=x11`) for the identical crash. Set DJ_WAYLAND=1 to
-  // force native Wayland instead (sharper rendering, but the GPU crash returns
-  // on affected drivers).
-  if (process.env.DJ_WAYLAND === '1') {
-    env.ELECTRON_OZONE_PLATFORM_HINT = 'auto';
-  } else {
-    env.ELECTRON_OZONE_PLATFORM_HINT = 'x11';
-    // X11 ozone needs a reachable display; XWayland runs at :0. Only default it
-    // if nothing set DISPLAY, so a real X session is respected.
-    if (!env.DISPLAY) env.DISPLAY = ':0';
-  }
+if (process.platform === 'linux' && !env.ELECTRON_OZONE_PLATFORM_HINT) {
+  // Native Wayland by default: WebGPU compute (the stem-separation backend) works
+  // on native Wayland here (verified: requestAdapter → amd/rdna-3 device OK), and
+  // X11 ozone is fragile (fails outright when XWayland isn't reachable). The 2D-
+  // compositor GPU-rasterization crash is handled in main.ts WITHOUT disabling
+  // the GPU, so WebGPU stays available. DJ_OZONE=x11 forces XWayland if ever
+  // needed (e.g. a driver where Wayland WebGPU regresses).
+  env.ELECTRON_OZONE_PLATFORM_HINT = process.env.DJ_OZONE === 'x11' ? 'x11' : 'auto';
 }
 
 const args = ['.', ...process.argv.slice(2)];
