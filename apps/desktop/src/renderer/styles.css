@@ -839,17 +839,21 @@ body,
   min-height: 0; /* critical: lets the strips flex-shrink instead of overflowing */
   overflow: hidden;
 }
-.mixer-top {
+/* MAIN output + Smart Fader cluster in the titlebar (moved out of the mixer to
+   keep that panel short, Mixxx-style). Compact horizontal row. */
+.main-controls {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  flex: 0 0 auto;
+  gap: 6px;
+}
+.main-controls .knob {
+  transform: scale(0.8);
 }
 .mixer-mainval {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   color: var(--text-dim);
+  min-width: 22px;
 }
 /* build stamp — proves the running window is the latest build at a glance */
 .build-stamp {

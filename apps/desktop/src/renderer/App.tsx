@@ -10,6 +10,7 @@ import { Deck } from './components/Deck.js';
 import { Mixer } from './components/Mixer.js';
 import { Library } from './components/Library.js';
 import { AudioSettings } from './components/AudioSettings.js';
+import { MainControls } from './components/MainControls.js';
 import { ControllerSettings } from './components/ControllerSettings.js';
 import { TempoFader } from './components/Faders.js';
 import { WaveformBand } from './components/WaveformBand.js';
@@ -147,6 +148,7 @@ function Stage(): React.JSX.Element {
             {prefs.density === 'compact' ? '⊟ compact' : '⊞ comfy'}
           </button>
         </div>
+        <MainControls />
         <RecordButton />
         <button className="tiny" onClick={() => setShowMidi(true)} title="MIDI controllers">
           🎛 MIDI

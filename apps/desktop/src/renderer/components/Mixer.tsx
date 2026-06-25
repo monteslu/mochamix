@@ -8,7 +8,7 @@
 
 import { useEffect } from 'react';
 import { MASTER, MasterKeys, deck as deckGroup, DeckKeys } from '@dj/control-bus';
-import { useControl, useControlValue, useDj } from '../dj-context.js';
+import { useControl, useDj } from '../dj-context.js';
 import { Knob } from './Knob.js';
 import { VuMeterBar } from './VuMeterBar.js';
 import { QuickEffect } from './QuickEffect.js';
@@ -49,10 +49,6 @@ function ChannelStrip({ deckIndex }: { deckIndex: number }): React.JSX.Element {
 export function Mixer(): React.JSX.Element {
   const { bus } = useDj();
   const [xfader, setXfader] = useControl(MASTER, MasterKeys.crossfader);
-  const [smartFader, setSmartFader] = useControl(MASTER, MasterKeys.smartFaderEnabled);
-  const gain = useControlValue(MASTER, MasterKeys.gain);
-  const sfTargetBpm = useControlValue(MASTER, MasterKeys.smartFaderTargetBpm);
-  const sfActive = useControlValue(MASTER, MasterKeys.smartFaderActive) > 0.5;
 
   // Orient deck 1 left, deck 2 right so the crossfader blends them.
   useEffect(() => {
@@ -62,20 +58,8 @@ export function Mixer(): React.JSX.Element {
 
   return (
     <section className="mixer" aria-label="Mixer">
-      <div className="mixer-top">
-        <button
-          className={`smart-icon ${smartFader > 0.5 ? 'active' : ''}`}
-          onClick={() => setSmartFader(smartFader > 0.5 ? 0 : 1)}
-          title={`Smart Fader: the crossfader blends the two decks' TEMPO, not just volume.${
-            sfActive && sfTargetBpm > 0 ? ` Target ${sfTargetBpm.toFixed(0)} BPM.` : ''
-          }`}
-        >
-          🧠
-        </button>
-        <Knob group={MASTER} ckey={MasterKeys.gain} label="MAIN" min={0} max={5} center={1} hint="Master output level" />
-        <span className="mixer-mainval">{gain.toFixed(1)}</span>
-      </div>
-
+      {/* MAIN output gain lives in the titlebar (Mixxx-style — keeps it out of the
+          channel-strip stack so the mixer panel stays short). */}
       <div className="mixer-strips">
         <ChannelStrip deckIndex={0} />
         <div className="mixer-vus">
