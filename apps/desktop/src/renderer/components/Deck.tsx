@@ -173,8 +173,14 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
     if (!started) {
       await start();
     }
+    // Browsers auto-suspend the AudioContext; resume on the play gesture so
+    // pressing play always actually produces sound (not just advances state).
+    const ctx = engine.audioContext;
+    if (ctx && ctx.state === 'suspended') {
+      await ctx.resume();
+    }
     setPlay(play > 0.5 ? 0 : 1);
-  }, [started, start, play, setPlay]);
+  }, [started, start, play, setPlay, engine]);
 
   // CUE (CDJ-style):
   //  - playing → jump back to the cue point and stop (so you can re-launch)

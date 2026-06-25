@@ -260,7 +260,7 @@ body,
 }
 .platter {
   position: relative;
-  width: clamp(80px, 9vw, 120px);
+  width: clamp(64px, 6vw, 88px);
   aspect-ratio: 1;
   flex: 0 0 auto;
 }
