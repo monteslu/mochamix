@@ -116,53 +116,66 @@ export class WaveformGL {
   readonly ok: boolean;
 
   constructor(canvas: HTMLCanvasElement | OffscreenCanvas) {
-    const gl = canvas.getContext('webgl', {
-      antialias: false,
-      depth: false,
-      premultipliedAlpha: false,
-    }) as WebGLRenderingContext | null;
+    // NEVER throw from here: any WebGL failure (no context, shader compile, link)
+    // must degrade to ok=false so the caller falls back to Canvas2D. A throw would
+    // crash the React tree that constructs this.
+    let gl: WebGLRenderingContext | null = null;
+    try {
+      gl = canvas.getContext('webgl', {
+        antialias: false,
+        depth: false,
+        premultipliedAlpha: false,
+      }) as WebGLRenderingContext | null;
+    } catch {
+      gl = null;
+    }
     if (!gl) {
       this.ok = false;
-      // dummy fields to satisfy types; never used when !ok
       this.gl = null as unknown as WebGLRenderingContext;
       this.prog = null as unknown as WebGLProgram;
       this.tex = null as unknown as WebGLTexture;
       return;
     }
-    this.gl = gl;
-    this.ok = true;
 
-    const prog = gl.createProgram()!;
-    gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VERT));
-    gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, FRAG));
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-      throw new Error('waveform program: ' + gl.getProgramInfoLog(prog));
+    try {
+      const prog = gl.createProgram()!;
+      gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VERT));
+      gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, FRAG));
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+        throw new Error('waveform program: ' + gl.getProgramInfoLog(prog));
+      }
+      gl.useProgram(prog);
+
+      const buf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+      const loc = gl.getAttribLocation(prog, 'a_pos');
+      gl.enableVertexAttribArray(loc);
+      gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+      for (const name of [
+        'u_res', 'u_tex', 'u_texLen', 'u_framesPerBucket',
+        'u_positionFrames', 'u_framesPerPx', 'u_firstBeat', 'u_framesPerBeat',
+      ]) {
+        this.u[name] = gl.getUniformLocation(prog, name);
+      }
+
+      this.gl = gl;
+      this.prog = prog;
+      this.tex = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_2D, this.tex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      this.ok = true;
+    } catch {
+      this.ok = false;
+      this.gl = null as unknown as WebGLRenderingContext;
+      this.prog = null as unknown as WebGLProgram;
+      this.tex = null as unknown as WebGLTexture;
     }
-    this.prog = prog;
-    gl.useProgram(prog);
-
-    // full-screen quad
-    const buf = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-    const loc = gl.getAttribLocation(prog, 'a_pos');
-    gl.enableVertexAttribArray(loc);
-    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-
-    for (const name of [
-      'u_res', 'u_tex', 'u_texLen', 'u_framesPerBucket',
-      'u_positionFrames', 'u_framesPerPx', 'u_firstBeat', 'u_framesPerBeat',
-    ]) {
-      this.u[name] = gl.getUniformLocation(prog, name);
-    }
-
-    this.tex = gl.createTexture()!;
-    gl.bindTexture(gl.TEXTURE_2D, this.tex);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   }
 
   /** Upload peaks (one Uint8 per bucket) as a luminance texture. Once per track. */

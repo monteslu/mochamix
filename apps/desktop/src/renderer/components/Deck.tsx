@@ -4,20 +4,15 @@
  * decode → peaks → engine.loadTrack pipeline.
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { deck as deckGroup, DeckKeys } from '@internal-dj/control-bus';
-import { decodeArrayBuffer } from '@internal-dj/codec';
-import {
-  computePeakSet,
-  detailBucketsForDuration,
-  type PeakData,
-} from '@internal-dj/waveform';
 import { useDj, useControl, useControlValue } from '../dj-context.js';
 import { HotcueRow } from './HotcueRow.js';
 import { LoopRow } from './LoopRow.js';
 import { Platter } from './Platter.js';
 import { OverviewStrip } from './OverviewStrip.js';
-import { setDeckTrack, useDeckTrack } from '../deck-state.js';
+import { useDeckTrack } from '../deck-state.js';
+import { loadTrackToDeck } from '../track-loader.js';
 
 interface Props {
   deckIndex: number; // 0-based
@@ -44,97 +39,29 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
     ? `${deckTrack.artist} - ${deckTrack.title ?? ''}`
     : (deckTrack.title ?? '');
 
-  // Library-initiated loads (peaks + metadata) write to the shared deck store.
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const ev = (e as CustomEvent).detail as {
-        deckIndex: number;
-        peaks: { detail: PeakData; overview: PeakData };
-        track: { title: string | null; artist: string | null; album?: string | null; filename: string; coverUrl?: string | null };
-      };
-      if (ev.deckIndex !== deckIndex) return;
-      setDeckTrack(deckIndex, {
-        peaks: ev.peaks,
-        title: ev.track.title ?? ev.track.filename,
-        artist: ev.track.artist,
-        album: ev.track.album ?? null,
-        coverUrl: ev.track.coverUrl ?? null,
-      });
-    };
-    window.addEventListener('deck-track-loaded', handler);
-    return () => window.removeEventListener('deck-track-loaded', handler);
-  }, [deckIndex]);
-
-  const loadFile = useCallback(
-    async (file: { name: string; data: ArrayBuffer }) => {
+  // Load a file's bytes into this deck via the shared pipeline (decode → peaks →
+  // engine → analysis → deck-state). All the heavy logic lives in track-loader.ts.
+  const load = useCallback(
+    async (file: { name: string; data: ArrayBuffer; path?: string }, libraryId?: number) => {
       setLoading(true);
       try {
-        if (!started) {
-          await start();
-        }
-        const ctx = engine.audioContext!;
-        const track = await decodeArrayBuffer(ctx, file.data, file.name);
-
-        // Compute peaks from the decoded planar data.
-        const channelData: Float32Array[] = [];
-        const all = new Float32Array(track.sampleBuffer);
-        for (let c = 0; c < track.channels; c++) {
-          channelData.push(all.subarray(c * track.frames, (c + 1) * track.frames));
-        }
-        const durationSec = track.frames / track.sampleRate;
-        const peaks = computePeakSet(
-          channelData,
-          track.frames,
-          detailBucketsForDuration(durationSec),
-        );
-        setDeckTrack(deckIndex, {
-          peaks,
-          title: file.name.replace(/\.[^.]+$/, ''),
-          artist: null,
-          album: null,
-          coverUrl: null,
-        });
-
-        engine.loadTrack(deckIndex, track);
-
-        // Analyze BPM/beatgrid/key off-thread; set controls when done (drives
-        // beatloops, sync, smart fader, grid display, key badge).
-        void analysis.analyze(track).then((r) => {
-          if (r.bpm > 0) {
-            bus.set(grp, DeckKeys.fileBpm, r.bpm);
-            bus.set(grp, DeckKeys.firstBeatFrame, r.firstBeatFrame);
-          }
-          if (r.camelot) {
-            setDeckTrack(deckIndex, { key: r.camelot });
-          }
+        if (!started) await start();
+        await loadTrackToDeck({ engine, bus, analysis }, deckIndex, {
+          file,
+          coverPath: file.path,
+          libraryId,
         });
       } finally {
         setLoading(false);
       }
     },
-    [engine, bus, analysis, grp, started, start, deckIndex],
-  );
-
-  // Fetch embedded cover art for a path → object URL on the deck store.
-  const fetchCover = useCallback(
-    async (path?: string) => {
-      if (!path) return;
-      const cover = await window.dj.trackCover(path);
-      if (cover) {
-        const url = URL.createObjectURL(new Blob([cover.data], { type: cover.mime }));
-        setDeckTrack(deckIndex, { coverUrl: url });
-      }
-    },
-    [deckIndex],
+    [engine, bus, analysis, deckIndex, started, start],
   );
 
   const onLoadClick = useCallback(async () => {
     const file = await window.dj.openTrack();
-    if (file) {
-      await loadFile(file);
-      void fetchCover(file.path);
-    }
-  }, [loadFile, fetchCover]);
+    if (file) await load(file);
+  }, [load]);
 
   const onDrop = useCallback(
     async (e: React.DragEvent) => {
@@ -145,28 +72,20 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
       const libId = e.dataTransfer.getData('application/x-dj-track-id');
       if (libId) {
         const file = await window.dj.readTrackById(Number(libId));
-        if (file) {
-          await loadFile(file);
-          void fetchCover(file.path);
-        }
+        if (file) await load(file, Number(libId));
         return;
       }
 
       // 2. Drag a file from the OS.
       const f = e.dataTransfer.files[0] as (File & { path?: string }) | undefined;
-      if (!f) {
-        return;
-      }
+      if (!f) return;
       if (f.path) {
-        const file = await window.dj.readTrack(f.path);
-        await loadFile(file);
-        void fetchCover(f.path);
+        await load(await window.dj.readTrack(f.path));
       } else {
-        const data = await f.arrayBuffer();
-        await loadFile({ name: f.name, data });
+        await load({ name: f.name, data: await f.arrayBuffer() });
       }
     },
-    [loadFile, fetchCover],
+    [load],
   );
 
   const togglePlay = useCallback(async () => {

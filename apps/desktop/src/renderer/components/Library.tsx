@@ -7,10 +7,8 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import type { LibTrack } from '../../shared/ipc.js';
 import { useDj, NUM_DECKS } from '../dj-context.js';
-import { decodeArrayBuffer } from '@internal-dj/codec';
-import { computePeakSet, detailBucketsForDuration } from '@internal-dj/waveform';
 import { deck as deckGroup, DeckKeys } from '@internal-dj/control-bus';
-import { setDeckTrack } from '../deck-state.js';
+import { loadTrackToDeck } from '../track-loader.js';
 import { RowWaveform } from './RowWaveform.js';
 
 type SortCol = 'artist' | 'title' | 'album' | 'bpm' | 'duration' | 'genre';
@@ -124,69 +122,19 @@ export function Library(): React.JSX.Element {
         await start();
       }
       const file = await window.dj.readTrackById(track.id);
-      if (!file) {
-        return;
-      }
-      const ctx = engine.audioContext!;
-      const decoded = await decodeArrayBuffer(ctx, file.data, file.name);
-      // peaks
-      const all = new Float32Array(decoded.sampleBuffer);
-      const channelData: Float32Array[] = [];
-      for (let c = 0; c < decoded.channels; c++) {
-        channelData.push(all.subarray(c * decoded.frames, (c + 1) * decoded.frames));
-      }
-      const dur = decoded.frames / decoded.sampleRate;
-      const peaks = computePeakSet(channelData, decoded.frames, detailBucketsForDuration(dur));
-
-      window.dispatchEvent(
-        new CustomEvent('deck-track-loaded', {
-          detail: {
-            deckIndex,
-            peaks,
-            track: {
-              title: track.title,
-              artist: track.artist,
-              album: track.album,
-              key: track.key,
-              filename: track.filename,
-            },
-          },
-        }),
-      );
-
-      engine.loadTrack(deckIndex, decoded);
-      const g = deckGroup(deckIndex + 1);
-      if (track.bpm > 0) {
-        bus.set(g, DeckKeys.fileBpm, track.bpm);
-      }
-      void window.dj.libraryIncrementPlay(track.id);
-
-      // cover art
-      void window.dj.trackCover(track.location).then((cover) => {
-        if (cover) {
-          const url = URL.createObjectURL(new Blob([cover.data], { type: cover.mime }));
-          setDeckTrack(deckIndex, { coverUrl: url });
-        }
+      if (!file) return;
+      await loadTrackToDeck({ engine, bus, analysis }, deckIndex, {
+        file,
+        meta: {
+          title: track.title,
+          artist: track.artist,
+          album: track.album,
+          key: track.key,
+          bpm: track.bpm,
+        },
+        coverPath: track.location,
+        libraryId: track.id,
       });
-
-      // analyze if BPM/key missing, and cache everything (incl. the overview
-      // peaks) so the next load is instant + the library row can draw a mini-wave.
-      if (track.bpm <= 0 || !track.key) {
-        void analysis.analyze(decoded).then((r) => {
-          if (r.bpm > 0) {
-            bus.set(g, DeckKeys.fileBpm, r.bpm);
-            bus.set(g, DeckKeys.firstBeatFrame, r.firstBeatFrame);
-          }
-          if (r.camelot) setDeckTrack(deckIndex, { key: r.camelot });
-          void window.dj.librarySetAnalysis(track.id, {
-            bpm: r.bpm,
-            firstBeatFrame: r.firstBeatFrame,
-            key: r.camelot,
-            waveform: peaks.overview.peaks,
-            analyzedAt: Date.now(),
-          });
-        });
-      }
     },
     [engine, bus, analysis, started, start],
   );
