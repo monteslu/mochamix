@@ -764,21 +764,23 @@ body,
   flex: 0 0 auto;
   margin-top: 1px;
 }
-/* fader height matches the knob column (5 stacked knobs); fixed, never stretches */
+/* fader scales with viewport height (roughly matches the knob column); bounded
+   so it never collapses or runs off-screen. */
 .chan-fader {
   flex: 0 0 auto;
-  height: 172px;
+  height: clamp(110px, 19vh, 200px);
   width: 22px;
 }
-/* center VU meters between the strips, matched to the fader height */
+/* center VU meters between the strips; bottom-aligned so they line up with the
+   bottoms of the channel faders regardless of the PFL/knob row heights. */
 .mixer-vus {
   display: flex;
   gap: 3px;
-  align-items: flex-start;
-  padding-top: 30px; /* drop below the PFL row to line up with the faders */
+  align-items: flex-end;
+  align-self: end;
 }
 .mixer-vus .vu-meter {
-  height: 172px;
+  height: clamp(110px, 19vh, 200px);
 }
 .pfl-mini {
   flex: 0 0 auto;
