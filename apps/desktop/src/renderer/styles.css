@@ -605,22 +605,25 @@ body,
 .deck-transport {
   display: flex;
   gap: 8px;
+  align-items: center;
+}
+/* EVERY button in the row is a tight fixed height with the extra space as vertical
+   MARGIN (not internal padding) — cue/play and sync/qnt/keylock/bend/pfl all match. */
+.deck-transport > button {
+  height: 34px;
+  margin: 6px 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .play-btn,
 .cue-btn {
   flex: 0 0 auto;
   width: clamp(48px, 5vw, 64px);
-  /* Shorter button + the extra space as vertical MARGIN (not internal padding), so
-     the button is tight and the breathing room is around it. */
-  height: 34px;
-  margin: 6px 0;
   font-size: 18px;
   padding: 0;
   font-weight: 700;
   border-radius: 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
 }
 .cue-btn {
   color: var(--cue);
