@@ -125,6 +125,21 @@ export class SqliteDb {
     try {
       this.inner = new WasmDatabase(dbPath);
     } catch (e) {
+      // Retry once after forcibly clearing the lock dir again (covers a lock that
+      // reappeared, or a first-open that created it then failed mid-init).
+      if (!isMemory) {
+        try {
+          rmSync(`${dbPath}.lock`, { recursive: true, force: true });
+        } catch {
+          /* best-effort */
+        }
+        try {
+          this.inner = new WasmDatabase(dbPath);
+          return;
+        } catch {
+          /* fall through to the thrown error below */
+        }
+      }
       throw new Error(`SqliteDb: failed to open database at "${dbPath}": ${String(e)}`);
     }
   }

@@ -146,8 +146,19 @@ ipcMain.handle('track:read', async (_e, path: string) => {
 
 let library: LibraryService | null = null;
 function getLibrary(): LibraryService {
-  if (!library) {
-    library = new LibraryService(join(app.getPath('userData'), 'library.db'));
+  if (library) {
+    return library;
+  }
+  const dbPath = join(app.getPath('userData'), 'library.db');
+  try {
+    library = new LibraryService(dbPath);
+  } catch (err) {
+    // The on-disk DB couldn't be opened (corruption / stale lock the cleanup
+    // missed / permissions). Rather than fail every IPC call, fall back to an
+    // in-memory library so the app stays usable; the user just won't have a
+    // persisted library this session. Surface it once.
+    console.error(`Library DB at ${dbPath} failed to open; using in-memory fallback:`, err);
+    library = new LibraryService(':memory:');
   }
   return library;
 }
