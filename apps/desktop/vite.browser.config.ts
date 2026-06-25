@@ -9,6 +9,24 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
 
+// Land on browser.html at "/" — index.html is the ELECTRON entry (no window.dj),
+// so serving it in the browser crashes the Library. Redirect so any URL works.
+function defaultToBrowserHtml(): Plugin {
+  return {
+    name: 'default-browser-html',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url === '/' || req.url === '/index.html') {
+          res.writeHead(302, { Location: '/browser.html?demo&gl' });
+          res.end();
+          return;
+        }
+        next();
+      });
+    },
+  };
+}
+
 // Serve the pre-built AudioWorklets (dist-renderer/worklets, made by
 // vite.worklet.config.ts) at /worklets/* so the full audio engine — and thus the
 // real SYNC snap — works in the browser dev/e2e build too.
@@ -74,7 +92,7 @@ export default defineConfig({
       new Date().toISOString().slice(11, 19) + ' ' + new Date().toISOString().slice(5, 10),
     ),
   },
-  plugins: [react(), serveWorklets(), serveMusic()],
+  plugins: [defaultToBrowserHtml(), react(), serveWorklets(), serveMusic()],
   resolve: {
     alias: {
       '@internal-dj/analysis/worker': fileURLToPath(

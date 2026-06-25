@@ -8,6 +8,14 @@
 import { createRoot } from 'react-dom/client';
 import { makeBrowserDj } from './browser-dj.js';
 
+// Self-heal: a stale service worker from a PREVIOUS app on this localhost port can
+// hijack our pages (serving cached, wrong assets). We never register one, so kill
+// any that exist + clear its caches. (We don't await it — best-effort.)
+if ('serviceWorker' in navigator) {
+  void navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => void r.unregister()));
+  if ('caches' in window) void caches.keys().then((ks) => ks.forEach((k) => void caches.delete(k)));
+}
+
 // Install the IPC stub first so anything reading window.dj at import time is safe.
 window.dj = makeBrowserDj();
 
