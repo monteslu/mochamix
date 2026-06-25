@@ -32,6 +32,19 @@ const isDev = process.argv.includes('--dev');
 // (.config/@internal-dj/desktop) — fragile for file creation. Use a flat name.
 app.setName('dj-app');
 
+// On Linux/Wayland some drivers crash-loop in Chromium's native-GPU-buffer
+// (GBM/pixmap) 2D raster path — "eglCreateImage failed", "OzoneImageBacking ...
+// GPU process exited unexpectedly" — which pegs the frame rate to ~30fps with
+// huge spikes (measured: our own waveform draw is <1ms; the rest is the GPU
+// process restarting). This is a COMPOSITOR-RASTER issue, NOT our WebGL/WebGPU
+// rendering — disabling the native GPU memory-buffer path stops the crash while
+// keeping GPU acceleration + WebGPU. Opt out with DJ_NATIVE_GPU=1.
+if (process.platform === 'linux' && process.env.DJ_NATIVE_GPU !== '1') {
+  app.commandLine.appendSwitch('disable-features', 'UseGpuMemoryBufferVideoFrames');
+  app.commandLine.appendSwitch('disable-gpu-memory-buffer-compositor-resources');
+  app.commandLine.appendSwitch('disable-gpu-memory-buffer-video-frames');
+}
+
 // NOTE: the Wayland-vs-X11 display backend is selected via the
 // ELECTRON_OZONE_PLATFORM_HINT=auto env var set by scripts/run-electron.mjs —
 // it must be set BEFORE Electron's early init (app.commandLine switches are read
