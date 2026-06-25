@@ -1001,6 +1001,28 @@ body,
 .xfader-slider {
   flex: 1;
 }
+/* Crossfader = a horizontal fader, so its thumb is a RECTANGULAR cap (tall + narrow,
+   sliding left↔right) like a real mixer crossfader — matching the vertical faders'
+   rectangle caps, not the default round knob. */
+.xfader-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  background: linear-gradient(90deg, var(--deck-a), #14192466, var(--deck-b));
+  border-radius: 3px;
+}
+.xfader-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 26px;
+  margin-top: -10px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #404a5e, #222a39);
+  border: 1px solid var(--edge-bright);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.6),
+    inset 1px 0 0 rgba(255, 255, 255, 0.12),
+    inset -6px 0 0 -4px rgba(0, 0, 0, 0.5);
+}
 .xfader-end {
   font-size: 12px;
   font-weight: 800;
