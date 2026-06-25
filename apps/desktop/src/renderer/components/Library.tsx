@@ -68,6 +68,10 @@ export function Library(): React.JSX.Element {
       setTracks(DEMO_TRACKS);
       return;
     }
+    if (!window.dj?.libraryQuery) {
+      setDbError('Library bridge unavailable (wrong entry / IPC not ready).');
+      return;
+    }
     try {
       const rows = await window.dj.libraryQuery({
         search,
@@ -91,6 +95,9 @@ export function Library(): React.JSX.Element {
   }, [refresh]);
 
   useEffect(() => {
+    // Guard: if the IPC bridge is missing (e.g. served the wrong entry), don't
+    // throw — a crash here takes down the whole tree and kills every button.
+    if (!window.dj?.onScanProgress) return;
     return window.dj.onScanProgress((p) => {
       setScanning(p.current === 'done' ? null : `scanning… ${p.scanned} files, ${p.added} added`);
     });
