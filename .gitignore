@@ -19,3 +19,8 @@ release/
 # reference clones (kept locally, not committed) — see 08-source-map.md / README
 /vendor/mixxx-src/
 /vendor/mixxx-monteslu/
+
+# playwright / browser build
+dist-browser/
+test-results/
+playwright-report/

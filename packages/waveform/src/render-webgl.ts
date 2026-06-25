@@ -61,13 +61,13 @@ void main() {
       // buckets are packed row-major into a 2D texture (1D would exceed
       // MAX_TEXTURE_SIZE for long tracks). Recover the (col,row) for bucket b.
       float tw = u_texSize.x;
-      float col = mod(b, tw);
-      float row = floor(b / tw);
-      vec2 uv = vec2((col + 0.5) / tw, (row + 0.5) / u_texSize.y);
+      float tcol = mod(b, tw);
+      float trow = floor(b / tw);
+      vec2 uv = vec2((tcol + 0.5) / tw, (trow + 0.5) / u_texSize.y);
       vec4 t = texture2D(u_tex, uv);                     // rgb=bands, a=amp
       float amp = t.a;
-      float half = amp * mid * 0.92;
-      if (abs(y - mid) <= half) {
+      float barH = amp * mid * 0.92;
+      if (abs(y - mid) <= barH) {
         col = bandColor(t.rgb);
         if (x < centerX) col *= 0.5;                       // played = dimmed
       }
@@ -124,6 +124,8 @@ export class WaveformGL {
   private readonly prog: WebGLProgram;
   private readonly tex: WebGLTexture;
   private readonly u: Record<string, WebGLUniformLocation | null> = {};
+  private buf: WebGLBuffer | null = null;
+  private aPos = -1;
   private texLen = 0;
   readonly ok: boolean;
 
@@ -169,12 +171,12 @@ export class WaveformGL {
       }
       gl.useProgram(prog);
 
-      const buf = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      this.buf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-      const loc = gl.getAttribLocation(prog, 'a_pos');
-      gl.enableVertexAttribArray(loc);
-      gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+      this.aPos = gl.getAttribLocation(prog, 'a_pos');
+      gl.enableVertexAttribArray(this.aPos);
+      gl.vertexAttribPointer(this.aPos, 2, gl.FLOAT, false, 0, 0);
 
       for (const name of [
         'u_res', 'u_tex', 'u_texLen', 'u_texSize', 'u_framesPerBucket',
@@ -192,7 +194,10 @@ export class WaveformGL {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       this.ok = true;
-    } catch {
+    } catch (e) {
+      // Surface the reason (shader compile/link) instead of silently going blank;
+      // a swallowed GLSL error is exactly what hid two shader bugs here for hours.
+      console.error('[WaveformGL] init failed:', (e as Error)?.message ?? e);
       this.ok = false;
       this.gl = null as unknown as WebGLRenderingContext;
       this.prog = null as unknown as WebGLProgram;
@@ -260,6 +265,12 @@ export class WaveformGL {
     const h = (gl.canvas as HTMLCanvasElement).height;
     gl.viewport(0, 0, w, h);
     gl.useProgram(this.prog);
+    // Re-bind the vertex buffer + attrib EVERY draw. The constructor's one-time
+    // setup only persists on WebGL1's global state; on WebGL2 (default VAO) the
+    // binding is lost across frames, so drawArrays rendered nothing → black lane.
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
+    gl.enableVertexAttribArray(this.aPos);
+    gl.vertexAttribPointer(this.aPos, 2, gl.FLOAT, false, 0, 0);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.tex);
     gl.uniform1i(this.u.u_tex!, 0);

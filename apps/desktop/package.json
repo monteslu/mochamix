@@ -13,7 +13,10 @@
     "build": "npm run build:renderer && npm run build:worklet && npm run build:main",
     "postinstall": "node scripts/ensure-electron.js",
     "dev": "npm run build && node scripts/run-electron.mjs --dev --no-sandbox",
-    "start": "npm run build && node scripts/run-electron.mjs --no-sandbox"
+    "start": "npm run build && node scripts/run-electron.mjs --no-sandbox",
+    "dev:web": "vite --config vite.browser.config.ts",
+    "build:web": "vite build --config vite.browser.config.ts",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@internal-dj/audio-engine": "*",
@@ -27,11 +30,14 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@types/pngjs": "^6.0.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^6.0.3",
     "@webgpu/types": "^0.1.52",
     "electron": "^42.5.0",
+    "pngjs": "^7.0.0",
     "vite": "^8.1.0"
   }
 }
