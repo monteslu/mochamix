@@ -93,33 +93,32 @@ export class WaveformLaneController {
       const zoomIdx = this.bus.get(MASTER, MasterKeys.waveformZoom);
       const framesPerPx = framesPerPxForZoom(zoomIdx >= 0 ? zoomIdx : DEFAULT_ZOOM_INDEX);
 
-      // Smooth the position: re-anchor whenever the worklet publishes a NEW value,
-      // then dead-reckon forward by rate*elapsed so motion flows between the sparse
-      // (~10.7ms) publishes. Snap directly when paused/seeking (big jumps).
+      // Smooth, MONOTONIC position. The worklet publishes playPosition only every
+      // ~10.7ms, so reading it raw makes the scroll jump-then-hold ("quantized").
+      // We extrapolate forward by rate*elapsed between publishes — but the position
+      // must only ever MOVE FORWARD at a steady rate while playing; any backward or
+      // jittery correction makes each pixel re-sample a different bucket and the
+      // amplitudes shimmer. So: take the MAX of (last estimate continued) and the
+      // newly published value, never snapping backward. Seeks/pause snap exactly.
       const publishedFrames = fraction * frames;
       const now = performance.now();
-      const newPublish = fraction !== this.lastPublished;
-      this.lastPublished = fraction;
+      const continued =
+        this.anchorFrames < 0
+          ? publishedFrames
+          : this.anchorFrames + ((now - this.anchorTime) / 1000) * rateRatio * sr;
 
-      // Our current extrapolated estimate.
-      const est = this.anchorFrames < 0
-        ? publishedFrames
-        : this.anchorFrames + ((now - this.anchorTime) / 1000) * rateRatio * sr;
-      const drift = publishedFrames - est;
-
-      if (this.anchorFrames < 0 || !playing || Math.abs(drift) > sr * 0.5) {
-        // first frame, paused, or a seek/jump → snap hard
-        this.anchorFrames = publishedFrames;
-        this.anchorTime = now;
-      } else if (newPublish) {
-        // fresh publish: nudge the estimate ~30% toward truth instead of hard-
-        // snapping, so small corrections don't cause a visible back/forward jerk.
-        this.anchorFrames = est + drift * 0.3;
-        this.anchorTime = now;
+      let positionFrames: number;
+      if (!playing || this.anchorFrames < 0 || Math.abs(publishedFrames - continued) > sr * 0.5) {
+        // paused, first frame, or a seek/jump → snap exactly to truth
+        positionFrames = publishedFrames;
+      } else {
+        // playing: never go backward; let the published value pull us forward when
+        // it's ahead, otherwise keep gliding at the steady rate.
+        positionFrames = Math.max(continued, publishedFrames);
       }
-      const positionFrames = playing
-        ? this.anchorFrames + ((now - this.anchorTime) / 1000) * rateRatio * sr
-        : publishedFrames;
+      this.anchorFrames = positionFrames;
+      this.anchorTime = now;
+      this.lastPublished = fraction;
 
       const params = {
         positionFrames,
