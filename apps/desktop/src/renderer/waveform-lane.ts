@@ -10,6 +10,10 @@ import { deck as deckGroup, DeckKeys, type ControlBus } from '@internal-dj/contr
 import { getDeckTrack } from './deck-state.js';
 
 const SR = 48000;
+// Screen pixels per beat — sets the zoom. Same on every deck, so beats are the
+// same width everywhere and synced decks line up. (~64px/beat ≈ 8 beats across a
+// 512px lane.)
+const PIXELS_PER_BEAT = 64;
 
 export class WaveformLaneController {
   private gl: WaveformGL;
@@ -52,11 +56,24 @@ export class WaveformLaneController {
       const frames = this.bus.get(g, DeckKeys.trackSamples);
       const fraction = this.bus.get(g, DeckKeys.playPosition);
       const fileBpm = this.bus.get(g, DeckKeys.fileBpm);
+      // framesPerBeat in SOURCE frames (for drawing the grid against source peaks).
       const framesPerBeat = fileBpm > 0 ? (60 / fileBpm) * SR : 0;
       const fbf = this.bus.get(g, DeckKeys.firstBeatFrame);
+
+      // Beat-relative zoom: one beat = PIXELS_PER_BEAT pixels, ALWAYS. A track beat
+      // spans `framesPerBeat` SOURCE frames (independent of playback rate), and the
+      // playhead position is in source frames, so framesPerPx = framesPerBeat /
+      // PIXELS_PER_BEAT puts exactly one beat per PIXELS_PER_BEAT pixels. The
+      // playhead advances through source frames at the playback rate, so a deck
+      // playing faster scrolls faster — and two synced decks (same effective BPM)
+      // advance source frames at the same beats/sec → identical visual scroll +
+      // aligned grids. (Fixed-px fallback for tracks with no BPM.)
+      const framesPerPx =
+        framesPerBeat > 0 ? framesPerBeat / PIXELS_PER_BEAT : this.framesPerPx;
+
       const params = {
         positionFrames: fraction * frames,
-        framesPerPx: this.framesPerPx,
+        framesPerPx,
         firstBeatFrame: fbf >= 0 ? fbf : 0,
         framesPerBeat,
       };
@@ -64,7 +81,7 @@ export class WaveformLaneController {
         this.gl.draw(params);
       } else {
         // Canvas2D fallback only when WebGL is unavailable.
-        drawScrolling(this.canvas, st.peaks.detail, params.positionFrames, this.framesPerPx, DEFAULT_COLORS, {
+        drawScrolling(this.canvas, st.peaks.detail, params.positionFrames, framesPerPx, DEFAULT_COLORS, {
           firstBeatFrame: params.firstBeatFrame,
           framesPerBeat,
         });
