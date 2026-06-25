@@ -5,7 +5,7 @@
  * here. Pure logic, no JSX.
  */
 
-import { WaveformGL, drawScrolling, DEFAULT_COLORS } from '@internal-dj/waveform';
+import { WaveformGL } from '@internal-dj/waveform';
 import { deck as deckGroup, DeckKeys, MASTER, MasterKeys, type ControlBus } from '@internal-dj/control-bus';
 import { getDeckTrack } from './deck-state.js';
 import { reportLaneDraw } from './perf-monitor.js';
@@ -26,12 +26,19 @@ export function framesPerPxForZoom(index: number): number {
 }
 
 export class WaveformLaneController {
-  private gl: WaveformGL | null = null;
-  private readonly useGl: boolean;
+  private gl: WaveformGL;
   private uploaded: Uint8Array | null = null;
   private unsub: () => void = () => {};
   private ro: ResizeObserver;
   private readonly group: string;
+
+  // Position smoothing (dead-reckoning). The worklet publishes playPosition only
+  // every ~10.7ms, not every frame, so reading it raw makes the scroll jump-then-
+  // hold ("quantized"). We extrapolate between updates: anchor on each NEW
+  // published frame, then advance by rate*elapsed each render → flowing motion.
+  private anchorFrames = -1; // last published position (source frames)
+  private anchorTime = 0; // performance.now() when we anchored
+  private lastPublished = -1; // raw published fraction we last saw, to detect change
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -40,11 +47,10 @@ export class WaveformLaneController {
     private readonly framesPerPx: number,
   ) {
     this.group = deckGroup(deckIndex + 1);
-    // WebGL is the default renderer (GPU). It crash-looped on Electron 33's
-    // Chromium (the AMD+Wayland eglCreateImage bug) but is FIXED in Electron 42 +
-    // verified working (ANGLE / AMD RX 7600). ?nogl forces the Canvas2D path.
-    this.useGl = !new URLSearchParams(location.search).has('nogl');
-    if (this.useGl) this.gl = new WaveformGL(canvas);
+    // WebGL is the ONLY renderer — this app requires the GPU (no Canvas2D fallback).
+    // WaveformGL never throws; if the context can't init it reports ok=false and the
+    // lane shows the GPU-unavailable state instead of silently CPU-rendering.
+    this.gl = new WaveformGL(canvas);
 
     // size the backing store on real resize only (not per frame)
     this.ro = new ResizeObserver(() => this.fit());
@@ -72,6 +78,8 @@ export class WaveformLaneController {
       const frames = this.bus.get(g, DeckKeys.trackSamples);
       const fraction = this.bus.get(g, DeckKeys.playPosition);
       const fileBpm = this.bus.get(g, DeckKeys.fileBpm);
+      const playing = this.bus.get(g, DeckKeys.play) > 0.5;
+      const rateRatio = this.bus.get(g, DeckKeys.rateRatio) || 1;
       // Use the REAL sample rate (positions + firstBeatFrame are in decoded frames
       // at the AudioContext rate); a hardcoded 48000 drifts the grid when the
       // context runs at 44100, so synced grids wouldn't line up.
@@ -85,37 +93,47 @@ export class WaveformLaneController {
       const zoomIdx = this.bus.get(MASTER, MasterKeys.waveformZoom);
       const framesPerPx = framesPerPxForZoom(zoomIdx >= 0 ? zoomIdx : DEFAULT_ZOOM_INDEX);
 
+      // Smooth the position: re-anchor whenever the worklet publishes a NEW value,
+      // then dead-reckon forward by rate*elapsed so motion flows between the sparse
+      // (~10.7ms) publishes. Snap directly when paused/seeking (big jumps).
+      const publishedFrames = fraction * frames;
+      const now = performance.now();
+      const newPublish = fraction !== this.lastPublished;
+      this.lastPublished = fraction;
+
+      // Our current extrapolated estimate.
+      const est = this.anchorFrames < 0
+        ? publishedFrames
+        : this.anchorFrames + ((now - this.anchorTime) / 1000) * rateRatio * sr;
+      const drift = publishedFrames - est;
+
+      if (this.anchorFrames < 0 || !playing || Math.abs(drift) > sr * 0.5) {
+        // first frame, paused, or a seek/jump → snap hard
+        this.anchorFrames = publishedFrames;
+        this.anchorTime = now;
+      } else if (newPublish) {
+        // fresh publish: nudge the estimate ~30% toward truth instead of hard-
+        // snapping, so small corrections don't cause a visible back/forward jerk.
+        this.anchorFrames = est + drift * 0.3;
+        this.anchorTime = now;
+      }
+      const positionFrames = playing
+        ? this.anchorFrames + ((now - this.anchorTime) / 1000) * rateRatio * sr
+        : publishedFrames;
+
       const params = {
-        positionFrames: fraction * frames,
+        positionFrames,
         framesPerPx,
         firstBeatFrame: fbf >= 0 ? fbf : 0,
         framesPerBeat,
       };
       const t0 = performance.now();
-      if (this.useGl && this.gl?.ok) {
-        this.gl.draw(params);
-      } else {
-        // Canvas2D path (the default — proven to render + fast at <1ms/frame;
-        // WebGL is opt-in via ?gl while its texture path is verified on hardware).
-        drawScrolling(this.canvas, st.peaks.detail, params.positionFrames, framesPerPx, DEFAULT_COLORS, {
-          firstBeatFrame: params.firstBeatFrame,
-          framesPerBeat,
-        });
-      }
-      reportLaneDraw(`deck${this.deckIndex}`, !!this.gl?.ok, performance.now() - t0);
+      this.gl.draw(params);
+      reportLaneDraw(`deck${this.deckIndex}`, this.gl.ok, performance.now() - t0);
     } else {
-      // no track → paint the panel grey so the band never shows white (a WebGL
-      // canvas paints its framebuffer OVER the CSS bg; an undrawn/failed one is
-      // white). GL path clears to grey; the Canvas2D fallback fills grey.
-      if (this.useGl && this.gl?.ok) {
-        this.gl.clear();
-      } else {
-        const ctx = this.canvas.getContext('2d');
-        if (ctx) {
-          ctx.fillStyle = '#0a0d13';
-          ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        }
-      }
+      // no track → clear the GL framebuffer to the panel grey (so the band never
+      // shows white from an undrawn buffer).
+      this.gl.clear();
       this.uploaded = null;
     }
   };
