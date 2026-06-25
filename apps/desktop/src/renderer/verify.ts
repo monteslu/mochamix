@@ -9,6 +9,8 @@ import { fromAudioBuffer } from '@internal-dj/codec';
 import { computePeakSet, detailBucketsForDuration } from '@internal-dj/waveform';
 import { detectKey } from '@internal-dj/analysis';
 import { WasmBeatDetector } from '@internal-dj/dsp-wasm';
+import { SyncController, makeGrid, beatDistance } from '@internal-dj/audio-engine';
+import { ControlBus, standardControls, deck as deckGroup, DeckKeys } from '@internal-dj/control-bus';
 
 declare global {
   interface Window {
@@ -18,6 +20,8 @@ declare global {
     };
   }
 }
+
+const SR = 48000;
 
 async function run(): Promise<void> {
   const result: Record<string, unknown> = { steps: [] };
@@ -56,10 +60,42 @@ async function run(): Promise<void> {
     const key = detectKey(channels, track.frames, track.sampleRate);
     steps.push(`key: ${key.name} (${key.camelot})`);
 
+    // 7. beat-sync integration (real ControlBus + SyncController, no device)
+    const bus = new ControlBus();
+    for (const c of standardControls(2)) bus.define(c);
+    const positions = [SR * 1, SR * 1 + 6000]; // deck2 off-phase by 0.25 beat @120
+    const seeks: number[] = [];
+    const sync = new SyncController({
+      bus,
+      numDecks: 2,
+      sampleRate: SR,
+      setRateRatio: () => {},
+      positionFrames: (d) => positions[d]!,
+      trackFrames: () => SR * 200,
+      seekFrames: (d, f) => {
+        positions[d] = f;
+        seeks.push(d);
+      },
+    });
+    bus.set(deckGroup(1), DeckKeys.fileBpm, 120);
+    bus.set(deckGroup(1), DeckKeys.firstBeatFrame, 0);
+    bus.set(deckGroup(1), DeckKeys.play, 1);
+    bus.set(deckGroup(2), DeckKeys.fileBpm, 120);
+    bus.set(deckGroup(2), DeckKeys.firstBeatFrame, 0);
+    bus.set(deckGroup(2), DeckKeys.syncEnabled, 1); // triggers instant phase snap
+    const fg = makeGrid(120, 0, SR)!;
+    const lg = makeGrid(120, 0, SR)!;
+    const followerPhase = beatDistance(fg, positions[1]!);
+    const leaderPhase = beatDistance(lg, positions[0]!);
+    const phaseLocked = Math.abs(followerPhase - leaderPhase) < 0.01;
+    sync.dispose();
+    steps.push(`sync: snapped=${seeks.includes(1)} follPhase=${followerPhase.toFixed(3)} leadPhase=${leaderPhase.toFixed(3)} locked=${phaseLocked}`);
+
     result.ok = true;
     result.bpm = beat.bpm;
     result.key = key.camelot;
     result.peaksNonZero = nonZero;
+    result.syncPhaseLocked = phaseLocked;
   } catch (e) {
     result.ok = false;
     result.error = String(e);

@@ -21,6 +21,17 @@ export {
   type DeckSyncState,
 } from './sync/sync-engine.js';
 export { SmartFader, type SmartFaderDeps } from './sync/smart-fader.js';
+export { SyncController, type SyncDeps } from './sync/sync-controller.js';
+export {
+  makeGrid,
+  framesPerBeat,
+  beatDistance,
+  nearestBeatFrame,
+  alignedFrame,
+  beatIndexAt,
+  frameOfBeat,
+  type Grid,
+} from './sync/beatgrid.js';
 export { sliderFromRateRatio } from './rate.js';
 export { EffectUnit } from './effects/effect-unit.js';
 export { BUILTIN_EFFECTS, getEffect } from './effects/builtin-effects.js';
