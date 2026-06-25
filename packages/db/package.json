@@ -1,5 +1,5 @@
 {
-  "name": "@internal-dj/db",
+  "name": "@dj/db",
   "version": "0.0.0",
   "private": true,
   "type": "module",

@@ -10,7 +10,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { EngineApi } from './engine-api.js';
-import { ControlBus, standardControls } from '@internal-dj/control-bus';
+import { ControlBus, standardControls } from '@dj/control-bus';
 
 function makeEngine() {
   const bus = new ControlBus();

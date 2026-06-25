@@ -16,7 +16,7 @@ import {
   deck as deckGroup,
   DeckKeys,
   type ControlBus,
-} from '@internal-dj/control-bus';
+} from '@dj/control-bus';
 import { makeGrid, beatDistance, alignedFrame, type Grid } from './beatgrid.js';
 
 export interface SyncDeps {

@@ -10,7 +10,7 @@
  * deferred extension point here — see `decodeWithFfmpeg` below.
  */
 
-import { packPlanarToSab, type DecodedTrack } from '@internal-dj/audio-engine';
+import { packPlanarToSab, type DecodedTrack } from '@dj/audio-engine';
 
 /**
  * Decode an encoded audio file (as an ArrayBuffer) into a SAB-backed

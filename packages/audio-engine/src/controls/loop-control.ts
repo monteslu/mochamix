@@ -24,7 +24,7 @@ import {
   DeckKeys,
   type ControlBus,
   type Group,
-} from '@internal-dj/control-bus';
+} from '@dj/control-bus';
 
 export interface LoopControlDeps {
   bus: ControlBus;

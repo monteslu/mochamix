@@ -20,7 +20,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join, normalize } from 'node:path';
 import { LibraryService } from './library-service.js';
-import type { QueryOptions } from '@internal-dj/db';
+import type { QueryOptions } from '@dj/db';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // main.js (esbuild-bundled) lives at dist-main/main.js → renderer is one up.
@@ -35,8 +35,8 @@ console.log(
 );
 
 // Set a clean app name BEFORE any getPath('userData') call. The package name is
-// "@internal-dj/desktop", whose "/" produces a nested userData path
-// (.config/@internal-dj/desktop) — fragile for file creation. Use a flat name.
+// "@dj/desktop", whose "/" produces a nested userData path
+// (.config/@dj/desktop) — fragile for file creation. Use a flat name.
 app.setName('dj-app');
 
 // WebGPU enablement. MUST be set here (module load, before app ready) — switches
@@ -125,7 +125,7 @@ function createWindow(): BrowserWindow {
     minWidth: 900,
     minHeight: 600,
     backgroundColor: '#0e1014',
-    title: 'internal-dj',
+    title: 'dj-app',
     webPreferences: {
       preload: join(__dirname, 'preload.cjs'),
       contextIsolation: true,

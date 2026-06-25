@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { EngineApi } from './engine-api.js';
 import { computeMidiParameter, isRelative } from './midi-options.js';
-import { ControlBus, standardControls, deck, DeckKeys, MASTER, MasterKeys } from '@internal-dj/control-bus';
+import { ControlBus, standardControls, deck, DeckKeys, MASTER, MasterKeys } from '@dj/control-bus';
 
 function makeEngine() {
   const bus = new ControlBus();

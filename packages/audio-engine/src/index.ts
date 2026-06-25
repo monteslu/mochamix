@@ -1,5 +1,5 @@
 /**
- * @internal-dj/audio-engine — the real-time audio engine (renderer-side API).
+ * @dj/audio-engine — the real-time audio engine (renderer-side API).
  *
  * The worklet itself is at ./engine.worklet.ts and is loaded by URL via the app's
  * bundler (it must run in the AudioWorkletGlobalScope, not imported here).

@@ -1,5 +1,5 @@
 {
-  "name": "@internal-dj/controller-host",
+  "name": "@dj/controller-host",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,7 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@internal-dj/control-bus": "*",
+    "@dj/control-bus": "*",
     "fast-xml-parser": "^5.9.3"
   }
 }

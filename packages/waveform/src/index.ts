@@ -1,5 +1,5 @@
 /**
- * @internal-dj/waveform — peak precompute + GPU (WebGL) waveform rendering, with
+ * @dj/waveform — peak precompute + GPU (WebGL) waveform rendering, with
  * a Canvas2D fallback for the small static cases (library thumbnails) and overview.
  */
 

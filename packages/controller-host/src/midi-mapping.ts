@@ -2,7 +2,7 @@
  * Mixxx `.midi.xml` mapping parser (06-ui-controllers-effects.md §2.3). Parses a
  * controller mapping into a structured form: input controls (status/midino →
  * group/key or a script function) + output bindings (LED feedback) + the script
- * files to load. This is what lets stock Mixxx mappings drive internal-dj.
+ * files to load. This is what lets stock Mixxx mappings drive this app.
  *
  * We parse the `<controller>` block: `<scriptfiles>`, `<controls>`, `<outputs>`.
  */

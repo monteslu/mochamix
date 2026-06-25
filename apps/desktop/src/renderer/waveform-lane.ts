@@ -5,8 +5,8 @@
  * here. Pure logic, no JSX.
  */
 
-import { WaveformGL } from '@internal-dj/waveform';
-import { deck as deckGroup, DeckKeys, MASTER, MasterKeys, type ControlBus } from '@internal-dj/control-bus';
+import { WaveformGL } from '@dj/waveform';
+import { deck as deckGroup, DeckKeys, MASTER, MasterKeys, type ControlBus } from '@dj/control-bus';
 import { getDeckTrack } from './deck-state.js';
 import { reportLaneDraw } from './perf-monitor.js';
 import { onFrame } from './frame-loop.js';

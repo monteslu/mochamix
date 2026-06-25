@@ -1,5 +1,5 @@
 {
-  "name": "@internal-dj/audio-engine",
+  "name": "@dj/audio-engine",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -15,9 +15,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@internal-dj/analysis": "*",
-    "@internal-dj/control-bus": "*",
-    "@internal-dj/dsp-wasm": "*",
+    "@dj/analysis": "*",
+    "@dj/control-bus": "*",
+    "@dj/dsp-wasm": "*",
     "soundtouchjs": "^0.3.0"
   }
 }

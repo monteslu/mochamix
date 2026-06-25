@@ -23,7 +23,7 @@ import {
   MAX_HOTCUES,
   type ControlBus,
   type Group,
-} from '@internal-dj/control-bus';
+} from '@dj/control-bus';
 
 export interface CueControlDeps {
   bus: ControlBus;

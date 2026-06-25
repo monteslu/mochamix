@@ -17,7 +17,7 @@ import {
   type MidiMapping,
   type MidiOutputControl,
 } from './midi-mapping.js';
-import type { ControlBus } from '@internal-dj/control-bus';
+import type { ControlBus } from '@dj/control-bus';
 
 /**
  * A loaded script's callable surface: function-name → fn. Mixxx input handlers

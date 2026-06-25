@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { runMappingScript } from './script-runtime.js';
 import { parseMidiMapping } from './midi-mapping.js';
 import { EngineApi } from './engine-api.js';
-import { ControlBus, standardControls } from '@internal-dj/control-bus';
+import { ControlBus, standardControls } from '@dj/control-bus';
 
 // A realistic Mixxx-mapping XML + JS pair (the var-Prefix-object idiom every real
 // mapping uses). If this runs against our engine global, real mappings will too.

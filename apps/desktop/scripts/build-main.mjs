@@ -1,6 +1,6 @@
 /**
  * Bundle the Electron main process + preload with esbuild. Workspace TS packages
- * (e.g. @internal-dj/db) get bundled in; native/Electron modules stay external
+ * (e.g. @dj/db) get bundled in; native/Electron modules stay external
  * (loaded at runtime by Node/Electron).
  */
 

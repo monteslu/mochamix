@@ -1,5 +1,5 @@
 /**
- * @internal-dj/codec — audio decode (and later encode).
+ * @dj/codec — audio decode (and later encode).
  */
 
 export {

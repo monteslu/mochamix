@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ControlBus, standardControls, deck as deckGroup, DeckKeys } from '@internal-dj/control-bus';
+import { ControlBus, standardControls, deck as deckGroup, DeckKeys } from '@dj/control-bus';
 import { CueControl } from './cue-control.js';
 
 // Regression: "CUE buttons aren't doing anything." The button sets cue_set /

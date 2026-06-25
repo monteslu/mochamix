@@ -1,5 +1,5 @@
 {
-  "name": "@internal-dj/waveform",
+  "name": "@dj/waveform",
   "version": "0.0.0",
   "private": true,
   "type": "module",

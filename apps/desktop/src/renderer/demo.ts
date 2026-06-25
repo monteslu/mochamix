@@ -4,7 +4,7 @@
  * a "loaded" state (no real audio device needed). Purely for visual development.
  */
 
-import { computePeakSet, detailBucketsForDuration, type PeakData } from '@internal-dj/waveform';
+import { computePeakSet, detailBucketsForDuration, type PeakData } from '@dj/waveform';
 import {
   deck as deckGroup,
   DeckKeys,
@@ -13,7 +13,7 @@ import {
   MASTER,
   MasterKeys,
   type ControlBus,
-} from '@internal-dj/control-bus';
+} from '@dj/control-bus';
 import { setDeckTrack } from './deck-state.js';
 
 export function isDemo(): boolean {

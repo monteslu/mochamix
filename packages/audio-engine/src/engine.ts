@@ -20,7 +20,7 @@ import {
   MASTER,
   MasterKeys,
   type RegisteredControl,
-} from '@internal-dj/control-bus';
+} from '@dj/control-bus';
 import { createDeckGraph, eqKnobToDb, type DeckGraphNodes } from './deck-graph.js';
 import { createMixBuses, type BusNodes } from './mix-buses.js';
 import { AudioOutputRouter, type OutputDevice } from './audio-output.js';
@@ -91,7 +91,7 @@ export class Engine {
     await ctx.audioWorklet.addModule(this.workletUrl);
 
     // The engine node has one output per deck (each is stereo).
-    const node = new AudioWorkletNode(ctx, 'internal-dj-engine', {
+    const node = new AudioWorkletNode(ctx, 'dj-engine', {
       numberOfInputs: 0,
       numberOfOutputs: this.numDecks,
       outputChannelCount: new Array(this.numDecks).fill(2),

@@ -5,12 +5,12 @@
  * Vite entry (verify.html).
  */
 
-import { fromAudioBuffer } from '@internal-dj/codec';
-import { computePeakSet, detailBucketsForDuration } from '@internal-dj/waveform';
-import { detectKey } from '@internal-dj/analysis';
-import { WasmBeatDetector } from '@internal-dj/dsp-wasm';
-import { SyncController, makeGrid, beatDistance } from '@internal-dj/audio-engine';
-import { ControlBus, standardControls, deck as deckGroup, DeckKeys } from '@internal-dj/control-bus';
+import { fromAudioBuffer } from '@dj/codec';
+import { computePeakSet, detailBucketsForDuration } from '@dj/waveform';
+import { detectKey } from '@dj/analysis';
+import { WasmBeatDetector } from '@dj/dsp-wasm';
+import { SyncController, makeGrid, beatDistance } from '@dj/audio-engine';
+import { ControlBus, standardControls, deck as deckGroup, DeckKeys } from '@dj/control-bus';
 
 declare global {
   interface Window {

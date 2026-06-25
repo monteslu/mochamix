@@ -1,5 +1,5 @@
 {
-  "name": "@internal-dj/control-bus",
+  "name": "@dj/control-bus",
   "version": "0.0.0",
   "private": true,
   "type": "module",

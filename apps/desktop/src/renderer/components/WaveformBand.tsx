@@ -7,7 +7,7 @@
  */
 
 import { memo, useEffect, useRef } from 'react';
-import { MASTER, MasterKeys } from '@internal-dj/control-bus';
+import { MASTER, MasterKeys } from '@dj/control-bus';
 import { useDj } from '../dj-context.js';
 import { WaveformLaneController, ZOOM_PRESETS } from '../waveform-lane.js';
 

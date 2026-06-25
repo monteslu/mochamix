@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ControlBus, standardControls, deck as deckGroup, DeckKeys } from '@internal-dj/control-bus';
+import { ControlBus, standardControls, deck as deckGroup, DeckKeys } from '@dj/control-bus';
 import { SyncController } from './sync-controller.js';
 import { makeGrid, beatDistance } from './beatgrid.js';
 

@@ -15,7 +15,7 @@
  *   head    = headphone monitor = mix(master, PFL) per headMix + headphone gain
  */
 
-import { MASTER, MasterKeys, type ControlBus } from '@internal-dj/control-bus';
+import { MASTER, MasterKeys, type ControlBus } from '@dj/control-bus';
 
 export type BusType = 'master' | 'booth' | 'headphone';
 

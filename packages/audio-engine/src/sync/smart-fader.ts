@@ -22,7 +22,7 @@ import {
   deck as deckGroup,
   DeckKeys,
   type ControlBus,
-} from '@internal-dj/control-bus';
+} from '@dj/control-bus';
 
 export interface SmartFaderDeps {
   bus: ControlBus;

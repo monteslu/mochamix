@@ -18,7 +18,7 @@
 
 import type { Scaler, SourcePull } from './scaler.js';
 import { KeylockScaler } from './keylock-scaler.js';
-import { WasmResampler } from '@internal-dj/dsp-wasm';
+import { WasmResampler } from '@dj/dsp-wasm';
 
 export interface DeckTrack {
   /** Planar Float32 channel data. channelData[c][frame]. */

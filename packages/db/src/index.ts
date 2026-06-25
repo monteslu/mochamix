@@ -1,5 +1,5 @@
 /**
- * @internal-dj/db — the library database (main-process only).
+ * @dj/db — the library database (main-process only).
  */
 
 export { LibraryDb, CueType, type QueryOptions } from './library-db.js';

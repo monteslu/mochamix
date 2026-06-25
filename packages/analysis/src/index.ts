@@ -1,5 +1,5 @@
 /**
- * @internal-dj/analysis — beat/BPM detection + beatgrid model.
+ * @dj/analysis — beat/BPM detection + beatgrid model.
  */
 
 export { Beats } from './beats.js';

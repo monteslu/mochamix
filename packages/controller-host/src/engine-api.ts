@@ -8,7 +8,7 @@
  * matching Mixxx's behavior closely enough for jog-wheel scratching.
  */
 
-import { ControlBus, type Group, type Key } from '@internal-dj/control-bus';
+import { ControlBus, type Group, type Key } from '@dj/control-bus';
 
 export type EngineCallback = (value: number, group: Group, key: Key) => void;
 

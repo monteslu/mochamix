@@ -9,14 +9,14 @@ const pkg = (name: string, sub = 'src/index.ts') =>
 export default defineConfig({
   resolve: {
     alias: {
-      '@internal-dj/control-bus': pkg('control-bus'),
-      '@internal-dj/audio-engine': pkg('audio-engine'),
-      '@internal-dj/codec': pkg('codec'),
-      '@internal-dj/waveform': pkg('waveform'),
-      '@internal-dj/analysis': pkg('analysis'),
-      '@internal-dj/controller-host': pkg('controller-host'),
-      '@internal-dj/dsp-wasm': pkg('dsp-wasm'),
-      '@internal-dj/db': pkg('db'),
+      '@dj/control-bus': pkg('control-bus'),
+      '@dj/audio-engine': pkg('audio-engine'),
+      '@dj/codec': pkg('codec'),
+      '@dj/waveform': pkg('waveform'),
+      '@dj/analysis': pkg('analysis'),
+      '@dj/controller-host': pkg('controller-host'),
+      '@dj/dsp-wasm': pkg('dsp-wasm'),
+      '@dj/db': pkg('db'),
     },
   },
   test: {

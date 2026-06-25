@@ -9,9 +9,9 @@
  * "analyzing" indicator + the progressively-completed set.
  */
 
-import { decodeArrayBuffer } from '@internal-dj/codec';
-import { packPeaks } from '@internal-dj/waveform';
-import type { Engine } from '@internal-dj/audio-engine';
+import { decodeArrayBuffer } from '@dj/codec';
+import { packPeaks } from '@dj/waveform';
+import type { Engine } from '@dj/audio-engine';
 import type { AnalysisService } from './analysis-service.js';
 
 export interface AnalysisStatus {

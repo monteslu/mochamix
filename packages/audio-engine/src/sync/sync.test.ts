@@ -8,7 +8,7 @@ import {
   MasterKeys,
   deck,
   DeckKeys,
-} from '@internal-dj/control-bus';
+} from '@dj/control-bus';
 
 describe('shortestBeatError', () => {
   it('wraps around 1.0', () => {

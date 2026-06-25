@@ -11,7 +11,7 @@ export interface LoadedFile {
   path?: string;
 }
 
-/** A library track row (mirrors @internal-dj/db TrackRow; kept local to avoid a
+/** A library track row (mirrors @dj/db TrackRow; kept local to avoid a
  * renderer dependency on the main-only db package). */
 export interface LibTrack {
   id: number;

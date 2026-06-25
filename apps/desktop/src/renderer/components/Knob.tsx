@@ -6,7 +6,7 @@
 
 import { useCallback, useRef } from 'react';
 import { useControl } from '../dj-context.js';
-import type { Group, Key } from '@internal-dj/control-bus';
+import type { Group, Key } from '@dj/control-bus';
 
 interface Props {
   group: Group;

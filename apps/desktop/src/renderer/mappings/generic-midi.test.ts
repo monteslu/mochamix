@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parseMidiMapping, runMappingScript, EngineApi, midiKey } from '@internal-dj/controller-host';
-import { ControlBus, standardControls } from '@internal-dj/control-bus';
+import { parseMidiMapping, runMappingScript, EngineApi, midiKey } from '@dj/controller-host';
+import { ControlBus, standardControls } from '@dj/control-bus';
 import { GENERIC_MIDI_XML, GENERIC_MIDI_JS } from './generic-midi.js';
 
 // The built-in Generic MIDI mapping must parse with the real Mixxx parser and its

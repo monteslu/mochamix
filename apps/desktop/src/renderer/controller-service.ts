@@ -15,8 +15,8 @@ import {
   parseMidiMapping,
   runMappingScript,
   type MidiMapping,
-} from '@internal-dj/controller-host';
-import type { ControlBus } from '@internal-dj/control-bus';
+} from '@dj/controller-host';
+import type { ControlBus } from '@dj/control-bus';
 
 export interface LoadedMapping {
   name: string;

@@ -16,8 +16,8 @@ import {
   useCallback,
   type ReactNode,
 } from 'react';
-import { ControlBus, standardControls, type Group, type Key } from '@internal-dj/control-bus';
-import { Engine } from '@internal-dj/audio-engine';
+import { ControlBus, standardControls, type Group, type Key } from '@dj/control-bus';
+import { Engine } from '@dj/audio-engine';
 import { AnalysisService } from './analysis-service.js';
 import { AnalysisQueue } from './analysis-queue.js';
 import { startPerfMonitor } from './perf-monitor.js';

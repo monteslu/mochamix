@@ -5,7 +5,7 @@
  */
 
 import { useRef } from 'react';
-import { deck as deckGroup, DeckKeys } from '@internal-dj/control-bus';
+import { deck as deckGroup, DeckKeys } from '@dj/control-bus';
 import { useDj } from '../dj-context.js';
 import { useBusRaf } from '../use-bus-raf.js';
 

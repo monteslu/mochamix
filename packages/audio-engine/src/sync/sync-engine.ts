@@ -14,7 +14,7 @@
  * computes the slider value for followers.
  */
 
-import { Beats } from '@internal-dj/analysis';
+import { Beats } from '@dj/analysis';
 
 export type SyncMode = 'none' | 'follower' | 'leader';
 

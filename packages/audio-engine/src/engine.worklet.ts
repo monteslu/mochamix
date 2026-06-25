@@ -21,7 +21,7 @@
 
 /// <reference lib="webworker" />
 
-import { wrapSab, sabRead, sabWrite, type SabLayout } from '@internal-dj/control-bus';
+import { wrapSab, sabRead, sabWrite, type SabLayout } from '@dj/control-bus';
 import { DeckPlayback } from './deck-playback.js';
 import { calculateSpeed } from './rate.js';
 import { VuMeter } from './vu-meter.js';
@@ -224,4 +224,4 @@ class EngineProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor('internal-dj-engine', EngineProcessor);
+registerProcessor('dj-engine', EngineProcessor);

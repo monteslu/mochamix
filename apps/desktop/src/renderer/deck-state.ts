@@ -6,7 +6,7 @@
  */
 
 import { useSyncExternalStore } from 'react';
-import type { PeakData } from '@internal-dj/waveform';
+import type { PeakData } from '@dj/waveform';
 
 export interface DeckTrackState {
   peaks: { detail: PeakData; overview: PeakData } | null;

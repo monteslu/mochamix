@@ -4,8 +4,8 @@
  * SharedArrayBuffer so there's no copy.
  */
 
-import type { AnalyzeRequest, AnalyzeResponse } from '@internal-dj/analysis';
-import type { DecodedTrack } from '@internal-dj/audio-engine';
+import type { AnalyzeRequest, AnalyzeResponse } from '@dj/analysis';
+import type { DecodedTrack } from '@dj/audio-engine';
 
 export interface BeatGridResult {
   bpm: number;

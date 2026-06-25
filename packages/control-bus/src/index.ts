@@ -1,8 +1,8 @@
 /**
- * @internal-dj/control-bus — the spine.
+ * @dj/control-bus — the spine.
  *
  * A named (group,key)->number control store mirroring Mixxx's ControlObject
- * model. See internal-dj/03-architecture.md §1.
+ * model.
  */
 
 export * from './types.js';

@@ -9,10 +9,10 @@
  * Pure logic, no React.
  */
 
-import { decodeArrayBuffer } from '@internal-dj/codec';
-import { computePeakSet, detailBucketsForDuration, packPeaks } from '@internal-dj/waveform';
-import { deck as deckGroup, DeckKeys, type ControlBus } from '@internal-dj/control-bus';
-import type { Engine } from '@internal-dj/audio-engine';
+import { decodeArrayBuffer } from '@dj/codec';
+import { computePeakSet, detailBucketsForDuration, packPeaks } from '@dj/waveform';
+import { deck as deckGroup, DeckKeys, type ControlBus } from '@dj/control-bus';
+import type { Engine } from '@dj/audio-engine';
 import type { AnalysisService } from './analysis-service.js';
 import { setDeckTrack } from './deck-state.js';
 

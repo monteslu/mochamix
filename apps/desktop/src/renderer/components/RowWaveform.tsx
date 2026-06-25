@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { drawOverview, DEFAULT_COLORS, unpackPeaks, type PeakData } from '@internal-dj/waveform';
+import { drawOverview, DEFAULT_COLORS, unpackPeaks, type PeakData } from '@dj/waveform';
 
 const W = 120;
 const H = 26;

@@ -6,8 +6,8 @@
 
 /// <reference lib="webworker" />
 
-import { WasmBeatDetector } from '@internal-dj/dsp-wasm';
-import { computePeakSet, detailBucketsForDuration } from '@internal-dj/waveform';
+import { WasmBeatDetector } from '@dj/dsp-wasm';
+import { computePeakSet, detailBucketsForDuration } from '@dj/waveform';
 import { detectKey } from './key-detector.js';
 import type { AnalyzeRequest, AnalyzeResponse } from './worker-protocol.js';
 

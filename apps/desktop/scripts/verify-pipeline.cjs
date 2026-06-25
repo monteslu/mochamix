@@ -52,11 +52,11 @@ ipcMain.handle('verify:result', (_e, r) => {
 });
 
 // Main-process DB smoke test: prove the pure-WASM SQLite (node-sqlite3-wasm via
-// the bundled @internal-dj/db) opens + queries inside the real Electron main
+// the bundled @dj/db) opens + queries inside the real Electron main
 // process, with no native addon / electron-rebuild.
 function dbSmokeTest() {
   try {
-    // the bundled main.js inlines @internal-dj/db; require node-sqlite3-wasm the
+    // the bundled main.js inlines @dj/db; require node-sqlite3-wasm the
     // same way main does (external module resolved from node_modules).
     const { Database } = require('node-sqlite3-wasm');
     const db = new Database(':memory:');

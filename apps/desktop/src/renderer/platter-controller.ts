@@ -6,7 +6,7 @@
  * control the MIDI jog-scratch path uses.
  */
 
-import { deck as deckGroup, DeckKeys, type ControlBus } from '@internal-dj/control-bus';
+import { deck as deckGroup, DeckKeys, type ControlBus } from '@dj/control-bus';
 import { onFrame } from './frame-loop.js';
 
 const RPM = 33.333;

@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import type { LibTrack } from '../../shared/ipc.js';
 import { useDj, NUM_DECKS } from '../dj-context.js';
-import { deck as deckGroup, DeckKeys } from '@internal-dj/control-bus';
+import { deck as deckGroup, DeckKeys } from '@dj/control-bus';
 import { loadTrackToDeck } from '../track-loader.js';
 import { RowWaveform } from './RowWaveform.js';
 

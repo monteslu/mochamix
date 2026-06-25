@@ -19,11 +19,11 @@ export default defineConfig({
   resolve: {
     alias: {
       // Order matters: the more specific subpath aliases must come first.
-      '@internal-dj/audio-engine/worklet': r('../../packages/audio-engine/src/engine.worklet.ts'),
-      '@internal-dj/codec/recorder-worklet': r('../../packages/codec/src/recorder.worklet.ts'),
-      '@internal-dj/control-bus': pkg('control-bus'),
-      '@internal-dj/audio-engine': pkg('audio-engine'),
-      '@internal-dj/codec': pkg('codec'),
+      '@dj/audio-engine/worklet': r('../../packages/audio-engine/src/engine.worklet.ts'),
+      '@dj/codec/recorder-worklet': r('../../packages/codec/src/recorder.worklet.ts'),
+      '@dj/control-bus': pkg('control-bus'),
+      '@dj/audio-engine': pkg('audio-engine'),
+      '@dj/codec': pkg('codec'),
     },
   },
   build: {

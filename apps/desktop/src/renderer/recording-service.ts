@@ -5,8 +5,8 @@
  * engine circular dependency.
  */
 
-import { Recorder, type RecordingResult } from '@internal-dj/codec';
-import type { Engine } from '@internal-dj/audio-engine';
+import { Recorder, type RecordingResult } from '@dj/codec';
+import type { Engine } from '@dj/audio-engine';
 
 export class RecordingService {
   private recorder: Recorder | null = null;

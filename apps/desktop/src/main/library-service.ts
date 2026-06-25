@@ -9,7 +9,7 @@
 import { readdir, stat } from 'node:fs/promises';
 import { join, extname, basename, dirname } from 'node:path';
 import { parseFile } from 'music-metadata';
-import { LibraryDb, type TrackRow, type QueryOptions } from '@internal-dj/db';
+import { LibraryDb, type TrackRow, type QueryOptions } from '@dj/db';
 
 const AUDIO_EXTS = new Set([
   '.mp3',

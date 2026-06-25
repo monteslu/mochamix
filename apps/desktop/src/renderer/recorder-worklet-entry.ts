@@ -3,4 +3,4 @@
  * AudioWorkletGlobalScope. Pulls in the recorder worklet (registerProcessor side
  * effect).
  */
-import '@internal-dj/codec/recorder-worklet';
+import '@dj/codec/recorder-worklet';

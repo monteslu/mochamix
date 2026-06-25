@@ -5,7 +5,7 @@
  * quickeffect_super1 + quickeffect_enabled controls.
  */
 
-import { deck as deckGroup, DeckKeys } from '@internal-dj/control-bus';
+import { deck as deckGroup, DeckKeys } from '@dj/control-bus';
 import { useControl } from '../dj-context.js';
 import { Knob } from './Knob.js';
 

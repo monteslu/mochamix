@@ -7,7 +7,7 @@
  */
 
 import { useEffect } from 'react';
-import { MASTER, MasterKeys, deck as deckGroup, DeckKeys } from '@internal-dj/control-bus';
+import { MASTER, MasterKeys, deck as deckGroup, DeckKeys } from '@dj/control-bus';
 import { useControl, useControlValue, useDj } from '../dj-context.js';
 import { Knob } from './Knob.js';
 import { VuMeterBar } from './VuMeterBar.js';

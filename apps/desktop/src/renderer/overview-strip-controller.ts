@@ -5,14 +5,14 @@
  * position). The component is a thin shell that mounts a canvas + handles seek.
  */
 
-import { drawOverview, DEFAULT_COLORS } from '@internal-dj/waveform';
+import { drawOverview, DEFAULT_COLORS } from '@dj/waveform';
 import {
   deck as deckGroup,
   DeckKeys,
   hotcuePositionKey,
   hotcueEnabledKey,
   type ControlBus,
-} from '@internal-dj/control-bus';
+} from '@dj/control-bus';
 import { getDeckTrack } from './deck-state.js';
 import { onFrame } from './frame-loop.js';
 

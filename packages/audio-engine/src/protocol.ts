@@ -8,7 +8,7 @@
  * here, and the worklet just swaps a pointer.
  */
 
-import type { SabLayout } from '@internal-dj/control-bus';
+import type { SabLayout } from '@dj/control-bus';
 
 /** Per-deck control indices the worklet reads from the control SAB each block. */
 export interface DeckControlIndices {

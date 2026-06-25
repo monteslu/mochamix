@@ -1,9 +1,9 @@
 {
-  "name": "@internal-dj/desktop",
+  "name": "@dj/desktop",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "The internal-dj Electron app.",
+  "description": "The dj-app Electron app.",
   "main": "dist-main/main.js",
   "scripts": {
     "build:renderer": "vite build",
@@ -19,11 +19,11 @@
     "e2e": "playwright test"
   },
   "dependencies": {
-    "@internal-dj/audio-engine": "*",
-    "@internal-dj/codec": "*",
-    "@internal-dj/control-bus": "*",
-    "@internal-dj/db": "*",
-    "@internal-dj/waveform": "*",
+    "@dj/audio-engine": "*",
+    "@dj/codec": "*",
+    "@dj/control-bus": "*",
+    "@dj/db": "*",
+    "@dj/waveform": "*",
     "music-metadata": "^11.13.0",
     "node-sqlite3-wasm": "^0.8.58",
     "react": "^19.0.0",

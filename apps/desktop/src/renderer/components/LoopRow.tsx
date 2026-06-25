@@ -4,7 +4,7 @@
  * the work.
  */
 
-import { deck as deckGroup, DeckKeys, beatloopActivateKey } from '@internal-dj/control-bus';
+import { deck as deckGroup, DeckKeys, beatloopActivateKey } from '@dj/control-bus';
 import { useDj, useControlValue } from '../dj-context.js';
 
 const BEATLOOP_BUTTONS = [1, 2, 4, 8, 16] as const;

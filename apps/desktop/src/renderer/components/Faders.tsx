@@ -4,7 +4,7 @@
  * Both are styled vertical range inputs bound to the control bus.
  */
 
-import { deck as deckGroup, DeckKeys } from '@internal-dj/control-bus';
+import { deck as deckGroup, DeckKeys } from '@dj/control-bus';
 import { useControl } from '../dj-context.js';
 
 /** Outer-edge tempo/pitch fader for a deck. */

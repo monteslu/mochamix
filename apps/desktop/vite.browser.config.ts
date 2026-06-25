@@ -119,15 +119,15 @@ export default defineConfig({
   plugins: [defaultToBrowserHtml(), buildWorklets(), react(), serveWorklets(), serveMusic()],
   resolve: {
     alias: {
-      '@internal-dj/analysis/worker': fileURLToPath(
+      '@dj/analysis/worker': fileURLToPath(
         new URL('../../packages/analysis/src/analysis.worker.ts', import.meta.url),
       ),
-      '@internal-dj/control-bus': pkg('control-bus'),
-      '@internal-dj/audio-engine': pkg('audio-engine'),
-      '@internal-dj/codec': pkg('codec'),
-      '@internal-dj/waveform': pkg('waveform'),
-      '@internal-dj/analysis': pkg('analysis'),
-      '@internal-dj/dsp-wasm': pkg('dsp-wasm'),
+      '@dj/control-bus': pkg('control-bus'),
+      '@dj/audio-engine': pkg('audio-engine'),
+      '@dj/codec': pkg('codec'),
+      '@dj/waveform': pkg('waveform'),
+      '@dj/analysis': pkg('analysis'),
+      '@dj/dsp-wasm': pkg('dsp-wasm'),
     },
   },
   server: {

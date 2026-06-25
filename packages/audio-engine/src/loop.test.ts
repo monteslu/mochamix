@@ -11,7 +11,7 @@ import {
   hotcueSetKey,
   hotcueActivateKey,
   beatloopActivateKey,
-} from '@internal-dj/control-bus';
+} from '@dj/control-bus';
 
 function ramp(frames: number): DeckTrack {
   const a = new Float32Array(frames);

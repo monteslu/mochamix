@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import type { BusType, OutputDevice } from '@internal-dj/audio-engine';
+import type { BusType, OutputDevice } from '@dj/audio-engine';
 import { useDj } from '../dj-context.js';
 
 const BUSES: Array<{ id: BusType; label: string; hint: string }> = [

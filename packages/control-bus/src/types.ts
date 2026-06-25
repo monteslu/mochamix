@@ -1,7 +1,7 @@
 /**
  * Core types for the control bus.
  *
- * The bus is Mixxx's ControlObject model (see internal-dj/03-architecture.md §1):
+ * The bus is Mixxx's ControlObject model:
  * a named, thread-safe, atomic `number` addressed by a (group, key) pair, e.g.
  * `[Channel1],play` or `[Master],crossfader`. Every subsystem — UI, controllers,
  * keyboard, the audio engine — communicates ONLY through this bus.

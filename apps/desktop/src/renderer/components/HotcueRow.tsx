@@ -10,7 +10,7 @@ import {
   hotcueClearKey,
   hotcueEnabledKey,
   hotcueSetKey,
-} from '@internal-dj/control-bus';
+} from '@dj/control-bus';
 import { useDj } from '../dj-context.js';
 import { useControlValue } from '../dj-context.js';
 

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { parseMidiMapping, midiKey } from './midi-mapping.js';
 import { MidiRouter } from './midi-router.js';
 import { EngineApi } from './engine-api.js';
-import { ControlBus, standardControls, MASTER, MasterKeys } from '@internal-dj/control-bus';
+import { ControlBus, standardControls, MASTER, MasterKeys } from '@dj/control-bus';
 
 // A Mixxx-style mapping: a direct crossfader binding, a script play binding, and
 // a play LED output. Mirrors the shape of real res/controllers/*.midi.xml.
