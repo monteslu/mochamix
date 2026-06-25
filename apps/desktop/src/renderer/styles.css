@@ -137,7 +137,7 @@ body,
   grid-area: console;
   display: grid;
   grid-template-columns:
-    52px minmax(0, 1fr) clamp(140px, 12vw, 210px) minmax(0, 1fr) 52px;
+    44px minmax(0, 1fr) clamp(200px, 20vw, 300px) minmax(0, 1fr) 44px;
   gap: 9px;
   padding: 9px 11px;
   min-height: 0;
@@ -688,66 +688,116 @@ body,
 }
 
 /* ── mixer (center) ───────────────────────────────────────── */
+/* ── mixer: Mixxx-style, two channel strips + center VUs + crossfader ── */
 .mixer {
   background: linear-gradient(180deg, var(--panel-2), var(--bg-2));
   border: 1px solid var(--edge);
   border-radius: var(--radius);
-  padding: 12px 10px;
+  padding: 8px 8px 10px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  align-items: center;
+  gap: 8px;
+  align-items: stretch;
   box-shadow: var(--shadow), var(--shadow-inset);
   min-width: 0;
+  min-height: 0; /* critical: lets the strips flex-shrink instead of overflowing */
+  overflow: hidden;
 }
-.mixer-title {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  color: var(--text-faint);
-}
-.mixer-master {
+.mixer-top {
   display: flex;
-  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 0 0 auto;
 }
-.master-val {
+.mixer-mainval {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   color: var(--text-dim);
 }
-/* channel gain faders + VU meters, above the crossfader */
-.mixer-gains {
-  flex: 1;
+
+/* the two strips flank the center VU meters; packs top, fixed-size (not stretchy) */
+.mixer-strips {
+  flex: 0 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
-  gap: 4px;
-  width: 100%;
-  align-items: stretch;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 8px;
+  align-items: start;
   justify-items: center;
-  padding: 4px 0;
+  overflow: hidden;
 }
-.gain-fader {
+.chan {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   min-height: 0;
+  min-width: 0;
 }
-.gain-fader .vfader {
-  height: 100%;
+/* EQ knob column + the fader beside it */
+.chan-body {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
 }
-.gain-fader.deck-a .vfader::-webkit-slider-thumb {
-  box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.6),
-    0 0 8px rgba(56, 182, 255, 0.4);
+.chan-knobs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
 }
-.gain-fader.deck-b .vfader::-webkit-slider-thumb {
-  box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.6),
-    0 0 8px rgba(255, 122, 61, 0.4);
+.chan .knob {
+  flex: 0 0 auto;
+  gap: 0;
 }
-.mixer-gains .vu-meter {
-  height: 100%;
+.chan .knob svg {
+  width: 28px;
+  height: 28px;
+}
+.chan .knob-label {
+  font-size: 8px;
+  letter-spacing: 0.3px;
+  line-height: 1;
+}
+.chan .quick-effect {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+/* fader height matches the knob column (5 stacked knobs); fixed, never stretches */
+.chan-fader {
+  flex: 0 0 auto;
+  height: 172px;
+  width: 22px;
+}
+/* center VU meters between the strips, matched to the fader height */
+.mixer-vus {
+  display: flex;
+  gap: 3px;
+  align-items: flex-start;
+  padding-top: 30px; /* drop below the PFL row to line up with the faders */
+}
+.mixer-vus .vu-meter {
+  height: 172px;
+}
+.pfl-mini {
+  flex: 0 0 auto;
+  font-size: 12px;
+  padding: 3px 6px;
+  line-height: 1;
+}
+.pfl-mini.active {
+  background: var(--accent-2);
+  border-color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.mixer-bottom {
+  flex: 0 0 auto;
+  margin-top: auto; /* pin the crossfader to the bottom of the mixer */
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .mixer-xfader {
   display: flex;
@@ -759,7 +809,7 @@ body,
   flex: 1;
 }
 .xfader-end {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
 }
 .xfader-end.a {
@@ -772,7 +822,7 @@ body,
   width: 100%;
   font-size: 10px;
   letter-spacing: 0.5px;
-  padding: 6px;
+  padding: 5px;
   white-space: nowrap;
   font-weight: 700;
 }
@@ -781,12 +831,6 @@ body,
   color: #2a0f02;
   border-color: var(--cue);
   box-shadow: 0 0 12px rgba(255, 122, 61, 0.45);
-}
-.deck-extras {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-  margin-left: auto;
 }
 
 /* ── library ──────────────────────────────────────────────── */
@@ -988,7 +1032,11 @@ input[type='range'].vfader {
   writing-mode: vertical-lr;
   direction: rtl;
   width: 22px;
+  /* fill the (bounded) flex parent; never exceed it. The parents all carry
+     min-height:0 so this resolves to the available space, not content height. */
   height: 100%;
+  min-height: 0;
+  max-height: 100%;
 }
 input[type='range'].vfader::-webkit-slider-runnable-track {
   width: 6px;
