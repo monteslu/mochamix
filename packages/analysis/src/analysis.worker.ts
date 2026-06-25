@@ -45,6 +45,9 @@ self.onmessage = (e: MessageEvent<AnalyzeRequest>) => {
     const buckets = msg.detailBuckets ?? detailBucketsForDuration(msg.frames / msg.sampleRate);
     const peaks = computePeakSet(channels, msg.frames, buckets, msg.sampleRate);
     res.overviewPeaks = peaks.overview.peaks;
+    res.overviewLow = peaks.overview.low;
+    res.overviewMid = peaks.overview.mid;
+    res.overviewHigh = peaks.overview.high;
     res.detailPeaks = peaks.detail.peaks;
     res.detailFramesPerBucket = peaks.detail.framesPerBucket;
   }

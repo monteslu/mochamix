@@ -15,6 +15,9 @@ export interface BeatGridResult {
   camelot: string;
   /** Overview peaks, when peaks were requested (computed in the worker). */
   overviewPeaks?: Uint8Array;
+  overviewLow?: Uint8Array;
+  overviewMid?: Uint8Array;
+  overviewHigh?: Uint8Array;
   detailPeaks?: Uint8Array;
   detailFramesPerBucket?: number;
 }
@@ -42,6 +45,9 @@ export class AnalysisService {
             key: msg.key,
             camelot: msg.camelot,
             overviewPeaks: msg.overviewPeaks,
+            overviewLow: msg.overviewLow,
+            overviewMid: msg.overviewMid,
+            overviewHigh: msg.overviewHigh,
             detailPeaks: msg.detailPeaks,
             detailFramesPerBucket: msg.detailFramesPerBucket,
           });

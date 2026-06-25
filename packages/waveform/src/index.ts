@@ -7,6 +7,8 @@ export {
   computePeaks,
   computeBandPeaks,
   computePeakSet,
+  packPeaks,
+  unpackPeaks,
   detailBucketsForDuration,
   OVERVIEW_BUCKETS,
   type PeakData,

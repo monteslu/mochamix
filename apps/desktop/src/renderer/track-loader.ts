@@ -10,7 +10,7 @@
  */
 
 import { decodeArrayBuffer } from '@internal-dj/codec';
-import { computePeakSet, detailBucketsForDuration } from '@internal-dj/waveform';
+import { computePeakSet, detailBucketsForDuration, packPeaks } from '@internal-dj/waveform';
 import { deck as deckGroup, DeckKeys, type ControlBus } from '@internal-dj/control-bus';
 import type { Engine } from '@internal-dj/audio-engine';
 import type { AnalysisService } from './analysis-service.js';
@@ -113,7 +113,7 @@ export async function loadTrackToDeck(
           bpm: r.bpm,
           firstBeatFrame: r.firstBeatFrame,
           key: r.camelot,
-          waveform: peaks.overview.peaks,
+          waveform: packPeaks(peaks.overview),
           analyzedAt: Date.now(),
         });
       }

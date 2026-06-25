@@ -34,20 +34,41 @@ export function Knob({ group, ckey, label, min, max, center, big, hint }: Props)
   const [value, setValue] = useControl(group, ckey);
   const dragState = useRef<{ y: number; v: number } | null>(null);
 
-  const norm = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  // Map value→norm so the CENTER (default) value sits at 12 o'clock (norm 0.5):
+  // below-center fills the lower half [0,0.5], above-center the upper half
+  // [0.5,1]. This is what DJ EQ/gain knobs do — unity points straight up, not at
+  // 25% of the raw range (which looked like ~10 o'clock). When center is at an end
+  // (min or max), it degrades to a normal linear sweep.
+  let norm: number;
+  if (center > min && center < max) {
+    norm =
+      value <= center
+        ? 0.5 * ((value - min) / (center - min))
+        : 0.5 + 0.5 * ((value - center) / (max - center));
+  } else {
+    norm = (value - min) / (max - min);
+  }
+  norm = Math.max(0, Math.min(1, norm));
   const angle = START + norm * SWEEP;
   const size = big ? 60 : 44;
   const C = 24;
   const R = 18;
 
-  // value arc from START to current angle
-  const [ax, ay] = polar(C, C, R, START);
+  // The value arc: for a center-anchored knob it fills FROM 12 o'clock (the
+  // detent) to the current angle — so you see how far above/below unity you are.
+  // For an end-anchored knob it fills from the min end.
+  const centered = center > min && center < max;
+  const arcFromAngle = centered ? 0 /* 12 o'clock */ : START;
+  const [ax, ay] = polar(C, C, R, arcFromAngle);
   const [bx, by] = polar(C, C, R, angle);
-  const largeArc = norm * SWEEP > 180 ? 1 : 0;
-  const arc = `M ${ax} ${ay} A ${R} ${R} 0 ${largeArc} 1 ${bx} ${by}`;
-  // full-sweep track
+  const sweepDeg = Math.abs(angle - arcFromAngle);
+  const largeArc = sweepDeg > 180 ? 1 : 0;
+  const sweepFlag = angle >= arcFromAngle ? 1 : 0;
+  const arc = `M ${ax} ${ay} A ${R} ${R} 0 ${largeArc} ${sweepFlag} ${bx} ${by}`;
+  // full-sweep track (always the whole dial)
+  const [sx, sy] = polar(C, C, R, START);
   const [tx, ty] = polar(C, C, R, START + SWEEP);
-  const track = `M ${ax} ${ay} A ${R} ${R} 0 1 1 ${tx} ${ty}`;
+  const track = `M ${sx} ${sy} A ${R} ${R} 0 1 1 ${tx} ${ty}`;
   const [ix, iy] = polar(C, C, R - 4, angle);
 
   const onPointerDown = useCallback(

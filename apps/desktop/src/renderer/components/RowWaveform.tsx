@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { drawOverview, DEFAULT_COLORS, type PeakData } from '@internal-dj/waveform';
+import { drawOverview, DEFAULT_COLORS, unpackPeaks, type PeakData } from '@internal-dj/waveform';
 
 const W = 120;
 const H = 26;
@@ -15,17 +15,22 @@ const H = 26;
 // process-wide cache: trackId → rendered data URL (or '' = no waveform yet)
 const cache = new Map<number, string>();
 
-function renderPeaks(peaks: Uint8Array): string {
+function renderPeaks(blob: Uint8Array): string {
   const canvas =
     typeof OffscreenCanvas !== 'undefined'
       ? new OffscreenCanvas(W, H)
       : Object.assign(document.createElement('canvas'), { width: W, height: H });
-  // drawOverview wants a PeakData; build a minimal one from the cached bytes.
+  // The cached blob is packed (amp/low/mid/high per bucket). Unpack so the row
+  // waveform is FREQUENCY-COLORED like the deck overview.
+  const u = unpackPeaks(blob);
   const data: PeakData = {
-    length: peaks.length,
-    peaks,
+    length: u.peaks.length,
+    peaks: u.peaks,
+    low: u.low,
+    mid: u.mid,
+    high: u.high,
     framesPerBucket: 1,
-    frames: peaks.length,
+    frames: u.peaks.length,
   };
   // fraction 0 (no playhead emphasis needed for a static thumbnail)
   drawOverview(canvas as unknown as HTMLCanvasElement, data, 0, DEFAULT_COLORS);
@@ -60,13 +65,19 @@ export function RowWaveform({
       setUrl(cache.get(trackId)!);
       return;
     }
-    // demo mode: synthesize peaks so the mini-waves are visible in screenshots
+    // demo mode: synthesize a packed (amp/low/mid/high) blob so the mini-waves are
+    // visible AND colored in screenshots.
     if (new URLSearchParams(location.search).has('demo')) {
-      const peaks = new Uint8Array(120);
-      for (let i = 0; i < 120; i++) {
-        peaks[i] = Math.floor((0.4 + 0.6 * Math.abs(Math.sin(i * 0.3 + trackId))) * 255);
+      const n = 120;
+      const blob = new Uint8Array(n * 4);
+      for (let i = 0; i < n; i++) {
+        const amp = 0.4 + 0.6 * Math.abs(Math.sin(i * 0.3 + trackId));
+        blob[i * 4] = Math.floor(amp * 255);
+        blob[i * 4 + 1] = Math.floor(amp * Math.abs(Math.sin(i * 0.11)) * 255); // low
+        blob[i * 4 + 2] = Math.floor(amp * Math.abs(Math.sin(i * 0.37)) * 255); // mid
+        blob[i * 4 + 3] = Math.floor(amp * Math.abs(Math.sin(i * 0.9)) * 255); // high
       }
-      const u = renderPeaks(peaks);
+      const u = renderPeaks(blob);
       cache.set(trackId, u);
       setUrl(u);
       return;

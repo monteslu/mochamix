@@ -32,6 +32,42 @@ export interface PeakData {
 export const OVERVIEW_BUCKETS = 1920;
 
 /**
+ * Pack amp + 3 band peaks into one interleaved RGBA blob (4 bytes/bucket: amp,
+ * low, mid, high) for compact DB storage. Unpack restores the four Uint8 arrays.
+ */
+export function packPeaks(p: PeakData): Uint8Array {
+  const n = p.length;
+  const out = new Uint8Array(n * 4);
+  for (let i = 0; i < n; i++) {
+    out[i * 4] = p.peaks[i]!;
+    out[i * 4 + 1] = p.low ? p.low[i]! : p.peaks[i]!;
+    out[i * 4 + 2] = p.mid ? p.mid[i]! : p.peaks[i]!;
+    out[i * 4 + 3] = p.high ? p.high[i]! : p.peaks[i]!;
+  }
+  return out;
+}
+
+export function unpackPeaks(blob: Uint8Array): {
+  peaks: Uint8Array;
+  low: Uint8Array;
+  mid: Uint8Array;
+  high: Uint8Array;
+} {
+  const n = (blob.length / 4) | 0;
+  const peaks = new Uint8Array(n);
+  const low = new Uint8Array(n);
+  const mid = new Uint8Array(n);
+  const high = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    peaks[i] = blob[i * 4]!;
+    low[i] = blob[i * 4 + 1]!;
+    mid[i] = blob[i * 4 + 2]!;
+    high[i] = blob[i * 4 + 3]!;
+  }
+  return { peaks, low, mid, high };
+}
+
+/**
  * Compute max-abs peak buckets from planar channel data. Mixes channels (max of
  * channel abs) per frame, then takes the max over each bucket window.
  *

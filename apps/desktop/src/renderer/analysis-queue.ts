@@ -10,6 +10,7 @@
  */
 
 import { decodeArrayBuffer } from '@internal-dj/codec';
+import { packPeaks } from '@internal-dj/waveform';
 import type { Engine } from '@internal-dj/audio-engine';
 import type { AnalysisService } from './analysis-service.js';
 
@@ -112,11 +113,24 @@ export class AnalysisQueue {
     // thread, so background analysis never hiccups live audio.
     const r = await this.analysis.analyze(decoded, /* computePeaks */ true);
 
+    // pack amp + band peaks into one blob so the library row can color it
+    const waveform =
+      r.overviewPeaks &&
+      packPeaks({
+        length: r.overviewPeaks.length,
+        peaks: r.overviewPeaks,
+        low: r.overviewLow,
+        mid: r.overviewMid,
+        high: r.overviewHigh,
+        framesPerBucket: 1,
+        frames: r.overviewPeaks.length,
+      });
+
     await window.dj.librarySetAnalysis(id, {
       bpm: r.bpm,
       firstBeatFrame: r.firstBeatFrame,
       key: r.camelot,
-      waveform: r.overviewPeaks,
+      waveform: waveform ?? undefined,
       analyzedAt: Date.now(),
     });
   }

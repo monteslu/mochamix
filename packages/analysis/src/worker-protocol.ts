@@ -30,6 +30,10 @@ export interface AnalyzeResponse {
   camelot: string;
   /** Overview peaks (Uint8 per bucket), if computePeaks was requested. */
   overviewPeaks?: Uint8Array;
+  /** Overview band peaks (low/mid/high) for frequency coloring. */
+  overviewLow?: Uint8Array;
+  overviewMid?: Uint8Array;
+  overviewHigh?: Uint8Array;
   /** Detail peaks, if computePeaks was requested. */
   detailPeaks?: Uint8Array;
   detailFramesPerBucket?: number;
