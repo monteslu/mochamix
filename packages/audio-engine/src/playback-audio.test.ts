@@ -12,7 +12,7 @@ function makeTrack(seconds: number, sr: number) {
   const frames = Math.floor(seconds * sr);
   const ch = new Float32Array(frames);
   for (let i = 0; i < frames; i++) ch[i] = Math.sin((2 * Math.PI * 440 * i) / sr) * 0.8; // A440
-  return { channelData: [ch, ch], frames, sampleRate: sr };
+  return { channelData: [ch, ch], channels: 2, frames, sampleRate: sr };
 }
 
 describe('DeckPlayback produces audio + advances position', () => {

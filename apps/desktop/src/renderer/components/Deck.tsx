@@ -4,7 +4,7 @@
  * decode → peaks → engine.loadTrack pipeline.
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { deck as deckGroup, DeckKeys } from '@internal-dj/control-bus';
 import { decodeArrayBuffer } from '@internal-dj/codec';
 import {
@@ -182,17 +182,40 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
     setPlay(play > 0.5 ? 0 : 1);
   }, [started, start, play, setPlay, engine]);
 
-  // CUE (CDJ-style), one clear behavior per click:
-  //  - PLAYING  → jump back to the cue point and stop (ready to re-launch)
-  //  - STOPPED  → set the cue point to the current position
-  // The cue point defaults to the track start on load, so CUE always works.
-  const cue = useCallback(() => {
+  // CUE — standard Pioneer/CDJ behavior (per the DJ-software spec):
+  //  press while PLAYING            → jump back to the cue point + pause (back-cue)
+  //  press while PAUSED AT the cue  → preview: play from the cue while held
+  //  press while PAUSED elsewhere   → set the cue point here (paused, silent)
+  //  release after a preview        → snap back to the cue point + pause
+  // The cue point defaults to track start on load, so CUE always has a target.
+  const cuePreviewing = useRef(false);
+  const cueDown = useCallback(() => {
     if (play > 0.5) {
+      // back-cue: return to the cue point and pause
       bus.set(grp, DeckKeys.cueGotoAndStop, 1);
+      return;
+    }
+    // paused: are we AT the cue point? (within ~1/8 sec)
+    const frames = bus.get(grp, DeckKeys.trackSamples);
+    const cuePos = bus.get(grp, DeckKeys.cuePoint);
+    const posFrames = bus.get(grp, DeckKeys.playPosition) * frames;
+    const atCue = cuePos >= 0 && Math.abs(posFrames - cuePos) < 48000 / 8;
+    if (atCue) {
+      // preview: play from the cue while held
+      cuePreviewing.current = true;
+      setPlay(1);
     } else {
+      // set a new cue point here
       bus.set(grp, DeckKeys.cueSet, 1);
     }
-  }, [play, bus, grp]);
+  }, [play, bus, grp, setPlay]);
+  const cueUp = useCallback(() => {
+    if (cuePreviewing.current) {
+      cuePreviewing.current = false;
+      setPlay(0);
+      bus.set(grp, DeckKeys.cueGotoAndStop, 1); // snap back to the cue
+    }
+  }, [bus, grp, setPlay]);
 
   // Temporary pitch bend: while held, add a small offset to the rate slider; on
   // release, restore. For manual beatmatching (nudge a deck into phase).
@@ -263,9 +286,11 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
       <div className="deck-transport">
         <button
           className="cue-btn"
-          onClick={cue}
+          onPointerDown={cueDown}
+          onPointerUp={cueUp}
+          onPointerLeave={cueUp}
           disabled={!trackLoaded}
-          title="CUE — playing: jump back to the cue point and stop. Stopped: set the cue point here."
+          title="CUE (Pioneer/CDJ): playing → jump back to cue + pause. Paused at cue → hold to preview (plays while held, snaps back on release). Paused elsewhere → set cue here."
         >
           CUE
         </button>

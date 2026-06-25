@@ -216,9 +216,16 @@ export function drawScrolling(
       const bf = first + n * fpb;
       if (bf > rightFrame) break;
       const x = centerX + (bf - positionFrames) / framesPerPx;
-      const down = ((n % 4) + 4) % 4 === 0;
-      ctx.fillStyle = down ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.08)';
-      ctx.fillRect(x, 0, down ? 1.5 : 1, h);
+      const down = ((n % 4) + 4) % 4 === 0; // downbeat = start of a 4/4 measure
+      if (down) {
+        // red measure marker (rekordbox / VirtualDJ convention)
+        ctx.fillStyle = 'rgba(255,60,60,0.85)';
+        ctx.fillRect(x, 0, 2, h);
+      } else {
+        // brighter white beat ticks
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.fillRect(x, 0, 1, h);
+      }
       n++;
     }
   }

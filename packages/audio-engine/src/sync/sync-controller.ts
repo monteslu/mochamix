@@ -60,22 +60,26 @@ export class SyncController {
     return this.deps.bus.get(deckGroup(deckIndex + 1), DeckKeys.syncEnabled) > 0.5;
   }
 
-  /** Leader = explicit syncLeader, else the first synced+playing deck with a BPM. */
-  private pickLeader(): number {
+  /**
+   * Pick the leader for a follower deck `forDeck`:
+   *   1. an explicit sync_leader, else
+   *   2. a PLAYING deck (not the follower) with a BPM — match a live track, else
+   *   3. any OTHER deck with a BPM — so SYNC works even if the other deck is
+   *      loaded but stopped (you sync its tempo, then hit play).
+   * Returns -1 only when no other deck has a usable BPM.
+   */
+  private pickLeader(forDeck = -1): number {
     const { bus, numDecks } = this.deps;
-    let firstPlaying = -1;
+    let playing = -1;
+    let anyOther = -1;
     for (let d = 0; d < numDecks; d++) {
       const g = deckGroup(d + 1);
       if (bus.get(g, DeckKeys.syncLeader) > 0.5) return d;
-      if (
-        firstPlaying < 0 &&
-        bus.get(g, DeckKeys.play) > 0.5 &&
-        bus.get(g, DeckKeys.fileBpm) > 0
-      ) {
-        firstPlaying = d;
-      }
+      if (d === forDeck || bus.get(g, DeckKeys.fileBpm) <= 0) continue;
+      if (playing < 0 && bus.get(g, DeckKeys.play) > 0.5) playing = d;
+      if (anyOther < 0) anyOther = d;
     }
-    return firstPlaying;
+    return playing >= 0 ? playing : anyOther;
   }
 
   private halfDoubleFactor(followerBpm: number, leaderBpm: number): number {
@@ -97,17 +101,20 @@ export class SyncController {
       this.deps.setRateRatio(deckIndex, 0); // release override
       return;
     }
-    const leaderIdx = this.pickLeader();
+    const leaderIdx = this.pickLeader(deckIndex);
     if (leaderIdx < 0 || leaderIdx === deckIndex) return;
 
     const fg = this.grid(deckIndex);
     const lg = this.grid(leaderIdx);
-    if (!fg || !lg) return;
 
     const leaderBpm = this.deps.bus.get(deckGroup(leaderIdx + 1), DeckKeys.fileBpm);
     const followerBpm = this.deps.bus.get(deckGroup(deckIndex + 1), DeckKeys.fileBpm);
+    if (followerBpm <= 0 || leaderBpm <= 0) return;
     const factor = this.halfDoubleFactor(followerBpm, leaderBpm);
     this.deps.setRateRatio(deckIndex, leaderBpm / (followerBpm * factor));
+
+    // instant phase snap only when both grids are known
+    if (!fg || !lg) return;
 
     // instant phase snap: align follower beat to leader beat
     const leaderPhase = beatDistance(lg, this.deps.positionFrames(leaderIdx));
@@ -148,26 +155,27 @@ export class SyncController {
       }
     }
 
-    const leaderIdx = this.pickLeader();
-    if (leaderIdx < 0) return;
-    const lg = this.grid(leaderIdx);
-    if (!lg) return;
-    const leaderBpm = bus.get(deckGroup(leaderIdx + 1), DeckKeys.fileBpm);
-    const leaderPhase = beatDistance(lg, this.deps.positionFrames(leaderIdx));
-
     for (let d = 0; d < numDecks; d++) {
-      if (d === leaderIdx || !this.isFollower(d)) continue;
+      if (!this.isFollower(d)) continue;
+      const leaderIdx = this.pickLeader(d);
+      if (leaderIdx < 0 || leaderIdx === d) continue;
+      const leaderBpm = bus.get(deckGroup(leaderIdx + 1), DeckKeys.fileBpm);
       const followerBpm = bus.get(deckGroup(d + 1), DeckKeys.fileBpm);
-      if (followerBpm <= 0) continue;
+      if (followerBpm <= 0 || leaderBpm <= 0) continue;
       const factor = this.halfDoubleFactor(followerBpm, leaderBpm);
       const baseRatio = leaderBpm / (followerBpm * factor);
 
       const fg = this.grid(d);
-      if (!fg) {
+      const lg = this.grid(leaderIdx);
+      // Only phase-hold when the leader is actually PLAYING (and both grids known)
+      // — otherwise just match tempo so the BPMs lock without chasing a frozen
+      // playhead.
+      const leaderPlaying = bus.get(deckGroup(leaderIdx + 1), DeckKeys.play) > 0.5;
+      if (!fg || !lg || !leaderPlaying) {
         this.deps.setRateRatio(d, baseRatio);
         continue;
       }
-      // proportional phase hold
+      const leaderPhase = beatDistance(lg, this.deps.positionFrames(leaderIdx));
       const fphase = beatDistance(fg, this.deps.positionFrames(d));
       let err = leaderPhase - fphase;
       if (err > 0.5) err -= 1;

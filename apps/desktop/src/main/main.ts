@@ -32,6 +32,7 @@ const isDev = process.argv.includes('--dev');
 // it must be set BEFORE Electron's early init (app.commandLine switches are read
 // too late and the X11 path crashes first).
 
+
 const SCHEME = 'app';
 const ISOLATION_HEADERS = {
   'Cross-Origin-Opener-Policy': 'same-origin',

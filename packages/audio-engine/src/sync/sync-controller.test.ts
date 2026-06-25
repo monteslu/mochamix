@@ -78,6 +78,21 @@ describe('SyncController', () => {
     expect(s.rate[1]).toBeCloseTo(1.0, 3);
   });
 
+  it('syncs to a STOPPED deck (leader need not be playing) — the real bug', () => {
+    const g1 = deckGroup(1);
+    const g2 = deckGroup(2);
+    // deck 1 loaded with a BPM but NOT playing
+    s.bus.set(g1, DeckKeys.fileBpm, 128);
+    s.bus.set(g1, DeckKeys.firstBeatFrame, 0);
+    s.bus.set(g1, DeckKeys.play, 0); // stopped
+    // deck 2 syncs to it
+    s.bus.set(g2, DeckKeys.fileBpm, 120);
+    s.bus.set(g2, DeckKeys.firstBeatFrame, 0);
+    s.bus.set(g2, DeckKeys.syncEnabled, 1);
+    // should still match tempo: 128/120
+    expect(s.rate[1]).toBeCloseTo(128 / 120, 3);
+  });
+
   it('releases the override when SYNC is disabled', () => {
     const g2 = deckGroup(2);
     s.bus.set(deckGroup(1), DeckKeys.fileBpm, 120);
