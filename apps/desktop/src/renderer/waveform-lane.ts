@@ -74,9 +74,17 @@ export class WaveformLaneController {
     const framesPerBeat = fileBpm > 0 ? (60 / fileBpm) * sr : 0;
     const fbf = this.bus.get(g, DeckKeys.firstBeatFrame);
 
-    // FIXED zoom from the global preset (BPM-independent → never rescales).
+    // Zoom = user preset × the deck's EFFECTIVE rate (rate_ratio), exactly like
+    // Mixxx: visualSamplePerPixel = zoomFactor * rateRatio / scaleFactor. Scaling
+    // by rate_ratio means a synced/sped-up track is squished so 1 beat occupies the
+    // same screen width on BOTH decks — so two synced tracks (even different native
+    // BPMs) show matching bar/measure widths and their grids snap together. The
+    // base preset is in source-frames-per-pixel at rate 1.0; rate_ratio is stable
+    // (changes only on load/sync), so this doesn't reintroduce per-frame rescale.
     const zoomIdx = this.bus.get(MASTER, MasterKeys.waveformZoom);
-    const framesPerPx = framesPerPxForZoom(zoomIdx >= 0 ? zoomIdx : DEFAULT_ZOOM_INDEX);
+    const baseFramesPerPx = framesPerPxForZoom(zoomIdx >= 0 ? zoomIdx : DEFAULT_ZOOM_INDEX);
+    const rateRatio = this.bus.get(g, DeckKeys.rateRatio) || 1;
+    const framesPerPx = baseFramesPerPx * rateRatio;
 
     const positionFrames = fraction * frames;
     const t0 = performance.now();
