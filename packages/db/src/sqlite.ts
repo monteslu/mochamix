@@ -111,8 +111,7 @@ export class SqliteDb {
       // node-sqlite3-wasm locks via a `<db>.lock` DIRECTORY (mkdir mutex). If the
       // app crashed while open, that dir is orphaned and every future open throws
       // "database is locked". Electron is single-instance, so any lock present at
-      // construction is stale — remove it. (This was the real "unable to open
-      // database file" on restart-after-crash.)
+      // construction is stale — remove it.
       const lockDir = `${dbPath}.lock`;
       try {
         if (existsSync(lockDir) && statSync(lockDir).isDirectory()) {
@@ -120,6 +119,17 @@ export class SqliteDb {
         }
       } catch {
         /* best-effort */
+      }
+      // The WASM VFS doesn't support WAL; a leftover `-wal`/`-shm`/`-journal`
+      // sidecar (from an earlier build that asked for WAL) makes the open fail with
+      // "unable to open database file". They're disposable rollback artifacts —
+      // remove any that exist before opening. (This was the real recurring DB bug.)
+      for (const suffix of ['-wal', '-shm', '-journal']) {
+        try {
+          if (existsSync(`${dbPath}${suffix}`)) rmSync(`${dbPath}${suffix}`, { force: true });
+        } catch {
+          /* best-effort */
+        }
       }
     }
     try {

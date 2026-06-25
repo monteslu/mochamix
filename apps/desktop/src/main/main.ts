@@ -27,6 +27,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const RENDERER_DIR = join(__dirname, '../dist-renderer');
 const isDev = process.argv.includes('--dev');
 
+// Set a clean app name BEFORE any getPath('userData') call. The package name is
+// "@internal-dj/desktop", whose "/" produces a nested userData path
+// (.config/@internal-dj/desktop) — fragile for file creation. Use a flat name.
+app.setName('dj-app');
+
 // NOTE: the Wayland-vs-X11 display backend is selected via the
 // ELECTRON_OZONE_PLATFORM_HINT=auto env var set by scripts/run-electron.mjs —
 // it must be set BEFORE Electron's early init (app.commandLine switches are read

@@ -810,7 +810,7 @@ body,
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   gap: 8px;
-  align-items: start;
+  align-items: stretch; /* all three columns share the row height → VUs match faders */
   justify-items: center;
   overflow: hidden;
 }
@@ -822,17 +822,21 @@ body,
   min-height: 0;
   min-width: 0;
 }
-/* EQ knob column + the fader beside it */
+/* EQ knob column + the fader beside it. align-items: stretch makes the fader
+   match the knob column's height, so it can NEVER be taller than its container
+   (no off-screen overflow) regardless of viewport size. */
 .chan-body {
   display: flex;
   gap: 6px;
-  align-items: flex-start;
+  align-items: stretch;
+  min-height: 0;
 }
 .chan-knobs {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1px;
+  flex: 0 0 auto;
 }
 .chan .knob {
   flex: 0 0 auto;
@@ -851,11 +855,12 @@ body,
   flex: 0 0 auto;
   margin-top: 1px;
 }
-/* fader scales with viewport height (roughly matches the knob column); bounded
-   so it never collapses or runs off-screen. */
+/* fader matches the knob-column height (align-items: stretch on .chan-body), so
+   it's always exactly as tall as its container — never off-screen. */
 .chan-fader {
   flex: 0 0 auto;
-  height: var(--fader-h);
+  height: auto;
+  align-self: stretch;
   width: var(--fader-w);
 }
 
@@ -876,16 +881,16 @@ body,
     gap: calc(14px * var(--u));
   }
 }
-/* center VU meters between the strips; bottom-aligned so they line up with the
-   bottoms of the channel faders regardless of the PFL/knob row heights. */
+/* center VU meters between the strips; stretch to the strip height + bottom-align
+   the bars so they line up with the channel faders (container-relative, no vh). */
 .mixer-vus {
   display: flex;
   gap: 3px;
   align-items: flex-end;
-  align-self: end;
+  align-self: stretch;
 }
 .mixer-vus .vu-meter {
-  height: var(--fader-h);
+  height: 100%;
 }
 .pfl-mini {
   flex: 0 0 auto;
