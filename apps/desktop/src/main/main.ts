@@ -32,28 +32,14 @@ const isDev = process.argv.includes('--dev');
 // (.config/@internal-dj/desktop) — fragile for file creation. Use a flat name.
 app.setName('dj-app');
 
-// On Linux/Wayland some drivers crash-loop in Chromium's native-GPU-buffer
-// (GBM/pixmap) path — "eglCreateImage failed", "OzoneImageBacking ... GPU process
-// exited unexpectedly". The crash is the native-pixmap IMPORT for sharing GPU
-// buffers with the Wayland compositor; disabling NATIVE GPU memory buffers makes
-// Chromium use a shared-memory copy path instead, which keeps GPU rendering +
-// WebGL/WebGPU working AND stops the crash. (Verified switches; do NOT force a GL
-// backend.) Opt out with DJ_NATIVE_GPU=1.
-if (process.platform === 'linux' && process.env.DJ_NATIVE_GPU !== '1') {
-  // The crash is OzoneImageBacking::ProduceSkiaGanesh — Chromium's GPU
-  // RASTERIZATION producing a Skia-on-GPU tile that fails on this driver's
-  // native-pixmap import. --disable-gpu-rasterization rasters tiles on the CPU
-  // while keeping COMPOSITING + WebGL/WebGPU on the GPU — surgical (unlike
-  // --disable-gpu-compositing, which breaks the WebGL canvas). All verified
-  // switches present in the binary. Opt out with DJ_NATIVE_GPU=1.
-  app.commandLine.appendSwitch('disable-gpu-rasterization');
-  app.commandLine.appendSwitch('disable-gpu-memory-buffer-compositor-resources');
-}
-
-// NOTE: the Wayland-vs-X11 display backend is selected via the
-// ELECTRON_OZONE_PLATFORM_HINT=auto env var set by scripts/run-electron.mjs —
-// it must be set BEFORE Electron's early init (app.commandLine switches are read
-// too late and the X11 path crashes first).
+// NOTE: the GPU crash-loop on Linux ("eglCreateImage failed / OzoneImageBacking
+// ... GPU process exited unexpectedly") is Chromium's NATIVE-Wayland backend
+// being incompatible with the Vulkan/GPU path. It's fixed by running under X11
+// ozone (XWayland), selected via ELECTRON_OZONE_PLATFORM_HINT in
+// scripts/run-electron.mjs — that env var must be set BEFORE Electron's early
+// init (app.commandLine switches are read too late). Same fix loukai uses. No
+// GPU command-line switches here: they were guesses that didn't address the
+// actual native-Wayland cause.
 
 
 const SCHEME = 'app';
