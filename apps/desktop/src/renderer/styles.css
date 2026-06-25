@@ -370,6 +370,8 @@ body,
   position: absolute;
   inset: 8%;
   border-radius: 50%;
+  cursor: grab;
+  touch-action: none;
   background:
     repeating-radial-gradient(circle at 50% 50%, #15171c 0, #15171c 1px, #0d0f13 1px, #0d0f13 3px),
     radial-gradient(circle at 38% 32%, #2a2e38, #0a0b0e 75%);
@@ -380,6 +382,9 @@ body,
   align-items: center;
   justify-content: center;
   will-change: transform;
+}
+.platter-disc:active {
+  cursor: grabbing;
 }
 .platter-grooves {
   position: absolute;

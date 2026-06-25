@@ -6,11 +6,11 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { deck as deckGroup, DeckKeys } from '@internal-dj/control-bus';
 import { useDj } from '../dj-context.js';
+import { PlatterController } from '../platter-controller.js';
 
-const RPM = 33.333;
-
+// Thin shell: render the disc/ring, hand them to the controller (rotation +
+// mouse scratching). No animation/scratch logic in the JSX.
 export function Platter({
   deckIndex,
   coverUrl,
@@ -21,35 +21,12 @@ export function Platter({
   const { bus } = useDj();
   const discRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<SVGCircleElement>(null);
-  const g = deckGroup(deckIndex + 1);
 
   useEffect(() => {
-    let raf = 0;
-    let last = performance.now();
-    let angle = 0;
-    const circumference = 2 * Math.PI * 46;
-
-    const tick = (now: number) => {
-      const dt = (now - last) / 1000;
-      last = now;
-      const playing = bus.get(g, DeckKeys.play) > 0.5;
-      const ratio = bus.get(g, DeckKeys.rateRatio) || 1;
-      if (playing) {
-        angle = (angle + dt * (RPM / 60) * 360 * ratio) % 360;
-        if (discRef.current) {
-          discRef.current.style.transform = `rotate(${angle}deg)`;
-        }
-      }
-      // progress ring
-      const pos = bus.get(g, DeckKeys.playPosition);
-      if (ringRef.current) {
-        ringRef.current.style.strokeDashoffset = `${circumference * (1 - pos)}`;
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [bus, g]);
+    if (!discRef.current) return;
+    const ctrl = new PlatterController(discRef.current, ringRef.current, bus, deckIndex);
+    return () => ctrl.dispose();
+  }, [bus, deckIndex]);
 
   const accent = deckIndex === 0 ? 'var(--deck-a)' : 'var(--deck-b)';
 
