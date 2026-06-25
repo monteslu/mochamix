@@ -25,16 +25,27 @@ export default tseslint.config(
     },
   },
   {
-    // Node build scripts (.mjs) — Node globals, allow console.
-    files: ['**/*.mjs', '**/scripts/**'],
+    // Node build/harness scripts (.mjs/.cjs/scripts) — full Node globals.
+    files: ['**/*.mjs', '**/*.cjs', '**/scripts/**'],
     languageOptions: {
       globals: {
         console: 'readonly',
         process: 'readonly',
         Buffer: 'readonly',
         URL: 'readonly',
+        require: 'readonly',
+        module: 'writable',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        Response: 'readonly',
+        Headers: 'readonly',
       },
     },
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
   {
     // Electron preload is CommonJS (.cts) — require() is expected there.
