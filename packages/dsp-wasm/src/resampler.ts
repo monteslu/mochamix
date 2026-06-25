@@ -34,19 +34,13 @@ interface ResamplerExports {
 }
 
 function base64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
-  // atob exists in browsers + workers + worklets; Buffer in Node (tests).
-  if (typeof atob === 'function') {
-    const bin = atob(b64);
-    const out = new Uint8Array(new ArrayBuffer(bin.length));
-    for (let i = 0; i < bin.length; i++) {
-      out[i] = bin.charCodeAt(i);
-    }
-    return out;
+  // atob is a global in browsers, workers, worklets AND Node ≥16 — no Buffer
+  // (which is Node-only and crashes the renderer). Pure typed-array decode.
+  const bin = atob(b64);
+  const out = new Uint8Array(new ArrayBuffer(bin.length));
+  for (let i = 0; i < bin.length; i++) {
+    out[i] = bin.charCodeAt(i);
   }
-  // Node fallback for tests.
-  const nodeBuf = Buffer.from(b64, 'base64');
-  const out = new Uint8Array(new ArrayBuffer(nodeBuf.length));
-  out.set(nodeBuf);
   return out;
 }
 

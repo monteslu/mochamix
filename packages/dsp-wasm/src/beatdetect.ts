@@ -32,15 +32,10 @@ interface BeatDetectExports {
 }
 
 function base64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
-  if (typeof atob === 'function') {
-    const bin = atob(b64);
-    const out = new Uint8Array(new ArrayBuffer(bin.length));
-    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-    return out;
-  }
-  const nb = Buffer.from(b64, 'base64');
-  const out = new Uint8Array(new ArrayBuffer(nb.length));
-  out.set(nb);
+  // atob works in browsers, workers, worklets AND Node ≥16 — no Node-only Buffer.
+  const bin = atob(b64);
+  const out = new Uint8Array(new ArrayBuffer(bin.length));
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
 }
 
