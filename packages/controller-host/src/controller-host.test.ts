@@ -77,17 +77,19 @@ describe('EngineApi — the Mixxx engine global', () => {
     engine.stopTimer(id);
   });
 
-  it('scratchEnable/isScratching/scratchDisable manage state + the rate override', () => {
+  it('scratchEnable/isScratching/scratchDisable manage state + the scratch rate', () => {
     const { bus, engine } = makeEngine();
     expect(engine.isScratching(1)).toBe(false);
     engine.scratchEnable(1, 128, 33.33, 1 / 8, (1 / 8) / 32);
     expect(engine.isScratching(1)).toBe(true);
+    expect(bus.get(deck(1), DeckKeys.scratching)).toBe(1);
     engine.scratchTick(1, 5);
-    // override should now be set (>0) on deck 1
-    expect(bus.get(deck(1), DeckKeys.rateRatioOverride)).toBeGreaterThan(0);
+    // forward ticks → positive scratch rate
+    expect(bus.get(deck(1), DeckKeys.scratchRate)).toBeGreaterThan(0);
     engine.scratchDisable(1);
     expect(engine.isScratching(1)).toBe(false);
-    expect(bus.get(deck(1), DeckKeys.rateRatioOverride)).toBe(0);
+    expect(bus.get(deck(1), DeckKeys.scratching)).toBe(0);
+    expect(bus.get(deck(1), DeckKeys.scratchRate)).toBe(0);
   });
 });
 

@@ -130,6 +130,7 @@ export class WaveformGL {
       gl = canvas.getContext('webgl', {
         antialias: false,
         depth: false,
+        alpha: true,
         premultipliedAlpha: false,
       }) as WebGLRenderingContext | null;
     } catch {
@@ -217,6 +218,17 @@ export class WaveformGL {
   }
 
   private framesPerBucket = 1;
+
+  /** Clear to transparent so the CSS background shows (no track loaded). */
+  clear(): void {
+    if (!this.ok) return;
+    const gl = this.gl;
+    const w = (gl.canvas as HTMLCanvasElement).width;
+    const h = (gl.canvas as HTMLCanvasElement).height;
+    gl.viewport(0, 0, w, h);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+  }
 
   draw(p: ScrollGLParams): void {
     if (!this.ok || this.texLen === 0) return;

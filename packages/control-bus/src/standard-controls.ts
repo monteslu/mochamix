@@ -52,6 +52,8 @@ function deckControls(g: string): ControlDef[] {
     { group: g, key: DeckKeys.bpm, default: 0, description: 'Effective BPM' },
     { group: g, key: DeckKeys.fileBpm, default: 0, description: 'Analyzed/original BPM' },
     { group: g, key: DeckKeys.firstBeatFrame, default: -1, description: 'Grid phase (first beat frame)' },
+    { group: g, key: DeckKeys.scratching, default: 0, description: 'Scratch active' },
+    { group: g, key: DeckKeys.scratchRate, default: 0, min: -20, max: 20, description: 'Scratch rate (neg=reverse)' },
     { group: g, key: DeckKeys.keylock, default: 0, persist: true, description: 'Keylock on/off' },
     { group: g, key: DeckKeys.syncEnabled, default: 0, description: 'Beat sync follower on/off' },
     { group: g, key: DeckKeys.syncLeader, default: 0, description: 'Explicit sync leader' },

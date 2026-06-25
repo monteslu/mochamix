@@ -49,6 +49,10 @@ export class PlatterController {
     this.lastTheta = this.centerAngle(e);
     this.lastMoveT = performance.now();
     this.wasPlaying = this.bus.get(this.group, DeckKeys.play) > 0.5;
+    this.velocity = 0;
+    // engage scratch: the deck now plays at scratchRate (signed) under the hand
+    this.bus.set(this.group, DeckKeys.scratchRate, 0);
+    this.bus.set(this.group, DeckKeys.scratching, 1);
     window.addEventListener('pointermove', this.onMove);
     window.addEventListener('pointerup', this.onUp);
   };
@@ -61,12 +65,15 @@ export class PlatterController {
     if (dTheta > Math.PI) dTheta -= 2 * Math.PI;
     else if (dTheta < -Math.PI) dTheta += 2 * Math.PI;
     const now = performance.now();
-    const dt = Math.max(0.001, (now - this.lastMoveT) / 1000);
+    const dt = Math.max(0.004, (now - this.lastMoveT) / 1000);
     // revs/sec the user is dragging; normalize to playback rate (33⅓rpm = nominal)
     const revsPerSec = dTheta / (2 * Math.PI) / dt;
-    this.velocity = revsPerSec / (RPM / 60);
-    // drive the deck rate (reverse allowed)
-    this.bus.set(this.group, DeckKeys.rateRatioOverride, this.velocity || 0.0001);
+    const target = revsPerSec / (RPM / 60);
+    // smooth so a jittery mouse doesn't garble — low-pass the scratch velocity
+    this.velocity = this.velocity * 0.5 + target * 0.5;
+    // clamp to a sane scratch range (±8x)
+    const v = Math.max(-8, Math.min(8, this.velocity));
+    this.bus.set(this.group, DeckKeys.scratchRate, v);
     // move the visual disc with the hand
     this.angle = (this.angle + (dTheta * 180) / Math.PI) % 360;
     this.disc.style.transform = `rotate(${this.angle}deg)`;
@@ -85,8 +92,10 @@ export class PlatterController {
         /* ignore */
       }
     }
-    // release the rate override → back to normal playback
-    this.bus.set(this.group, DeckKeys.rateRatioOverride, 0);
+    // release scratch → resume normal playback (or stay stopped if it was stopped)
+    this.bus.set(this.group, DeckKeys.scratchRate, 0);
+    this.bus.set(this.group, DeckKeys.scratching, 0);
+    this.velocity = 0;
   };
 
   private tick = (now: number): void => {

@@ -19,6 +19,8 @@ export interface DeckControlIndices {
   rateDirection: number;
   rateRatio: number;
   rateRatioOverride: number;
+  scratching: number;
+  scratchRate: number;
   keylock: number;
   pregain: number;
   volume: number;

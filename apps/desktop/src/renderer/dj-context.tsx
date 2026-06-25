@@ -20,6 +20,7 @@ import { ControlBus, standardControls, type Group, type Key } from '@internal-dj
 import { Engine } from '@internal-dj/audio-engine';
 import { AnalysisService } from './analysis-service.js';
 import { AnalysisQueue } from './analysis-queue.js';
+import { startPerfMonitor } from './perf-monitor.js';
 import { ControllerService } from './controller-service.js';
 import { RecordingService } from './recording-service.js';
 
@@ -80,8 +81,13 @@ export function DjProvider({ children }: { children: ReactNode }): React.JSX.Ele
     await runtime.engine.start();
     setStarted(true);
     // Once the AudioContext exists we can decode, so kick off background analysis
-    // of any songs the library hasn't processed yet (app-load catch-up).
-    void runtime.analysisQueue.enqueueUnanalyzed();
+    // of any songs the library hasn't processed yet (app-load / reload catch-up).
+    // Re-check a few times in case the library DB query wasn't ready on the first
+    // tick after a reload.
+    const kick = () => void runtime.analysisQueue.enqueueUnanalyzed();
+    kick();
+    setTimeout(kick, 1500);
+    setTimeout(kick, 5000);
   }, [runtime, started]);
 
   // SAB readback pump: the AudioWorklet writes play position, effective rate, and
@@ -90,6 +96,7 @@ export function DjProvider({ children }: { children: ReactNode }): React.JSX.Ele
   // get() only ever returns values the renderer itself set, so playback looks
   // frozen even when audio is running. The generation check makes it cheap.
   useEffect(() => {
+    startPerfMonitor(3); // logs FPS + frame timing every 3s
     let raf = 0;
     const pump = () => {
       runtime.bus.syncFromSab();

@@ -65,7 +65,7 @@ describe('Mixxx-style mapping script against the engine global', () => {
     for (let i = 0; i < 5; i++) {
       engine.scratchTick(deck, 3);
     }
-    expect(bus.get('[Channel1]', 'rate_ratio_override')).toBeGreaterThan(0);
+    expect(bus.get('[Channel1]', 'scratch2')).toBeGreaterThan(0);
 
     // release
     engine.scratchDisable(deck);

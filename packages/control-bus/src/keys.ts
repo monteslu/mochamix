@@ -100,6 +100,10 @@ export const DeckKeys = {
   // Direct rate-ratio override used by sync / smart fader (which need ratios
   // beyond the slider's ±range). 0 = inactive (use the slider); >0 = force ratio.
   rateRatioOverride: 'rate_ratio_override',
+  // Scratch: when scratching=1 the deck plays at scratchRate (which CAN be
+  // negative for reverse) regardless of play state — vinyl under the hand.
+  scratching: 'scratch2_enable',
+  scratchRate: 'scratch2',
   bpm: 'bpm', // effective BPM at current rate
   fileBpm: 'file_bpm', // analyzed/original BPM (used by sync + smart fader)
   firstBeatFrame: 'beat_first_frame', // grid phase: frame of the first beat (-1 = unknown)

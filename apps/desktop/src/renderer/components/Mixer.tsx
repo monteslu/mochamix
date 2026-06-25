@@ -70,6 +70,15 @@ export function Mixer(): React.JSX.Element {
   return (
     <section className="mixer" aria-label="Mixer">
       <div className="mixer-top">
+        <button
+          className={`smart-icon ${smartFader > 0.5 ? 'active' : ''}`}
+          onClick={() => setSmartFader(smartFader > 0.5 ? 0 : 1)}
+          title={`Smart Fader: the crossfader blends the two decks' TEMPO, not just volume.${
+            sfActive && sfTargetBpm > 0 ? ` Target ${sfTargetBpm.toFixed(0)} BPM.` : ''
+          }`}
+        >
+          🧠
+        </button>
         <Knob group={MASTER} ckey={MasterKeys.gain} label="MAIN" min={0} max={5} center={1} hint="Master output level" />
         <span className="mixer-mainval">{gain.toFixed(1)}</span>
       </div>
@@ -99,13 +108,6 @@ export function Mixer(): React.JSX.Element {
           />
           <span className="xfader-end b">B</span>
         </div>
-        <button
-          className={`smartfader-btn ${smartFader > 0.5 ? 'active' : ''}`}
-          onClick={() => setSmartFader(smartFader > 0.5 ? 0 : 1)}
-          title="Smart Fader: the crossfader blends the two decks' tempo, not just volume"
-        >
-          SMART{sfActive && sfTargetBpm > 0 ? ` ${sfTargetBpm.toFixed(0)}` : ''}
-        </button>
       </div>
     </section>
   );

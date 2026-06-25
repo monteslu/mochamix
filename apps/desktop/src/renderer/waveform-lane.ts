@@ -8,6 +8,7 @@
 import { WaveformGL, drawScrolling, DEFAULT_COLORS } from '@internal-dj/waveform';
 import { deck as deckGroup, DeckKeys, type ControlBus } from '@internal-dj/control-bus';
 import { getDeckTrack } from './deck-state.js';
+import { reportLaneDraw } from './perf-monitor.js';
 
 const SR = 48000;
 // Screen pixels per beat — sets the zoom. Same on every deck, so beats are the
@@ -78,6 +79,7 @@ export class WaveformLaneController {
         firstBeatFrame: fbf >= 0 ? fbf : 0,
         framesPerBeat,
       };
+      const t0 = performance.now();
       if (this.gl.ok) {
         this.gl.draw(params);
       } else {
@@ -87,6 +89,12 @@ export class WaveformLaneController {
           framesPerBeat,
         });
       }
+      reportLaneDraw(`deck${this.deckIndex}`, this.gl.ok, performance.now() - t0);
+    } else {
+      // no track → clear to transparent so the grey panel bg (CSS) shows, not
+      // whatever was last in the GL framebuffer (looked white/garbage).
+      this.gl.clear();
+      this.uploaded = null;
     }
     this.raf = requestAnimationFrame(this.tick);
   };

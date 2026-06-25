@@ -156,12 +156,25 @@ class EngineProcessor extends AudioWorkletProcessor {
       const pregain = sabRead(control, idx.pregain);
       const keylock = sabRead(control, idx.keylock) > 0.5;
       const ratioOverride = sabRead(control, idx.rateRatioOverride);
+      const scratching = idx.scratching !== undefined && sabRead(control, idx.scratching) > 0.5;
+      const scratchRate = idx.scratchRate !== undefined ? sabRead(control, idx.scratchRate) : 0;
 
-      slot.playback.setKeylock(keylock);
-      // Sync / smart fader can force a rate ratio beyond the slider's range.
-      const speed = ratioOverride > 0 ? ratioOverride : calculateSpeed(rate, rateRange, rateDir);
+      // Scratch OVERRIDES everything: signed speed (negative = reverse), and it
+      // sounds even when the deck is "stopped" (vinyl moves under the hand).
+      // Keylock is forced off while scratching (pitch follows the hand).
+      slot.playback.setKeylock(keylock && !scratching);
+      let speed: number;
+      let processPlaying: boolean;
+      if (scratching) {
+        speed = scratchRate;
+        processPlaying = true;
+      } else {
+        // Sync / smart fader can force a rate ratio beyond the slider's range.
+        speed = ratioOverride > 0 ? ratioOverride : calculateSpeed(rate, rateRange, rateDir);
+        processPlaying = playing;
+      }
 
-      const stillPlaying = slot.playback.process(out, numFrames, speed, playing);
+      const stillPlaying = slot.playback.process(out, numFrames, speed, processPlaying);
 
       // Apply pregain inline (cheap; the renderer applies EQ/volume/xfader after).
       if (pregain !== 1) {

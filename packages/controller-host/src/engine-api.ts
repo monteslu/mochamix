@@ -181,6 +181,8 @@ export class EngineApi {
     _ramp = true,
   ): void {
     this.scratch.set(deck, new ScratchState(intervalsPerRev, rpm, alpha, beta));
+    // engage scratch mode: deck plays at scratch2 (signed) under the wheel
+    this.setValue(`[Channel${deck}]`, 'scratch2_enable', 1);
   }
 
   scratchTick(deck: number, interval: number): void {
@@ -189,14 +191,14 @@ export class EngineApi {
       return;
     }
     s.tick(interval);
-    // Drive the deck rate from the scratch filter velocity (1.0 == normal speed).
-    this.setValue(`[Channel${deck}]`, 'rate_ratio_override', Math.max(0.0001, s.velocity));
+    // Drive the deck at the scratch filter velocity (SIGNED — negative = reverse).
+    this.setValue(`[Channel${deck}]`, 'scratch2', s.velocity);
   }
 
   scratchDisable(deck: number, _ramp = true): void {
     this.scratch.delete(deck);
-    // Release the override back to slider control.
-    this.setValue(`[Channel${deck}]`, 'rate_ratio_override', 0);
+    this.setValue(`[Channel${deck}]`, 'scratch2', 0);
+    this.setValue(`[Channel${deck}]`, 'scratch2_enable', 0);
   }
 
   isScratching(deck: number): boolean {
