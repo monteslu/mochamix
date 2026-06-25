@@ -219,14 +219,15 @@ export class WaveformGL {
 
   private framesPerBucket = 1;
 
-  /** Clear to transparent so the CSS background shows (no track loaded). */
+  /** Clear to the panel grey (no track loaded) so the band never shows white. */
   clear(): void {
     if (!this.ok) return;
     const gl = this.gl;
     const w = (gl.canvas as HTMLCanvasElement).width;
     const h = (gl.canvas as HTMLCanvasElement).height;
     gl.viewport(0, 0, w, h);
-    gl.clearColor(0, 0, 0, 0);
+    // #0a0d13 (matches the CSS panel bg)
+    gl.clearColor(0x0a / 255, 0x0d / 255, 0x13 / 255, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
   }
 

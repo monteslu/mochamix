@@ -91,9 +91,18 @@ export class WaveformLaneController {
       }
       reportLaneDraw(`deck${this.deckIndex}`, this.gl.ok, performance.now() - t0);
     } else {
-      // no track → clear to transparent so the grey panel bg (CSS) shows, not
-      // whatever was last in the GL framebuffer (looked white/garbage).
-      this.gl.clear();
+      // no track → paint the panel grey so the band never shows white (a WebGL
+      // canvas paints its framebuffer OVER the CSS bg; an undrawn/failed one is
+      // white). GL path clears to grey; the Canvas2D fallback fills grey.
+      if (this.gl.ok) {
+        this.gl.clear();
+      } else {
+        const ctx = this.canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#0a0d13';
+          ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+      }
       this.uploaded = null;
     }
     this.raf = requestAnimationFrame(this.tick);
