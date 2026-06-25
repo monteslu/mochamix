@@ -20,6 +20,11 @@ const coopCoep = {
 export default defineConfig({
   root: fileURLToPath(new URL('./src/renderer', import.meta.url)),
   base: './',
+  define: {
+    __BUILD_TIME__: JSON.stringify(
+      new Date().toISOString().slice(11, 19) + ' ' + new Date().toISOString().slice(5, 10),
+    ),
+  },
   plugins: [react()],
   resolve: {
     alias: {

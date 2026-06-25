@@ -816,6 +816,14 @@ body,
   font-variant-numeric: tabular-nums;
   color: var(--text-dim);
 }
+/* build stamp — proves the running window is the latest build at a glance */
+.build-stamp {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+  opacity: 0.6;
+  margin-left: 6px;
+}
 /* Smart Fader as a small square brain button left of MAIN (no vertical space). */
 .smart-icon {
   flex: 0 0 auto;

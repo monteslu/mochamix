@@ -5,6 +5,8 @@ declare global {
   interface Window {
     dj: DjApi;
   }
+  /** Build timestamp injected by Vite `define` (shown in the titlebar). */
+  const __BUILD_TIME__: string;
 }
 
 export {};

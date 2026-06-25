@@ -9,6 +9,13 @@ const pkg = (name: string) =>
 export default defineConfig({
   root: fileURLToPath(new URL('./src/renderer', import.meta.url)),
   base: './', // relative paths so file:// loading works in Electron
+  // Stamp the build time so the running window visibly proves it's the latest
+  // build (shown in the titlebar). Kills "is this even the new code?" ambiguity.
+  define: {
+    __BUILD_TIME__: JSON.stringify(
+      new Date().toISOString().slice(11, 19) + ' ' + new Date().toISOString().slice(5, 10),
+    ),
+  },
   plugins: [react()],
   resolve: {
     alias: {
