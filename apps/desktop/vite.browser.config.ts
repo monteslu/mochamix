@@ -4,10 +4,34 @@
  * as the Electron build, plus the COOP/COEP headers SharedArrayBuffer needs.
  */
 
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, build as viteBuild, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
+
+// Build the AudioWorklet bundle (the engine needs it; Vite can't bundle a .ts
+// worklet on the fly). Run on dev-server start AND on worklet-source change, so
+// `dev:web` is fully hands-off — no separate build:worklet step ever needed.
+function buildWorklets(): Plugin {
+  const cfg = fileURLToPath(new URL('./vite.worklet.config.ts', import.meta.url));
+  const run = () => viteBuild({ configFile: cfg, logLevel: 'warn' }).catch((e) => {
+    // eslint-disable-next-line no-console
+    console.error('[worklet build] failed:', e);
+  });
+  return {
+    name: 'build-worklets',
+    async buildStart() {
+      await run();
+    },
+    configureServer(server) {
+      // rebuild when any worklet/audio-engine/codec source changes
+      const watched = /(\.worklet\.ts$|audio-engine\/src|codec\/src)/;
+      server.watcher.on('change', (file) => {
+        if (watched.test(file)) void run().then(() => server.ws.send({ type: 'full-reload' }));
+      });
+    },
+  };
+}
 
 // Land on browser.html at "/" — index.html is the ELECTRON entry (no window.dj),
 // so serving it in the browser crashes the Library. Redirect so any URL works.
@@ -92,7 +116,7 @@ export default defineConfig({
       new Date().toISOString().slice(11, 19) + ' ' + new Date().toISOString().slice(5, 10),
     ),
   },
-  plugins: [defaultToBrowserHtml(), react(), serveWorklets(), serveMusic()],
+  plugins: [defaultToBrowserHtml(), buildWorklets(), react(), serveWorklets(), serveMusic()],
   resolve: {
     alias: {
       '@internal-dj/analysis/worker': fileURLToPath(
