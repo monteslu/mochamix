@@ -105,6 +105,12 @@ export const DeckKeys = {
   firstBeatFrame: 'beat_first_frame', // grid phase: frame of the first beat (-1 = unknown)
   keylock: 'keylock',
 
+  // beat sync (Mixxx-compatible names)
+  syncEnabled: 'sync_enabled', // 1 = this deck follows the sync leader
+  syncLeader: 'sync_leader', // 1 = this deck is the explicit sync leader
+  beatDistance: 'beat_distance', // 0..1, live distance to the previous beat (published by engine)
+  quantize: 'quantize', // 1 = snap cue/loop/play drops to the nearest beat
+
   // mixer (per channel)
   volume: 'volume', // 0..1
   pregain: 'pregain', // gain/trim, 0..1..4

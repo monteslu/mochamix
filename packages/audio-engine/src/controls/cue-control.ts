@@ -34,6 +34,8 @@ export interface CueControlDeps {
   seekFrames: (frame: number) => void;
   /** Stop the deck (set play=0). */
   stop: () => void;
+  /** Snap a frame to the beat grid when quantize is on (identity otherwise). */
+  quantize?: (frame: number) => number;
 }
 
 export class CueControl {
@@ -44,7 +46,7 @@ export class CueControl {
 
     // Main cue.
     this.on(DeckKeys.cueSet, () => {
-      bus.set(group, DeckKeys.cuePoint, deps.positionFrames());
+      bus.set(group, DeckKeys.cuePoint, this.snap(deps.positionFrames()));
     });
     this.on(DeckKeys.cueGotoAndStop, () => {
       const cue = bus.get(group, DeckKeys.cuePoint);
@@ -59,7 +61,7 @@ export class CueControl {
       const posKey = hotcuePositionKey(n);
       const enKey = hotcueEnabledKey(n);
       this.on(hotcueSetKey(n), () => {
-        bus.set(group, posKey, deps.positionFrames());
+        bus.set(group, posKey, this.snap(deps.positionFrames()));
         bus.set(group, enKey, 1);
       });
       this.on(hotcueActivateKey(n), () => {
@@ -73,6 +75,11 @@ export class CueControl {
         bus.set(group, enKey, 0);
       });
     }
+  }
+
+  /** Snap to grid when quantize is on; identity otherwise. */
+  private snap(frame: number): number {
+    return this.deps.quantize ? this.deps.quantize(frame) : frame;
   }
 
   /** Momentary-trigger subscribe: fire on >0.5, then reset to 0 so it re-fires. */

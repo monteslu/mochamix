@@ -32,6 +32,8 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
   const [play, setPlay] = useControl(grp, DeckKeys.play);
   const [keylock, setKeylock] = useControl(grp, DeckKeys.keylock);
   const [pfl, setPfl] = useControl(grp, DeckKeys.pfl);
+  const [sync, setSync] = useControl(grp, DeckKeys.syncEnabled);
+  const [quantize, setQuantize] = useControl(grp, DeckKeys.quantize);
   const trackLoaded = useControlValue(grp, DeckKeys.trackLoaded);
   const duration = useControlValue(grp, DeckKeys.duration);
   const rateRatio = useControlValue(grp, DeckKeys.rateRatio);
@@ -234,6 +236,20 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
           disabled={!trackLoaded}
         >
           {play > 0.5 ? '❚❚' : '▶'}
+        </button>
+        <button
+          className={`sync-btn tiny ${sync > 0.5 ? 'active' : ''}`}
+          onClick={() => setSync(sync > 0.5 ? 0 : 1)}
+          title="Beat sync: match tempo + phase-lock to the other deck"
+        >
+          SYNC
+        </button>
+        <button
+          className={`tiny ${quantize > 0.5 ? 'active' : ''}`}
+          onClick={() => setQuantize(quantize > 0.5 ? 0 : 1)}
+          title="Quantize: snap cues/loops to the beat grid"
+        >
+          QNT
         </button>
         <button
           className={`tiny ${keylock > 0.5 ? 'active' : ''}`}

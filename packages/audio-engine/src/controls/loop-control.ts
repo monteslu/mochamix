@@ -37,6 +37,8 @@ export interface LoopControlDeps {
   applyLoop: (start: number, end: number, enabled: boolean) => void;
   /** Enable/disable without changing bounds. */
   enableLoop: (enabled: boolean) => void;
+  /** Snap a frame to the beat grid when quantize is on (identity otherwise). */
+  quantize?: (frame: number) => number;
 }
 
 export class LoopControl {
@@ -44,8 +46,8 @@ export class LoopControl {
 
   constructor(private readonly deps: LoopControlDeps) {
 
-    this.on(DeckKeys.loopIn, () => this.setStart(deps.positionFrames()));
-    this.on(DeckKeys.loopOut, () => this.setEnd(deps.positionFrames(), true));
+    this.on(DeckKeys.loopIn, () => this.setStart(this.snap(deps.positionFrames())));
+    this.on(DeckKeys.loopOut, () => this.setEnd(this.snap(deps.positionFrames()), true));
     this.on(DeckKeys.reloopToggle, () => this.toggleEnabled());
     this.on(DeckKeys.loopExit, () => this.setEnabled(false));
     this.on(DeckKeys.loopHalve, () => this.scale(0.5));
@@ -55,6 +57,11 @@ export class LoopControl {
       this.on(beatloopToggleKey(size), () => this.beatloop(size));
       this.on(beatloopActivateKey(size), () => this.beatloop(size));
     }
+  }
+
+  /** Snap to grid when quantize is on; identity otherwise. */
+  private snap(frame: number): number {
+    return this.deps.quantize ? this.deps.quantize(frame) : frame;
   }
 
   /**

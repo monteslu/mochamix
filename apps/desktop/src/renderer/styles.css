@@ -473,6 +473,13 @@ body,
   color: #062512;
   box-shadow: 0 0 16px rgba(69, 224, 138, 0.4);
 }
+.sync-btn.active {
+  background: linear-gradient(180deg, #54e896, var(--play));
+  color: #062512;
+  border-color: var(--play);
+  box-shadow: 0 0 10px rgba(69, 224, 138, 0.4);
+  font-weight: 700;
+}
 .pfl-btn {
   flex: 0 0 auto;
   font-size: 15px;

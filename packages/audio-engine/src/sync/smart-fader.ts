@@ -28,6 +28,12 @@ export interface SmartFaderDeps {
   bus: ControlBus;
   /** Set a deck's (0-based) rate ratio (1.0 == file tempo). */
   setRateRatio: (deckIndex: number, ratio: number) => void;
+  /**
+   * Phase-align the RIGHT deck's beats to the LEFT deck (instant seek) so the
+   * blend starts beat-matched. No-op if grids/positions are unavailable. Optional
+   * so existing callers/tests keep working.
+   */
+  alignDecks?: () => void;
 }
 
 const LEFT = 0;
@@ -74,6 +80,8 @@ export class SmartFader {
     bus.set(MASTER, MasterKeys.smartFaderActive, 1);
     bus.set(MASTER, MasterKeys.smartFaderLeftBpm, this.leftBpm());
     bus.set(MASTER, MasterKeys.smartFaderRightBpm, this.rightBpm());
+    // Beat-align the two decks so the blend starts phase-matched, then blend tempo.
+    this.deps.alignDecks?.();
     this.tick();
   }
 

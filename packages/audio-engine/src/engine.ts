@@ -31,6 +31,8 @@ import type { DecodedTrack } from './decoded-track.js';
 import { CueControl } from './controls/cue-control.js';
 import { LoopControl } from './controls/loop-control.js';
 import { SmartFader } from './sync/smart-fader.js';
+import { SyncController } from './sync/sync-controller.js';
+import { makeGrid, nearestBeatFrame } from './sync/beatgrid.js';
 import { EffectUnit } from './effects/effect-unit.js';
 
 export interface EngineOptions {
@@ -64,6 +66,8 @@ export class Engine {
   private cueControls: CueControl[] = [];
   private loopControls: LoopControl[] = [];
   private smartFader: SmartFader | null = null;
+  private syncController: SyncController | null = null;
+  private syncTimer: ReturnType<typeof setInterval> | null = null;
   private quickEffects: EffectUnit[] = [];
 
   constructor(opts: EngineOptions) {
@@ -119,11 +123,31 @@ export class Engine {
       this.installQuickEffect(d, ctx, deckGroup(d + 1));
     }
 
-    // Smart Fader (our fork feature, 09): crossfader drives a tempo blend.
+    // Beat sync: phase-lock on SYNC + publish beat distances. Created before the
+    // Smart Fader so the latter can reuse its phase-align on activate.
+    this.syncController = new SyncController({
+      bus: this.bus,
+      numDecks: this.numDecks,
+      sampleRate: ctx.sampleRate,
+      setRateRatio: (deckIndex, ratio) => this.setRateRatioOverride(deckIndex, ratio),
+      positionFrames: (d) => this.positionFrames(d),
+      trackFrames: (d) => this.bus.get(deckGroup(d + 1), DeckKeys.trackSamples),
+      seekFrames: (d, frame) => this.seekFrames(d, frame),
+    });
+
+    // Smart Fader (our fork feature, 09): crossfader drives a tempo blend. On
+    // activate it beat-aligns the right deck to the left via the SyncController.
     this.smartFader = new SmartFader({
       bus: this.bus,
       setRateRatio: (deckIndex, ratio) => this.setRateRatioOverride(deckIndex, ratio),
+      alignDecks: () => this.syncController?.phaseAlign(1, 0),
     });
+    // Periodic phase hold + beat-distance publish (~60 Hz). Skipped while Smart
+    // Fader is active (it owns the rate then).
+    this.syncTimer = setInterval(() => {
+      if (this.smartFader?.isActive()) return;
+      this.syncController?.tick();
+    }, 16);
 
     // Initialize the worklet with the control SAB + index maps.
     const sab = this.bus.sab;
@@ -249,6 +273,21 @@ export class Engine {
     return this.bus.get(g, DeckKeys.playPosition) * this.bus.get(g, DeckKeys.trackSamples);
   }
 
+  /**
+   * Snap a frame to the deck's beat grid when quantize is on for that deck.
+   * Returns the frame unchanged if quantize is off or there's no valid grid.
+   */
+  private quantizeFrame(d: number, frame: number): number {
+    const g = deckGroup(d + 1);
+    if (this.bus.get(g, DeckKeys.quantize) <= 0.5) {
+      return frame;
+    }
+    const bpm = this.bus.get(g, DeckKeys.fileBpm);
+    const fbf = this.bus.get(g, DeckKeys.firstBeatFrame);
+    const grid = makeGrid(bpm, fbf >= 0 ? fbf : 0, this.audioContext?.sampleRate ?? 48000);
+    return grid ? nearestBeatFrame(grid, frame) : frame;
+  }
+
   /** Seek a deck to an absolute source frame (and reflect it on the bus). */
   private seekFrames(d: number, frame: number): void {
     if (!this.node) {
@@ -318,6 +357,7 @@ export class Engine {
       positionFrames: () => this.positionFrames(d),
       seekFrames: (frame) => this.seekFrames(d, frame),
       stop: () => this.bus.set(g, DeckKeys.play, 0),
+      quantize: (frame) => this.quantizeFrame(d, frame),
     });
     const loop = new LoopControl({
       bus: this.bus,
@@ -335,6 +375,7 @@ export class Engine {
         } satisfies EngineMessage),
       enableLoop: (enabled) =>
         node.port.postMessage({ type: 'loopEnable', deck: d, enabled } satisfies EngineMessage),
+      quantize: (frame) => this.quantizeFrame(d, frame),
     });
     this.cueControls.push(cue);
     this.loopControls.push(loop);
@@ -404,6 +445,12 @@ export class Engine {
     }
     this.smartFader?.dispose();
     this.smartFader = null;
+    if (this.syncTimer) {
+      clearInterval(this.syncTimer);
+      this.syncTimer = null;
+    }
+    this.syncController?.dispose();
+    this.syncController = null;
     for (const fx of this.quickEffects) {
       fx.dispose();
     }

@@ -53,6 +53,10 @@ function deckControls(g: string): ControlDef[] {
     { group: g, key: DeckKeys.fileBpm, default: 0, description: 'Analyzed/original BPM' },
     { group: g, key: DeckKeys.firstBeatFrame, default: -1, description: 'Grid phase (first beat frame)' },
     { group: g, key: DeckKeys.keylock, default: 0, persist: true, description: 'Keylock on/off' },
+    { group: g, key: DeckKeys.syncEnabled, default: 0, description: 'Beat sync follower on/off' },
+    { group: g, key: DeckKeys.syncLeader, default: 0, description: 'Explicit sync leader' },
+    { group: g, key: DeckKeys.beatDistance, default: 0, description: 'Live beat distance 0..1' },
+    { group: g, key: DeckKeys.quantize, default: 0, persist: true, description: 'Quantize to beat grid' },
 
     // mixer
     { group: g, key: DeckKeys.volume, default: 1, description: 'Channel volume 0..1' },
