@@ -6,8 +6,7 @@
   "description": "The internal-dj Electron app.",
   "main": "dist-main/main.js",
   "scripts": {
-    "clean:renderer": "rm -rf dist-renderer node_modules/.vite",
-    "build:renderer": "npm run clean:renderer && vite build",
+    "build:renderer": "vite build",
     "build:worklet": "vite build --config vite.worklet.config.ts",
     "build:main": "node scripts/build-main.mjs",
     "typecheck:main": "tsc -p tsconfig.main.json --noEmit",
