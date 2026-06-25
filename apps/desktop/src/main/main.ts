@@ -58,6 +58,15 @@ if (process.env.DJ_WEBGPU === '1') {
   app.commandLine.appendSwitch('enable-features', 'Vulkan');
 }
 
+// Unthrottle the frame rate. Chromium caps rAF to ~30fps on this Wayland/4K
+// display (verified: a blank headed browser page runs at 30fps; these two flags
+// take it to 58-60). Both switches are present in the Electron binary; they pass
+// through unchanged. DJ_VSYNC=1 restores the default cap.
+if (process.env.DJ_VSYNC !== '1') {
+  app.commandLine.appendSwitch('disable-frame-rate-limit');
+  app.commandLine.appendSwitch('disable-gpu-vsync');
+}
+
 
 const SCHEME = 'app';
 const ISOLATION_HEADERS = {
