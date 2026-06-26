@@ -140,6 +140,9 @@ export class ControllerService {
   ): LoadedMapping {
     if (manual) this.userLoaded = true;
     const mapping = parseMidiMapping(xml);
+    // Make the mapping's <settings> defaults available to engine.getSetting before the
+    // script runs (scripts branch on these at init).
+    this.engine.setMappingSettings(mapping.settings);
 
     // Find the device's output for LED feedback.
     const output = outputName ? this.findOutput(outputName) : this.findOutput(mapping.name);

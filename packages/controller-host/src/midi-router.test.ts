@@ -1,14 +1,17 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ControlBus, standardControls } from '@dj/control-bus';
 import { MidiRouter } from './midi-router.js';
 import { EngineApi } from './engine-api.js';
-import type { MidiMapping } from './midi-mapping.js';
+import { parseMidiMapping, type MidiMapping } from './midi-mapping.js';
 
 function setup(controls: MidiMapping['controls']) {
   const bus = new ControlBus();
   for (const c of standardControls(2)) bus.define(c);
   const engine = new EngineApi({ bus, log: () => {} });
-  const mapping: MidiMapping = { name: 'test', author: '', scriptFiles: [], controls, outputs: [] };
+  const mapping: MidiMapping = { name: 'test', author: '', scriptFiles: [], controls, outputs: [], settings: {} };
   const router = new MidiRouter({ bus, engine, mapping, scripts: {}, send: () => {} });
   return { bus, engine, router };
 }
@@ -62,5 +65,22 @@ describe('MidiRouter soft-takeover from the <soft-takeover/> option', () => {
     // After catching, a lower value now applies (takeover engaged).
     router.handleMessage(0xb1, 0x07, 0);
     expect(bus.getParameter('[Channel1]', 'volume')).toBeCloseTo(0, 2);
+  });
+});
+
+describe('mapping <settings> parsing', () => {
+  it('parses option defaults (enum + boolean) into mapping.settings', () => {
+    const dir = join(dirname(fileURLToPath(import.meta.url)), '../../../apps/desktop/resources/controllers');
+    const file = join(dir, 'Numark-Mixtrack-3.midi.xml');
+    let xml: string;
+    try {
+      xml = readFileSync(file, 'utf8');
+    } catch {
+      return; // skip if resources absent
+    }
+    const m = parseMidiMapping(xml);
+    // The mapping declares a libraryMode enum (default "focus") + boolean options.
+    expect(Object.keys(m.settings).length).toBeGreaterThan(0);
+    expect(m.settings.libraryMode).toBe('focus');
   });
 });

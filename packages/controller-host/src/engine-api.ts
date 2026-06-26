@@ -91,7 +91,16 @@ export class EngineApi {
     }
   }
 
-  getSetting(name: string): number | string | undefined {
+  /** The active mapping's <settings> defaults (set per mapping load). */
+  private mappingSettings: Record<string, string | number | boolean> = {};
+
+  /** Install the current mapping's <settings> defaults for engine.getSetting. */
+  setMappingSettings(settings: Record<string, string | number | boolean>): void {
+    this.mappingSettings = settings ?? {};
+  }
+
+  getSetting(name: string): number | string | boolean | undefined {
+    if (name in this.mappingSettings) return this.mappingSettings[name];
     return this.getSettingFn?.(name);
   }
 

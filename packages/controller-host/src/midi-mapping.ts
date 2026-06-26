@@ -56,6 +56,8 @@ export interface MidiMapping {
   scriptFiles: ScriptFile[];
   controls: MidiInputControl[];
   outputs: MidiOutputControl[];
+  /** Mapping <settings> defaults (variable → default value), read via engine.getSetting. */
+  settings: Record<string, string | number | boolean>;
 }
 
 function parseNumber(v: unknown): number {
@@ -143,7 +145,45 @@ export function parseMidiMapping(xml: string): MidiMapping {
     scriptFiles,
     controls,
     outputs,
+    settings: parseSettings(preset.settings),
   };
+}
+
+/**
+ * Parse the <settings> block into { variable: defaultValue }. Mixxx mapping prefs:
+ *   <option variable="x" type="enum"><value default="true">a</value><value>b</value></option>
+ *   <option variable="y" type="boolean" default="true"/>
+ *   <option variable="z" type="integer" default="3"/>
+ * Scripts read these via engine.getSetting(variable); without the defaults they'd branch
+ * on undefined. (The user can't yet change them — that's the settings UI, later.)
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseSettings(settings: any): Record<string, string | number | boolean> {
+  const out: Record<string, string | number | boolean> = {};
+  if (!settings) return out;
+  // <option> can be nested under <group> or directly; gather all of them.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const options: any[] = [
+    ...asArray(settings.option),
+    ...asArray(settings.group).flatMap((g: any) => asArray(g.option)),
+  ];
+  for (const opt of options) {
+    const variable = opt['@_variable'];
+    if (!variable) continue;
+    const type = String(opt['@_type'] ?? '').toLowerCase();
+    if (opt['@_default'] !== undefined) {
+      const d = opt['@_default'];
+      if (type === 'boolean') out[variable] = d === 'true' || d === '1';
+      else if (type === 'integer' || type === 'real') out[variable] = Number(d);
+      else out[variable] = String(d);
+    } else if (opt.value !== undefined) {
+      // enum: the <value default="true"> wins, else the first value.
+      const values = asArray(opt.value);
+      const def = values.find((v: any) => v['@_default'] === 'true') ?? values[0];
+      if (def !== undefined) out[variable] = typeof def === 'object' ? (def['#text'] ?? '') : String(def);
+    }
+  }
+  return out;
 }
 
 /** A key for the status+midino pair (for input dispatch lookup). */
