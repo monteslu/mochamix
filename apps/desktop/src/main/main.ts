@@ -430,8 +430,9 @@ app.whenReady().then(() => {
   });
 });
 
+// Closing the window quits the app — ON EVERY PLATFORM, including macOS. The usual Mac
+// "stay resident in the dock" behavior is deliberately disabled (it's a DJ app, not a
+// menu-bar utility — when you close it, it should fully exit and free the audio device).
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  app.quit();
 });

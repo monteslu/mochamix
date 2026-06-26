@@ -17,6 +17,7 @@ import {
   type MidiMapping,
 } from '@dj/controller-host';
 import type { ControlBus } from '@dj/control-bus';
+import { GENERIC_MIDI_XML, GENERIC_MIDI_JS } from './mappings/generic-midi.js';
 
 export interface LoadedMapping {
   name: string;
@@ -27,6 +28,10 @@ export interface LoadedMapping {
 export class ControllerService {
   private readonly engine: EngineApi;
   private access: MIDIAccess | null = null;
+  /** True once the user manually picked a mapping (auto-connect then stays out of the way). */
+  private userLoaded = false;
+  /** Guards the one-time statechange hook for auto-connect. */
+  private autoHooked = false;
   private current: {
     router: MidiRouter;
     input: MIDIInput | null;
@@ -41,20 +46,96 @@ export class ControllerService {
   /** Request Web MIDI access. Returns the available input device names. */
   async init(): Promise<{ inputs: string[]; outputs: string[] }> {
     if (!navigator.requestMIDIAccess) {
+      console.warn('[midi] Web MIDI not available (navigator.requestMIDIAccess missing)');
       throw new Error('Web MIDI not available');
     }
-    this.access = await navigator.requestMIDIAccess({ sysex: false });
-    return {
-      inputs: [...this.access.inputs.values()].map((i) => i.name ?? 'unknown'),
-      outputs: [...this.access.outputs.values()].map((o) => o.name ?? 'unknown'),
-    };
+    if (!this.access) {
+      console.log('[midi] requesting Web MIDI access…');
+      this.access = await navigator.requestMIDIAccess({ sysex: false });
+      console.log('[midi] access granted');
+      // Hot-plug: log + re-report when a device connects/disconnects.
+      this.access.onstatechange = (e) => {
+        const port = e.port;
+        if (port) {
+          console.log(
+            `[midi] statechange: ${port.type} "${port.name}" → ${port.state}/${port.connection}`,
+          );
+        }
+        this.logDevices();
+      };
+    }
+    const inputs = [...this.access.inputs.values()].map((i) => i.name ?? 'unknown');
+    const outputs = [...this.access.outputs.values()].map((o) => o.name ?? 'unknown');
+    console.log(
+      `[midi] ${inputs.length} input(s): ${inputs.join(', ') || '(none)'} | ${outputs.length} output(s): ${outputs.join(', ') || '(none)'}`,
+    );
+    return { inputs, outputs };
+  }
+
+  private logDevices(): void {
+    if (!this.access) return;
+    const ins = [...this.access.inputs.values()].map((i) => `"${i.name}" [${i.state}]`);
+    const outs = [...this.access.outputs.values()].map((o) => `"${o.name}" [${o.state}]`);
+    console.log(`[midi] devices now — inputs: ${ins.join(', ') || '(none)'} · outputs: ${outs.join(', ') || '(none)'}`);
+  }
+
+  /**
+   * Auto-start MIDI on app open: request access, and if a controller is present, load
+   * the built-in Generic MIDI mapping onto the first input so it's listening
+   * immediately — no need to open settings. Also re-runs on hot-plug (statechange) so
+   * plugging a controller in AFTER launch just works. A manual loadMapping() takes
+   * precedence (we don't auto-override the user's chosen mapping).
+   */
+  async autoConnect(): Promise<void> {
+    try {
+      await this.init();
+    } catch {
+      return; // Web MIDI unavailable
+    }
+    // Re-attempt auto-connect whenever devices change (covers plug-in-after-launch).
+    if (this.access && !this.autoHooked) {
+      this.autoHooked = true;
+      const access = this.access;
+      const prev = access.onstatechange;
+      access.onstatechange = (e) => {
+        if (typeof prev === 'function') prev.call(access, e);
+        if (!this.userLoaded) this.attachGenericToFirstInput();
+      };
+    }
+    if (!this.userLoaded) this.attachGenericToFirstInput();
+  }
+
+  private attachGenericToFirstInput(): void {
+    if (!this.access) return;
+    const first = [...this.access.inputs.values()].find((i) => i.state === 'connected');
+    if (!first) {
+      console.log('[midi] no controller connected yet — will auto-connect when one is plugged in');
+      return;
+    }
+    // Already attached to this device? don't reload.
+    if (this.current && this.current.input && this.current.input.name === first.name) return;
+    console.log(`[midi] auto-connecting Generic MIDI mapping to "${first.name}"`);
+    this.loadMapping(
+      GENERIC_MIDI_XML,
+      GENERIC_MIDI_JS,
+      first.name ?? undefined,
+      first.name ?? undefined,
+      false, // auto, not a manual user choice
+    );
   }
 
   /**
    * Load a mapping: parse the XML, run the JS to collect its function prefixes,
    * bind a MidiRouter, and attach to the named input/output device.
    */
-  loadMapping(xml: string, js: string, inputName?: string, outputName?: string): LoadedMapping {
+  loadMapping(
+    xml: string,
+    js: string,
+    inputName?: string,
+    outputName?: string,
+    manual = true,
+  ): LoadedMapping {
+    if (manual) this.userLoaded = true;
     const mapping = parseMidiMapping(xml);
 
     // Find the device's output for LED feedback.
@@ -85,14 +166,29 @@ export class ControllerService {
 
     // Attach to the input device.
     const input = inputName ? this.findInput(inputName) : this.findInput(mapping.name);
+    let msgCount = 0;
     const onmidi = (e: MIDIMessageEvent) => {
       const d = e.data;
       if (d && d.length >= 3) {
+        // Log the first few messages so the user can confirm events ARE arriving,
+        // then go quiet (one line per 500 after) to avoid flooding the console.
+        if (msgCount < 8 || msgCount % 500 === 0) {
+          console.log(
+            `[midi] in #${msgCount}: status=0x${d[0]!.toString(16)} d1=${d[1]} d2=${d[2]}`,
+          );
+        }
+        msgCount++;
         router.handleMessage(d[0]!, d[1]!, d[2]!);
       }
     };
     if (input) {
       input.addEventListener('midimessage', onmidi as EventListener);
+      console.log(`[midi] mapping "${mapping.name}" attached to input "${input.name}" — listening`);
+    } else {
+      console.warn(
+        `[midi] mapping "${mapping.name}" loaded but NO matching input device found` +
+          (inputName ? ` for "${inputName}"` : ` for mapping name "${mapping.name}"`),
+      );
     }
 
     // Call each prefix's init().

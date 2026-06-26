@@ -161,6 +161,13 @@ export function DjProvider({ children }: { children: ReactNode }): React.JSX.Ele
     return onFrame(() => runtime.bus.syncFromSab());
   }, [runtime]);
 
+  // Start listening for MIDI controllers as soon as the app opens — no need to open
+  // settings or start audio. Auto-loads the Generic MIDI mapping onto a connected
+  // controller (and on hot-plug). Web MIDI is independent of the AudioContext.
+  useEffect(() => {
+    void runtime.controllers.autoConnect();
+  }, [runtime]);
+
   useEffect(() => {
     return () => {
       runtime.recording.dispose();
