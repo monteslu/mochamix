@@ -340,24 +340,32 @@ class EngineProcessor extends AudioWorkletProcessor {
           const ratio = sabRead(control, s.indices.rateRatio) || 1;
           return { bpm, fbf, fpb, ratio };
         };
-        // signed real-seconds to each deck's nearest beat (source frames / rate / sr)
-        const secToBeat = (pos: number, g: { fbf: number; fpb: number; ratio: number }) => {
+        // beat phase 0..1 within each deck's own beat (source frames; phase is
+        // rate-independent — a beat is a beat regardless of playback speed).
+        const phase = (pos: number, g: { fbf: number; fpb: number }) => {
           if (g.fpb <= 0) return 0;
           const rel = (pos - g.fbf) / g.fpb;
-          const frac = rel - Math.round(rel);
-          return (frac * g.fpb) / g.ratio / sampleRate;
+          return ((rel % 1) + 1) % 1;
         };
         const ga = grid(a);
         const gb = grid(b);
-        const ta = secToBeat(a.playback.getPositionFrames(), ga);
-        const tb = secToBeat(b.playback.getPositionFrames(), gb);
+        const p1 = phase(a.playback.getPositionFrames(), ga);
+        const p2 = phase(b.playback.getPositionFrames(), gb);
+        // relative phase 0..0.5 (0 = beats perfectly aligned). THE number that matters,
+        // and it's correct no matter how smart-fade changes the tempo.
+        let rel = Math.abs(p1 - p2);
+        rel = Math.min(rel, 1 - rel);
+        // convert to ms using the CURRENT effective beat period (changes with smart fade)
+        const effBpm = ga.bpm * ga.ratio;
+        const offMs = effBpm > 0 ? (rel * (60 / effBpm)) * 1000 : 0;
         this.port.postMessage({
           type: 'snapDbg',
           msg: 'walign',
-          gapMs: +(Math.abs(ta - tb) * 1000).toFixed(1),
-          d1ToBeatMs: +(ta * 1000).toFixed(1),
-          d2ToBeatMs: +(tb * 1000).toFixed(1),
-          effBpm1: +(ga.bpm * ga.ratio).toFixed(3),
+          relPhase: +rel.toFixed(4),
+          offMs: +offMs.toFixed(1),
+          p1: +p1.toFixed(4),
+          p2: +p2.toFixed(4),
+          effBpm1: +effBpm.toFixed(3),
           effBpm2: +(gb.bpm * gb.ratio).toFixed(3),
         });
       }
