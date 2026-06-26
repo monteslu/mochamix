@@ -10,6 +10,7 @@
  */
 
 import { decodeArrayBuffer } from '@dj/codec';
+import { computeStemWaveforms } from './stem-thumbnail.js';
 import { generateStemsInWorker } from '@dj/stems/generate-client';
 import type { GenerateProgress } from '@dj/stems';
 import type { Engine } from '@dj/audio-engine';
@@ -159,6 +160,15 @@ export class StemQueue {
     console.log(
       `[stems] done track ${id} in ${((performance.now() - t0) / 1000).toFixed(1)}s → ${path}`,
     );
+
+    // Compute + cache the per-stem overview waveforms so the library thumbnail can
+    // render the colored 4-stem wave (off the just-muxed file we already have).
+    try {
+      const sw = await computeStemWaveforms(ctx, ab as ArrayBuffer);
+      if (sw) await window.dj.librarySetStemWaveforms(id, sw);
+    } catch (e) {
+      console.warn(`[stems] stem-thumbnail compute failed for ${id}`, e);
+    }
   }
 
   dispose(): void {

@@ -7,19 +7,76 @@
  */
 
 import { useEffect, useState } from 'react';
-import { drawOverview, DEFAULT_COLORS, unpackPeaks, type PeakData } from '@dj/waveform';
+import {
+  drawOverview,
+  DEFAULT_COLORS,
+  unpackPeaks,
+  unpackStemWaveforms,
+  type PeakData,
+} from '@dj/waveform';
+import { computeStemWaveforms } from '../stem-thumbnail.js';
+import { useDj } from '../dj-context.js';
 
 const W = 120;
 const H = 26;
 
+// Per-stem thumbnail colors + paint order (back → front), matching the deck lane:
+// NI-Stems index drums/bass/other/vocals; draw other → bass → drums → VOCALS (on top).
+const STEM_RGB: Array<[number, number, number]> = [
+  [255, 93, 93], // drums
+  [255, 210, 77], // bass
+  [93, 255, 158], // other
+  [93, 184, 255], // vocals
+];
+const STEM_DRAW_ORDER = [2, 1, 0, 3]; // other, bass, drums, vocals(last/on top)
+
 // process-wide cache: trackId → rendered data URL (or '' = no waveform yet)
 const cache = new Map<number, string>();
 
+function canvasToDataUrl(canvas: OffscreenCanvas | HTMLCanvasElement): string {
+  if (canvas instanceof HTMLCanvasElement) return canvas.toDataURL('image/png');
+  const ctx = (canvas as OffscreenCanvas).getContext('2d')!;
+  const img = ctx.getImageData(0, 0, W, H);
+  const tmp = document.createElement('canvas');
+  tmp.width = W;
+  tmp.height = H;
+  tmp.getContext('2d')!.putImageData(img, 0, 0);
+  return tmp.toDataURL('image/png');
+}
+
+function newCanvas(): OffscreenCanvas | HTMLCanvasElement {
+  return typeof OffscreenCanvas !== 'undefined'
+    ? new OffscreenCanvas(W, H)
+    : Object.assign(document.createElement('canvas'), { width: W, height: H });
+}
+
+/** Render the 4-stem colored thumbnail (vocals on top) from a packed stem blob. */
+function renderStemPeaks(blob: Uint8Array): string {
+  const sw = unpackStemWaveforms(blob);
+  const canvas = newCanvas();
+  const ctx = (canvas as OffscreenCanvas | HTMLCanvasElement).getContext(
+    '2d',
+  ) as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+  ctx.clearRect(0, 0, W, H);
+  if (!sw) return canvasToDataUrl(canvas);
+  const mid = H / 2;
+  for (const k of STEM_DRAW_ORDER) {
+    const peaks = sw.peaks[k]!;
+    const [r, g, b] = STEM_RGB[k]!;
+    ctx.fillStyle = `rgba(${r},${g},${b},0.92)`;
+    const n = peaks.length;
+    for (let x = 0; x < W; x++) {
+      const bi = Math.floor((x / W) * n);
+      const amp = Math.min(1, (peaks[bi]! / 255) * sw.scale) * mid * 0.92;
+      if (amp <= 0) continue;
+      ctx.fillRect(x, mid - amp, 1, amp * 2);
+    }
+  }
+  return canvasToDataUrl(canvas);
+}
+
 function renderPeaks(blob: Uint8Array): string {
-  const canvas =
-    typeof OffscreenCanvas !== 'undefined'
-      ? new OffscreenCanvas(W, H)
-      : Object.assign(document.createElement('canvas'), { width: W, height: H });
+  const canvas = newCanvas();
   // The cached blob is packed (amp/low/mid/high per bucket). Unpack so the row
   // waveform is FREQUENCY-COLORED like the deck overview.
   const u = unpackPeaks(blob);
@@ -34,27 +91,22 @@ function renderPeaks(blob: Uint8Array): string {
   };
   // fraction 0 (no playhead emphasis needed for a static thumbnail)
   drawOverview(canvas as unknown as HTMLCanvasElement, data, 0, DEFAULT_COLORS);
-  if (canvas instanceof HTMLCanvasElement) return canvas.toDataURL('image/png');
-  // OffscreenCanvas path: convert to blob URL synchronously isn't possible, so
-  // fall back to a data URL via a 2D readback.
-  const ctx = (canvas as OffscreenCanvas).getContext('2d')!;
-  const img = ctx.getImageData(0, 0, W, H);
-  const tmp = document.createElement('canvas');
-  tmp.width = W;
-  tmp.height = H;
-  tmp.getContext('2d')!.putImageData(img, 0, 0);
-  return tmp.toDataURL('image/png');
+  return canvasToDataUrl(canvas);
 }
 
 export function RowWaveform({
   trackId,
   analyzing,
   done,
+  hasStems = false,
 }: {
   trackId: number;
   analyzing: boolean;
   done: boolean;
+  /** Track has a generated .stem.mp4 → render the colored 4-stem thumbnail. */
+  hasStems?: boolean;
 }): React.JSX.Element {
+  const { engine } = useDj();
   const [url, setUrl] = useState<string>(() => cache.get(trackId) ?? '');
 
   useEffect(() => {
@@ -64,6 +116,49 @@ export function RowWaveform({
     if (cache.has(trackId)) {
       setUrl(cache.get(trackId)!);
       return;
+    }
+
+    // Stem track: prefer the colored 4-stem thumbnail. Use the cached per-stem blob,
+    // or compute it lazily from the .stem.mp4 the first time (then it's cached in DB).
+    if (hasStems) {
+      void (async () => {
+        try {
+          let blob = await window.dj.libraryStemWaveforms(trackId);
+          if ((!blob || blob.length === 0) && engine.audioContext) {
+            const file = await window.dj.readTrackById(trackId);
+            if (file?.isStem) {
+              const computed = await computeStemWaveforms(engine.audioContext, file.data);
+              if (computed) {
+                await window.dj.librarySetStemWaveforms(trackId, computed);
+                blob = computed;
+              }
+            }
+          }
+          if (cancelled) return;
+          if (blob && blob.length > 0) {
+            const u = renderStemPeaks(blob);
+            cache.set(trackId, u);
+            setUrl(u);
+            return;
+          }
+        } catch {
+          /* fall through to the plain mixdown wave below */
+        }
+        // no stem thumbnail → fall back to the mixdown overview
+        if (cancelled) return;
+        const peaks = await window.dj.libraryWaveform(trackId);
+        if (cancelled) return;
+        if (peaks && peaks.length > 0) {
+          const u = renderPeaks(peaks);
+          cache.set(trackId, u);
+          setUrl(u);
+        } else {
+          setUrl('');
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
     }
     // demo mode: synthesize a packed (amp/low/mid/high) blob so the mini-waves are
     // visible AND colored in screenshots.
@@ -95,8 +190,8 @@ export function RowWaveform({
     return () => {
       cancelled = true;
     };
-    // re-fetch when this track just finished analyzing (peaks now exist)
-  }, [trackId, done]);
+    // re-fetch when this track just finished analyzing (peaks now exist) or gains stems
+  }, [trackId, done, hasStems, engine]);
 
   if (analyzing) {
     return (

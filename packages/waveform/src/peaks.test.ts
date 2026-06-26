@@ -4,7 +4,30 @@ import {
   computePeakSet,
   detailBucketsForDuration,
   OVERVIEW_BUCKETS,
+  packStemWaveforms,
+  unpackStemWaveforms,
 } from './peaks.js';
+
+describe('stem waveform pack/unpack', () => {
+  it('round-trips 4 stem overview arrays + scale', () => {
+    const peaks = [
+      new Uint8Array([0, 64, 128, 255]),
+      new Uint8Array([255, 128, 64, 0]),
+      new Uint8Array([10, 20, 30, 40]),
+      new Uint8Array([200, 150, 100, 50]),
+    ];
+    const blob = packStemWaveforms({ peaks, scale: 1.5 });
+    const out = unpackStemWaveforms(blob);
+    expect(out).not.toBeNull();
+    expect(out!.peaks.length).toBe(4);
+    for (let k = 0; k < 4; k++) expect([...out!.peaks[k]!]).toEqual([...peaks[k]!]);
+    expect(out!.scale).toBeCloseTo(1.5, 2);
+  });
+
+  it('returns null on a too-short blob', () => {
+    expect(unpackStemWaveforms(new Uint8Array(3))).toBeNull();
+  });
+});
 
 describe('computePeaks', () => {
   it('reduces to max-abs buckets quantized to 0..255', () => {

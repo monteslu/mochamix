@@ -67,6 +67,41 @@ export function unpackPeaks(blob: Uint8Array): {
   return { peaks, low, mid, high };
 }
 
+/** One stem's overview peaks (0..255 per bucket) for the colored thumbnail. */
+export interface StemOverview {
+  /** NI-Stems order: 0=drums, 1=bass, 2=other, 3=vocals. */
+  peaks: Uint8Array[];
+  /** Shared-max normalization (≈255/loudest-stem-max) applied to all stems. */
+  scale: number;
+}
+
+/**
+ * Pack 4 stem overview peak arrays (all same length) + the shared scale into one
+ * blob: [int32 bucketCount][int32 scale×256][4 × bucketCount uint8 peaks].
+ */
+export function packStemWaveforms(s: StemOverview): Uint8Array {
+  const n = s.peaks[0]?.length ?? 0;
+  const header = new ArrayBuffer(8);
+  const dv = new DataView(header);
+  dv.setInt32(0, n, true);
+  dv.setInt32(4, Math.round(s.scale * 256), true); // scale as Q8 fixed-point
+  const out = new Uint8Array(8 + n * 4);
+  out.set(new Uint8Array(header), 0);
+  for (let k = 0; k < 4; k++) out.set(s.peaks[k] ?? new Uint8Array(n), 8 + k * n);
+  return out;
+}
+
+export function unpackStemWaveforms(blob: Uint8Array): StemOverview | null {
+  if (blob.length < 8) return null;
+  const dv = new DataView(blob.buffer, blob.byteOffset, blob.byteLength);
+  const n = dv.getInt32(0, true);
+  const scale = dv.getInt32(4, true) / 256;
+  if (n <= 0 || blob.length < 8 + n * 4) return null;
+  const peaks: Uint8Array[] = [];
+  for (let k = 0; k < 4; k++) peaks.push(blob.subarray(8 + k * n, 8 + (k + 1) * n));
+  return { peaks, scale };
+}
+
 /**
  * Compute max-abs peak buckets from planar channel data. Mixes channels (max of
  * channel abs) per frame, then takes the max over each bucket window.

@@ -9,9 +9,12 @@ export {
   computePeakSet,
   packPeaks,
   unpackPeaks,
+  packStemWaveforms,
+  unpackStemWaveforms,
   detailBucketsForDuration,
   OVERVIEW_BUCKETS,
   type PeakData,
+  type StemOverview,
 } from './peaks.js';
 export {
   drawOverview,

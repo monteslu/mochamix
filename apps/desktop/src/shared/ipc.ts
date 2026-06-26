@@ -83,6 +83,10 @@ export interface DjApi {
   libraryWaveform: (id: number) => Promise<Uint8Array | null>;
   /** Packed Int32 downbeat frames (real measures) for a track, or null. */
   libraryDownbeats: (id: number) => Promise<Uint8Array | null>;
+  /** Packed per-stem overview waveforms (colored thumbnail), or null if not computed. */
+  libraryStemWaveforms: (id: number) => Promise<Uint8Array | null>;
+  /** Persist the packed per-stem overview waveforms for a track. */
+  librarySetStemWaveforms: (id: number, blob: Uint8Array) => Promise<void>;
   /** Track ids not yet analyzed (for the background queue). */
   libraryUnanalyzed: (limit?: number) => Promise<number[]>;
   /** Mark every track unanalyzed so the queue re-analyzes the whole collection. Returns the count reset. */

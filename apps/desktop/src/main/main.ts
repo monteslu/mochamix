@@ -248,6 +248,10 @@ ipcMain.handle(
 );
 ipcMain.handle('library:waveform', (_e, id: number) => getLibrary().getWaveform(id));
 ipcMain.handle('library:downbeats', (_e, id: number) => getLibrary().getDownbeats(id));
+ipcMain.handle('library:stemWaveforms', (_e, id: number) => getLibrary().db.getStemWaveforms(id));
+ipcMain.handle('library:setStemWaveforms', (_e, id: number, blob: Uint8Array) =>
+  getLibrary().db.setStemWaveforms(id, blob),
+);
 ipcMain.handle('library:unanalyzed', (_e, limit?: number) => getLibrary().unanalyzedTrackIds(limit));
 ipcMain.handle('library:reanalyzeAll', () => getLibrary().reanalyzeAll());
 ipcMain.handle('library:stemless', (_e, limit?: number) => getLibrary().db.stemlessTrackIds(limit));

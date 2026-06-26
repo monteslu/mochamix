@@ -223,6 +223,20 @@ export class LibraryDb {
     return db && db.length > 0 ? new Uint8Array(db) : null;
   }
 
+  /** Store the packed per-stem overview waveforms blob for a track. */
+  setStemWaveforms(trackId: number, blob: Uint8Array): void {
+    this.db.prepare('UPDATE library SET stem_waveforms = @b WHERE id = @id').run({ id: trackId, b: blob });
+  }
+
+  /** Packed per-stem overview waveforms for a track, or null if not computed. */
+  getStemWaveforms(trackId: number): Uint8Array | null {
+    const row = this.db
+      .prepare('SELECT stem_waveforms FROM library WHERE id = ?')
+      .get(trackId) as { stem_waveforms: Uint8Array | null } | undefined;
+    const sw = row?.stem_waveforms ?? null;
+    return sw && sw.length > 0 ? new Uint8Array(sw) : null;
+  }
+
   /** Track ids that have NOT been analyzed yet (for the background queue). */
   unanalyzedTrackIds(limit = 500): number[] {
     return (

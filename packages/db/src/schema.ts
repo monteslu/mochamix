@@ -141,6 +141,17 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE library ADD COLUMN downbeats BLOB;
     `,
   },
+  {
+    version: 5,
+    description: 'per-stem overview waveforms (colored stem thumbnails)',
+    up: `
+      -- Packed per-stem OVERVIEW peaks (drums/bass/other/vocals) so the library
+      -- thumbnail can render the colored 4-stem wave (not just the mixdown). Format:
+      -- [int32 bucketCount][int32 sharedScaleQ8][4 × bucketCount uint8 stem peaks].
+      -- NULL = not computed (no stems, or not yet backfilled).
+      ALTER TABLE library ADD COLUMN stem_waveforms BLOB;
+    `,
+  },
 ];
 
 export const REQUIRED_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;
