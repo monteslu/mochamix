@@ -107,6 +107,10 @@ export function makeBrowserDj(): DjApi {
     settingsSet: async () => {},
     controllersList: async () => [],
     controllersReadFile: async () => null,
+    userControllersList: async () => [],
+    userControllersRead: async () => null,
+    userControllersSave: async () => false,
+    userControllersDelete: async () => false,
     onScanProgress: (_cb: (p: ScanProgress) => void) => () => {},
     readTrackById: async (id: number) => {
       const t = lib.get(id);

@@ -17,7 +17,7 @@
 
 import { app, BrowserWindow, ipcMain, dialog, protocol, net } from 'electron';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, access, readdir, rm } from 'node:fs/promises';
 import { dirname, join, normalize, basename, extname } from 'node:path';
 import { LibraryService } from './library-service.js';
 import type { QueryOptions } from '@dj/db';
@@ -279,7 +279,60 @@ ipcMain.handle('controllers:readFile', async (_e, filename: string) => {
   try {
     return await readFile(join(CONTROLLERS_DIR, safe), 'utf8');
   } catch {
+    // Fall back to USER controllers (clones/edits live in userData) so user mappings
+    // and their <file> scripts also resolve through the same read path.
+    try {
+      return await readFile(join(userControllersDir(), safe), 'utf8');
+    } catch {
+      return null;
+    }
+  }
+});
+
+// ── USER controller mappings (cloned/edited copies, in userData/controllers) ──
+function userControllersDir(): string {
+  return join(app.getPath('userData'), 'controllers');
+}
+ipcMain.handle('userControllers:list', async () => {
+  try {
+    const dir = userControllersDir();
+    const files = (await readdir(dir)).filter((f) => f.endsWith('.midi.xml'));
+    const out: Array<{ file: string; name: string }> = [];
+    for (const file of files) {
+      const xml = await readFile(join(dir, file), 'utf8');
+      const name = (/<name>([^<]+)<\/name>/i.exec(xml)?.[1] ?? file.replace(/\.midi\.xml$/, '')).trim();
+      out.push({ file, name });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+});
+ipcMain.handle('userControllers:read', async (_e, filename: string) => {
+  const safe = basename(filename);
+  if (safe !== filename) return null;
+  try {
+    return await readFile(join(userControllersDir(), safe), 'utf8');
+  } catch {
     return null;
+  }
+});
+ipcMain.handle('userControllers:save', async (_e, filename: string, content: string) => {
+  const safe = basename(filename);
+  if (safe !== filename || (!safe.endsWith('.midi.xml') && !safe.endsWith('.js'))) return false;
+  const dir = userControllersDir();
+  await mkdir(dir, { recursive: true });
+  await writeFile(join(dir, safe), content, 'utf8');
+  return true;
+});
+ipcMain.handle('userControllers:delete', async (_e, filename: string) => {
+  const safe = basename(filename);
+  if (safe !== filename) return false;
+  try {
+    await rm(join(userControllersDir(), safe), { force: true });
+    return true;
+  } catch {
+    return false;
   }
 });
 

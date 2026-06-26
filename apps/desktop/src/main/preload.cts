@@ -22,6 +22,11 @@ const api: DjApi = {
   settingsSet: (key, value) => electron.ipcRenderer.invoke('settings:set', key, value),
   controllersList: () => electron.ipcRenderer.invoke('controllers:list'),
   controllersReadFile: (filename) => electron.ipcRenderer.invoke('controllers:readFile', filename),
+  userControllersList: () => electron.ipcRenderer.invoke('userControllers:list'),
+  userControllersRead: (filename) => electron.ipcRenderer.invoke('userControllers:read', filename),
+  userControllersSave: (filename, content) =>
+    electron.ipcRenderer.invoke('userControllers:save', filename, content),
+  userControllersDelete: (filename) => electron.ipcRenderer.invoke('userControllers:delete', filename),
   onScanProgress: (cb) => {
     const listener = (_e: unknown, p: unknown) => cb(p as never);
     electron.ipcRenderer.on('library:scanProgress', listener);

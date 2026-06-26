@@ -92,6 +92,11 @@ export interface DjApi {
   controllersList: () => Promise<Array<{ file: string; name: string; author: string }>>;
   /** Read one bundled controller file's text (mapping .xml or referenced .js), or null. */
   controllersReadFile: (filename: string) => Promise<string | null>;
+  /** User (cloned/edited) controller mappings in userData. */
+  userControllersList: () => Promise<Array<{ file: string; name: string }>>;
+  userControllersRead: (filename: string) => Promise<string | null>;
+  userControllersSave: (filename: string, content: string) => Promise<boolean>;
+  userControllersDelete: (filename: string) => Promise<boolean>;
   /** Load a track's bytes. preferOriginal=true returns the original song file even if
    *  stems exist (for analysis — smaller + decodes reliably; stems are for playback). */
   readTrackById: (id: number, preferOriginal?: boolean) => Promise<LoadedFile | null>;

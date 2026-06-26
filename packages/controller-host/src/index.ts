@@ -18,9 +18,11 @@ export {
 } from './midi-options.js';
 export {
   parseMidiMapping,
+  serializeMapping,
   midiKey,
   type MidiMapping,
   type MidiInputControl,
+  type MidiInputOptions,
   type MidiOutputControl,
   type ScriptFile,
 } from './midi-mapping.js';

@@ -190,3 +190,82 @@ function parseSettings(settings: any): Record<string, string | number | boolean>
 export function midiKey(status: number, midino: number): number {
   return (status << 8) | midino;
 }
+
+/** Escape XML text/attribute content. */
+function xmlEsc(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+function hex(n: number): string {
+  return '0x' + n.toString(16).toUpperCase().padStart(2, '0');
+}
+
+/**
+ * Serialize a MidiMapping back to a Mixxx-format .midi.xml string. Used by the in-app
+ * editor (clone + customize) so user mappings stay in the standard portable format.
+ * Round-trips the structure we parse: info, scriptfiles, controls, outputs.
+ */
+export function serializeMapping(m: MidiMapping): string {
+  const optionTag = (o: MidiInputOptions): string => {
+    const tags: string[] = [];
+    if (o.script) tags.push('<script-binding/>');
+    if (o.invert) tags.push('<invert/>');
+    if (o.diff) tags.push('<diff/>');
+    if (o.rot64) tags.push('<rot64/>');
+    if (o.spread64) tags.push('<spread64/>');
+    if (o.button) tags.push('<button/>');
+    if (o.switchMode) tags.push('<switch/>');
+    if (o.softTakeover) tags.push('<soft-takeover/>');
+    if (o.selectKnob) tags.push('<selectknob/>');
+    if (o.fourteenBitMsb) tags.push('<fourteen-bit-msb/>');
+    if (o.fourteenBitLsb) tags.push('<fourteen-bit-lsb/>');
+    return tags.length ? `<options>${tags.join('')}</options>` : '<options/>';
+  };
+  const controls = m.controls
+    .map(
+      (c) =>
+        `      <control>\n` +
+        `        <group>${xmlEsc(c.group)}</group>\n` +
+        `        <key>${xmlEsc(c.key)}</key>\n` +
+        `        <status>${hex(c.status)}</status>\n` +
+        `        <midino>${hex(c.midino)}</midino>\n` +
+        `        ${optionTag(c.options)}\n` +
+        `      </control>`,
+    )
+    .join('\n');
+  const outputs = m.outputs
+    .map(
+      (o) =>
+        `      <output>\n` +
+        `        <group>${xmlEsc(o.group)}</group>\n` +
+        `        <key>${xmlEsc(o.key)}</key>\n` +
+        `        <status>${hex(o.status)}</status>\n` +
+        `        <midino>${hex(o.midino)}</midino>\n` +
+        `        <on>${hex(o.on)}</on>\n` +
+        `        <off>${hex(o.off)}</off>\n` +
+        `        <minimum>${o.min}</minimum>\n` +
+        `      </output>`,
+    )
+    .join('\n');
+  const files = m.scriptFiles
+    .map((f) =>
+      f.functionPrefix
+        ? `      <file functionprefix="${xmlEsc(f.functionPrefix)}" filename="${xmlEsc(f.filename)}"/>`
+        : `      <file filename="${xmlEsc(f.filename)}"/>`,
+    )
+    .join('\n');
+  return (
+    `<?xml version="1.0" encoding="utf-8"?>\n` +
+    `<MixxxControllerPreset mixxxVersion="" schemaVersion="1">\n` +
+    `  <info>\n    <name>${xmlEsc(m.name)}</name>\n    <author>${xmlEsc(m.author ?? '')}</author>\n  </info>\n` +
+    `  <controller id="${xmlEsc(m.name)}">\n` +
+    `    <scriptfiles>\n${files}\n    </scriptfiles>\n` +
+    `    <controls>\n${controls}\n    </controls>\n` +
+    `    <outputs>\n${outputs}\n    </outputs>\n` +
+    `  </controller>\n` +
+    `</MixxxControllerPreset>\n`
+  );
+}

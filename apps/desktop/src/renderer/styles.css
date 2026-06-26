@@ -1731,3 +1731,62 @@ input[type='range'].vfader::-webkit-slider-thumb {
 }
 
 /* fix stray var typo fallback */
+
+/* Controller mapping editor (clone + customize) */
+.mapping-editor h4 {
+  margin: 14px 0 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.mapping-clone-select {
+  width: 100%;
+  max-width: 360px;
+}
+.mapping-edit-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 8px 0;
+}
+.mapping-name {
+  flex: 1;
+  font-weight: 700;
+}
+.mapping-table-wrap {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+}
+.mapping-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.mapping-table th {
+  text-align: left;
+  padding: 6px 8px;
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.mapping-table td {
+  padding: 3px 8px;
+  border-top: 1px solid var(--edge);
+}
+.mapping-table input {
+  width: 100%;
+  font-size: 12px;
+}
+.mapping-midi {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.mapping-script {
+  color: #5db8ff;
+  font-style: italic;
+}

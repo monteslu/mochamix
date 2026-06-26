@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import { useDj } from '../dj-context.js';
 import { GENERIC_MIDI_XML, GENERIC_MIDI_JS } from '../mappings/generic-midi.js';
+import { MappingEditor } from './MappingEditor.js';
 
 
 interface MixxxMapping {
@@ -27,9 +28,11 @@ export function ControllerSettings({
   const [inputs, setInputs] = useState<string[]>([]);
   const [device, setDevice] = useState<string>('');
   const [mappings, setMappings] = useState<MixxxMapping[]>([]);
+  const [userMaps, setUserMaps] = useState<Array<{ file: string; name: string }>>([]);
   const [selected, setSelected] = useState<string>('generic');
   const [status, setStatus] = useState<string>('');
   const [supported, setSupported] = useState(true);
+  const [showEditor, setShowEditor] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -40,9 +43,13 @@ export function ControllerSettings({
         setInputs(inputs);
         setDevice(inputs[0] ?? '');
         if (inputs.length === 0) setStatus('No MIDI input devices found. Plug in a controller.');
-        // Load the full Mixxx mapping catalog (144 controllers).
+        // Load the full Mixxx mapping catalog (144 controllers) + any user mappings.
         const list = await window.dj.controllersList();
-        if (live) setMappings(list);
+        const user = await window.dj.userControllersList();
+        if (live) {
+          setMappings(list);
+          setUserMaps(user);
+        }
       } catch {
         if (live) {
           setSupported(false);
@@ -114,11 +121,22 @@ export function ControllerSettings({
               </label>
               <select value={selected} onChange={(e) => setSelected(e.target.value)}>
                 <option value="generic">Generic MIDI (built-in)</option>
-                {mappings.map((m) => (
-                  <option key={m.file} value={m.file}>
-                    {m.name}
-                  </option>
-                ))}
+                {userMaps.length > 0 && (
+                  <optgroup label="Your custom mappings">
+                    {userMaps.map((m) => (
+                      <option key={m.file} value={m.file}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                <optgroup label="Mixxx controllers">
+                  {mappings.map((m) => (
+                    <option key={m.file} value={m.file}>
+                      {m.name}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </div>
           </div>
@@ -128,8 +146,13 @@ export function ControllerSettings({
           <button className="start-audio" onClick={load} disabled={!supported}>
             Load mapping
           </button>
+          <button className="tiny" onClick={() => setShowEditor((v) => !v)}>
+            {showEditor ? 'close editor' : '✎ create / edit mapping'}
+          </button>
           {status && <span className="bus-hint">{status}</span>}
         </div>
+
+        {showEditor && <MappingEditor />}
     </>
   );
 
