@@ -11,6 +11,14 @@ export interface LoadedFile {
   path?: string;
   /** True when `data` is a generated NI-Stems .stem.mp4 (4 separable stems). */
   isStem?: boolean;
+  /** Stored library metadata (key/bpm/title/…) so the deck shows it without re-analyzing. */
+  meta?: {
+    title?: string;
+    artist?: string;
+    album?: string;
+    key?: string;
+    bpm?: number;
+  };
 }
 
 /** A library track row (mirrors @dj/db TrackRow; kept local to avoid a

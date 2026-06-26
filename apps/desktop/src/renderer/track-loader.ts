@@ -25,8 +25,15 @@ export interface TrackLoaderDeps {
 
 /** Where the audio bytes come from + the metadata we already know. */
 export interface LoadSource {
-  /** Raw file bytes + name (decode input). isStem = a NI-Stems .stem.mp4. */
-  file: { name: string; data: ArrayBuffer; path?: string; isStem?: boolean };
+  /** Raw file bytes + name (decode input). isStem = a NI-Stems .stem.mp4. meta =
+   *  stored library analysis (key/bpm) the deck shows immediately. */
+  file: {
+    name: string;
+    data: ArrayBuffer;
+    path?: string;
+    isStem?: boolean;
+    meta?: { title?: string; artist?: string; album?: string; key?: string; bpm?: number };
+  };
   /** Known metadata (from the library DB), if any. */
   meta?: {
     title?: string | null;
@@ -79,7 +86,10 @@ export async function loadTrackToDeck(
     decoded.sampleRate,
   );
 
-  const m = src.meta ?? {};
+  // Merge stored library metadata (from readTrackById) under any explicit meta the
+  // caller passed — so EVERY load path (library double-click, drag-drop, deck button)
+  // gets the key/bpm without a separate lookup or a needless re-analysis.
+  const m = { ...(src.file.meta ?? {}), ...(src.meta ?? {}) };
   const title = m.title ?? src.file.name.replace(/\.[^.]+$/, '');
   setDeckTrack(deckIndex, {
     peaks,
@@ -205,7 +215,7 @@ async function loadStemFile(
     const sharedScale = 255 / sharedMax;
     const stemScales = stemPeaks.map(() => sharedScale);
 
-    const m = src.meta ?? {};
+    const m = { ...(src.file.meta ?? {}), ...(src.meta ?? {}) };
     setDeckTrack(deckIndex, {
       peaks,
       stemPeaks,

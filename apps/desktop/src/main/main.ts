@@ -353,7 +353,21 @@ ipcMain.handle('library:readTrackById', async (_e, id: number, preferOriginal?: 
 
   const buf = await readFile(source);
   const arrayBuffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-  return { name: track.filename, data: arrayBuffer, path: source, isStem };
+  // Include the stored analysis (key/bpm/artist/etc) so the deck shows them immediately
+  // on load without a metadata round-trip or a needless re-analysis.
+  return {
+    name: track.filename,
+    data: arrayBuffer,
+    path: source,
+    isStem,
+    meta: {
+      title: track.title ?? undefined,
+      artist: track.artist ?? undefined,
+      album: track.album ?? undefined,
+      key: track.key ?? undefined,
+      bpm: track.bpm ?? undefined,
+    },
+  };
 });
 
 // IPC: pick a folder + scan it, streaming progress back to the renderer.
