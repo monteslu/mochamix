@@ -87,6 +87,8 @@ export interface DjApi {
   libraryStemWaveforms: (id: number) => Promise<Uint8Array | null>;
   /** Persist the packed per-stem overview waveforms for a track. */
   librarySetStemWaveforms: (id: number, blob: Uint8Array) => Promise<void>;
+  /** Stem-track ids with no cached per-stem overview yet (for the thumbnail backfill). */
+  libraryStemsNeedingWaveforms: (limit?: number) => Promise<number[]>;
   /** Track ids not yet analyzed (for the background queue). */
   libraryUnanalyzed: (limit?: number) => Promise<number[]>;
   /** Mark every track unanalyzed so the queue re-analyzes the whole collection. Returns the count reset. */

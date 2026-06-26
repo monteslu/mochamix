@@ -251,6 +251,24 @@ export class LibraryDb {
   }
 
   /**
+   * Track ids that HAVE a generated .stem.mp4 but no cached per-stem overview yet
+   * (for the stem-thumbnail backfill, so colored thumbnails don't compute on scroll).
+   */
+  stemsNeedingWaveforms(limit = 500): number[] {
+    return (
+      this.db
+        .prepare(
+          `SELECT l.id FROM library l JOIN track_locations t ON l.location = t.id
+           WHERE l.mixxx_deleted = 0 AND t.fs_deleted = 0
+             AND l.stem_path IS NOT NULL AND l.stem_path != ''
+             AND (l.stem_waveforms IS NULL OR length(l.stem_waveforms) = 0)
+           LIMIT ?`,
+        )
+        .all(limit) as Array<{ id: number }>
+    ).map((r) => r.id);
+  }
+
+  /**
    * Mark EVERY (non-deleted) track as unanalyzed so the background queue re-runs the
    * full analysis on them (used after the analyzer changed — e.g. the qm-dsp swap).
    * Returns how many tracks were reset.

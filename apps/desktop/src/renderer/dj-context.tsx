@@ -21,6 +21,7 @@ import { Engine } from '@dj/audio-engine';
 import { AnalysisService } from './analysis-service.js';
 import { AnalysisQueue } from './analysis-queue.js';
 import { StemQueue } from './stem-queue.js';
+import { StemThumbnailBackfill } from './stem-thumbnail-backfill.js';
 import { startPerfMonitor } from './perf-monitor.js';
 import { onFrame } from './frame-loop.js';
 import { ControllerService } from './controller-service.js';
@@ -38,6 +39,7 @@ export interface DjRuntime {
   analysis: AnalysisService;
   analysisQueue: AnalysisQueue;
   stemQueue: StemQueue;
+  stemThumbnails: StemThumbnailBackfill;
   controllers: ControllerService;
   recording: RecordingService;
   /** True once the AudioContext has been started (needs a user gesture). */
@@ -53,6 +55,7 @@ function buildRuntime(): {
   analysis: AnalysisService;
   analysisQueue: AnalysisQueue;
   stemQueue: StemQueue;
+  stemThumbnails: StemThumbnailBackfill;
   controllers: ControllerService;
   recording: RecordingService;
 } {
@@ -88,9 +91,10 @@ function buildRuntime(): {
   const analysis = new AnalysisService();
   const analysisQueue = new AnalysisQueue(engine, analysis);
   const stemQueue = new StemQueue(engine);
+  const stemThumbnails = new StemThumbnailBackfill(engine);
   const controllers = new ControllerService(bus);
   const recording = new RecordingService(engine);
-  const runtime = { bus, engine, analysis, analysisQueue, stemQueue, controllers, recording };
+  const runtime = { bus, engine, analysis, analysisQueue, stemQueue, stemThumbnails, controllers, recording };
   // Expose the runtime for e2e/debugging (drive sync, read positions, inspect the
   // bus from the page). Harmless in prod; invaluable for the Playwright loop. The
   // loadToDeck helper uses the REAL load pipeline (decode → peaks → engine), so
@@ -117,7 +121,11 @@ export function DjProvider({ children }: { children: ReactNode }): React.JSX.Ele
     // of any songs the library hasn't processed yet (app-load / reload catch-up).
     // Re-check a few times in case the library DB query wasn't ready on the first
     // tick after a reload.
-    const kick = () => void runtime.analysisQueue.enqueueUnanalyzed();
+    const kick = () => {
+      void runtime.analysisQueue.enqueueUnanalyzed();
+      // backfill colored stem thumbnails so they're ready before you scroll to them
+      void runtime.stemThumbnails.run();
+    };
     kick();
     setTimeout(kick, 1500);
     setTimeout(kick, 5000);
@@ -142,6 +150,7 @@ export function DjProvider({ children }: { children: ReactNode }): React.JSX.Ele
       runtime.analysis.dispose();
       runtime.analysisQueue.dispose();
       runtime.stemQueue.dispose();
+      runtime.stemThumbnails.dispose();
       runtime.controllers.dispose();
     };
   }, [runtime]);
@@ -154,6 +163,7 @@ export function DjProvider({ children }: { children: ReactNode }): React.JSX.Ele
         analysis: runtime.analysis,
         analysisQueue: runtime.analysisQueue,
         stemQueue: runtime.stemQueue,
+        stemThumbnails: runtime.stemThumbnails,
         controllers: runtime.controllers,
         recording: runtime.recording,
         started,

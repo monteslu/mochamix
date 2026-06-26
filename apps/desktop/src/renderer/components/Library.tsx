@@ -52,7 +52,7 @@ const DEMO_TRACKS: LibTrack[] = (
 }));
 
 export function Library(): React.JSX.Element {
-  const { engine, bus, analysis, analysisQueue, stemQueue, started, start } = useDj();
+  const { engine, bus, analysis, analysisQueue, stemQueue, stemThumbnails, started, start } = useDj();
   const analysisStatus = useSyncExternalStore(
     (cb) => analysisQueue.subscribe(cb),
     () => analysisQueue.getStatus(),
@@ -124,8 +124,10 @@ export function Library(): React.JSX.Element {
       await refresh();
       // newly-added songs are unanalyzed → background-analyze them
       void analysisQueue.enqueueUnanalyzed();
+      // a scan may have found existing .stem.mp4 files → backfill their thumbnails
+      void stemThumbnails.run();
     }
-  }, [refresh, analysisQueue]);
+  }, [refresh, analysisQueue, stemThumbnails]);
 
   const onReanalyze = useCallback(async () => {
     const ok = window.confirm(

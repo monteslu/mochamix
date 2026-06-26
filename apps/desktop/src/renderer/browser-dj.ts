@@ -109,6 +109,7 @@ export function makeBrowserDj(): DjApi {
     libraryDownbeats: async () => null,
     libraryStemWaveforms: async () => null,
     librarySetStemWaveforms: async () => {},
+    libraryStemsNeedingWaveforms: async () => [],
     libraryUnanalyzed: async () => [],
     libraryReanalyzeAll: async () => 0,
     libraryStemless: async () => [],
