@@ -23,6 +23,10 @@ export interface TrackRow {
   dateAdded: string;
   timesPlayed: number;
   filetype: string | null;
+  /** Path to the generated NI-Stems .stem.mp4, or null if stems not generated. */
+  stemPath: string | null;
+  /** Epoch ms when stems were generated; 0 = not generated. */
+  stemsGeneratedAt: number;
 }
 
 /** Fields settable when inserting/updating a track. */

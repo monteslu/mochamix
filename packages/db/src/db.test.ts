@@ -103,6 +103,21 @@ describe('LibraryDb', () => {
     expect(rows[0]!.artist).toBe('Daft Punk');
   });
 
+  it('tracks start with no stems; setStems records the path', () => {
+    const id = addTrack({ title: 'Stemless', location: '/music/stemless.mp3' });
+    expect(db.queryTracks()[0]!.stemPath).toBeNull();
+    expect(db.queryTracks()[0]!.stemsGeneratedAt).toBe(0);
+    expect(db.stemlessTrackIds()).toContain(id);
+    expect(db.getStemPath(id)).toBeNull();
+
+    db.setStems(id, { stemPath: '/music/stemless.stem.mp4', generatedAt: 1234 });
+    const row = db.queryTracks()[0]!;
+    expect(row.stemPath).toBe('/music/stemless.stem.mp4');
+    expect(row.stemsGeneratedAt).toBe(1234);
+    expect(db.getStemPath(id)).toBe('/music/stemless.stem.mp4');
+    expect(db.stemlessTrackIds()).not.toContain(id); // now has stems
+  });
+
   it('upsert is idempotent by location', () => {
     const a = addTrack({ title: 'Same', location: '/music/same.mp3' });
     const b = addTrack({ title: 'Same', location: '/music/same.mp3' });

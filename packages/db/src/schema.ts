@@ -119,6 +119,18 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE library ADD COLUMN analyzed_at INTEGER DEFAULT 0;
     `,
   },
+  {
+    version: 3,
+    description: 'generated stems (.stem.mp4)',
+    up: `
+      -- Path to the generated NI-Stems .stem.mp4 for this track (Demucs/WebGPU). When
+      -- set, the track is preferred from this file (4 independently-controllable stems
+      -- for live mashups) over the original. The original file is kept, not deleted.
+      -- NULL/0 = no stems yet.
+      ALTER TABLE library ADD COLUMN stem_path TEXT;
+      ALTER TABLE library ADD COLUMN stems_generated_at INTEGER DEFAULT 0;
+    `,
+  },
 ];
 
 export const REQUIRED_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

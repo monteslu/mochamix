@@ -151,6 +151,35 @@ export class LibraryDb {
     this.db.prepare(`UPDATE library SET ${sets.join(', ')} WHERE id = @id`).run(params);
   }
 
+  /** Record a generated .stem.mp4 for a track (path + timestamp). */
+  setStems(trackId: number, s: { stemPath: string; generatedAt?: number }): void {
+    this.db
+      .prepare('UPDATE library SET stem_path = @p, stems_generated_at = @at WHERE id = @id')
+      .run({ id: trackId, p: s.stemPath, at: s.generatedAt ?? Date.now() });
+  }
+
+  /** The generated stem file path for a track, or null if none. */
+  getStemPath(trackId: number): string | null {
+    const row = this.db
+      .prepare('SELECT stem_path FROM library WHERE id = ?')
+      .get(trackId) as { stem_path: string | null } | undefined;
+    return row?.stem_path ?? null;
+  }
+
+  /** Track ids that have NO generated stems yet (for a stem-generation queue). */
+  stemlessTrackIds(limit = 500): number[] {
+    return (
+      this.db
+        .prepare(
+          `SELECT l.id FROM library l JOIN track_locations t ON l.location = t.id
+           WHERE l.mixxx_deleted = 0 AND t.fs_deleted = 0
+             AND COALESCE(l.stems_generated_at, 0) = 0
+           LIMIT ?`,
+        )
+        .all(limit) as Array<{ id: number }>
+    ).map((r) => r.id);
+  }
+
   /** Cached overview peaks for a track (one Uint8 per bucket), or null. */
   getWaveform(trackId: number): Uint8Array | null {
     const row = this.db
@@ -182,7 +211,8 @@ export class LibraryDb {
              l.duration, l.bitrate, l.samplerate,
              l.bpm, l.first_beat_frame AS firstBeatFrame,
              l.key, l.rating, l.color, l.datetime_added AS dateAdded,
-             l.timesplayed AS timesPlayed, l.filetype
+             l.timesplayed AS timesPlayed, l.filetype,
+             l.stem_path AS stemPath, l.stems_generated_at AS stemsGeneratedAt
       FROM library l JOIN track_locations t ON l.location = t.id
       WHERE l.mixxx_deleted = 0 AND t.fs_deleted = 0 AND (${search.where})`;
     const params: unknown[] = [...search.params];
