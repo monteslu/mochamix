@@ -27,6 +27,15 @@ double beatdetect_confidence(void) { return g_confidence; }
 void* bd_malloc(int bytes) { return malloc((size_t)bytes); }
 void bd_free(void* p) { free(p); }
 
+/* Normalized autocorrelation of the envelope at a given lag (for octave scoring). */
+static double env_autocorr(const float* env, int n, int lag, double norm0) {
+  if (lag < 1 || lag >= n) return 0.0;
+  double acc = 0.0;
+  int lim = n - lag;
+  for (int i = 0; i < lim; i++) acc += (double)env[i] * env[i + lag];
+  return acc / norm0;
+}
+
 /*
  * Detect tempo + phase from planar stereo (or mono with src_r == src_l).
  *
@@ -108,21 +117,29 @@ void beatdetect_run(
 
   double bpm = (60.0 * env_rate) / (double)best_lag;
 
-  /* Octave snap toward the dance pocket (124). */
-  double cands[3] = {bpm, bpm * 2.0, bpm / 2.0};
-  double best_bpm = bpm;
-  double best_dist = 1e30;
-  for (int c = 0; c < 3; c++) {
-    double v = cands[c];
-    if (v >= min_bpm && v <= max_bpm) {
-      double d = fabs(v - 124.0);
-      if (d < best_dist) {
-        best_dist = d;
-        best_bpm = v;
+  /* Octave correction by AUTOCORRELATION EVIDENCE (not a bias toward a magic BPM).
+   * The autocorrelation peak can land on a harmonic (½× / 2× the true tempo). For a
+   * candidate lag L, score the actual autocorrelation at L plus reinforcement at its
+   * 2nd/3rd multiple (a real beat period correlates with its multiples; a spurious
+   * double-time lag does not). Pick the octave (½×, 1×, 2× the detected lag) with the
+   * strongest combined evidence, within the BPM range. Fixes 80→160 errors. */
+  {
+    double oct_factor[3] = {1.0, 2.0, 0.5}; /* same, half-tempo, double-tempo */
+    double best_oct_score = -1e30;
+    double chosen_bpm = bpm;
+    for (int o = 0; o < 3; o++) {
+      int L = (int)(best_lag * oct_factor[o] + 0.5);
+      double cand_bpm = (60.0 * env_rate) / (double)L;
+      if (cand_bpm < min_bpm || cand_bpm > max_bpm || L < 1 || L >= n) continue;
+      double ev = env_autocorr(env, n, L, norm0) + 0.5 * env_autocorr(env, n, 2 * L, norm0) +
+                  0.25 * env_autocorr(env, n, 3 * L, norm0);
+      if (ev > best_oct_score) {
+        best_oct_score = ev;
+        chosen_bpm = cand_bpm;
       }
     }
+    bpm = chosen_bpm;
   }
-  bpm = best_bpm;
 
   /* Phase: slide a pulse train at the detected period, pick the best offset. */
   double lag = (60.0 / bpm) * env_rate;

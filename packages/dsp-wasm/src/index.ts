@@ -12,3 +12,4 @@ export {
   type BeatResult,
   type BeatDetectOptions,
 } from './beatdetect.js';
+export { WasmPeaks, type BandPeaks, type PeakSet } from './peaks.js';

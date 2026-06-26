@@ -6,15 +6,16 @@
 
 /// <reference lib="webworker" />
 
-import { WasmBeatDetector } from '@dj/dsp-wasm';
-import { computePeakSet, detailBucketsForDuration } from '@dj/waveform';
+import { WasmBeatDetector, WasmPeaks } from '@dj/dsp-wasm';
+import { detailBucketsForDuration, OVERVIEW_BUCKETS } from '@dj/waveform';
 import { detectKey } from './key-detector.js';
 import type { AnalyzeRequest, AnalyzeResponse } from './worker-protocol.js';
 
 declare const self: DedicatedWorkerGlobalScope;
 
-// One detector instance per worker (the WASM module is reused across tracks).
+// One instance per worker (the WASM modules are reused across tracks).
 const detector = new WasmBeatDetector();
+const peaksWasm = new WasmPeaks();
 
 self.onmessage = (e: MessageEvent<AnalyzeRequest>) => {
   const msg = e.data;
@@ -43,7 +44,8 @@ self.onmessage = (e: MessageEvent<AnalyzeRequest>) => {
   // thread sample loops that would hiccup live audio.
   if (msg.computePeaks) {
     const buckets = msg.detailBuckets ?? detailBucketsForDuration(msg.frames / msg.sampleRate);
-    const peaks = computePeakSet(channels, msg.frames, buckets, msg.sampleRate);
+    // WASM+SIMD band peaks (Mixxx Bessel-4), detail + overview in ONE pass.
+    const peaks = peaksWasm.compute(channels, msg.frames, buckets, OVERVIEW_BUCKETS, msg.sampleRate);
     res.overviewPeaks = peaks.overview.peaks;
     res.overviewLow = peaks.overview.low;
     res.overviewMid = peaks.overview.mid;

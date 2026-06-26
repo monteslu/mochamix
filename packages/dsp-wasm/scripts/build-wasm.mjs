@@ -43,6 +43,17 @@ const modules = [
     // A full track's stereo float source can be large; allow the heap to grow.
     growMemory: true,
   },
+  {
+    name: 'peaks',
+    src: 'peaks.c',
+    // Faithful Mixxx AnalyzerWaveform: Bessel-4 band split via FIDLIB + per-stride
+    // max peaks, detail + overview in one pass. Compile FIDLIB in too. FIDLIB needs
+    // a target macro — wasm is posix-like, so T_LINUX (what Mixxx uses on Linux).
+    extraSrc: ['fidlib/fidlib.c'],
+    defines: ['T_LINUX'],
+    exports: ['_peaks_run', '_peaks_malloc', '_peaks_free'],
+    growMemory: true,
+  },
 ];
 
 for (const m of modules) {
@@ -52,6 +63,8 @@ for (const m of modules) {
     'emcc',
     [
       join(csrc, m.src),
+      ...((m.extraSrc ?? []).map((s) => join(csrc, s))),
+      ...((m.defines ?? []).map((d) => `-D${d}`)),
       '-O3',
       '-msimd128',
       '--no-entry',
