@@ -74,6 +74,11 @@ export class MidiRouter {
     }
     const prevParam = engine.getParameter(control.group, control.key);
     const newParam = computeMidiParameter(data2, prevParam, control.options);
+    // Soft-takeover: if active for this control, ignore the value until the physical
+    // pot catches the current value — prevents the jump when positions don't match.
+    if (!engine.softTakeoverAllows(control.group, control.key, newParam)) {
+      return;
+    }
     // For relative encoders we already folded prev in; setParameter clamps.
     engine.setParameter(control.group, control.key, newParam);
     void isRelative;

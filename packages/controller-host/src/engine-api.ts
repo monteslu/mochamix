@@ -207,13 +207,109 @@ export class EngineApi {
     return this.scratch.has(deck);
   }
 
-  // --- Soft takeover (no-op-ish for now; tracked so mappings don't error) ----
+  // --- Soft takeover (real value-jump prevention) ---------------------------
+  // When enabled for a control, a physical knob/fader is IGNORED until its value
+  // "catches" (crosses) the control's current value — so moving a controller whose
+  // position doesn't match the software doesn't make the value jump. Mixxx's behavior.
 
-  softTakeover(_group: Group, _key: Key, _set: boolean): void {
-    /* TODO: implement value-jump prevention; harmless no-op for now */
+  /** Controls with soft-takeover enabled. Value = whether we're still waiting to catch. */
+  private readonly softTakeoverState = new Map<string, { engaged: boolean; ignoreNext: boolean }>();
+
+  softTakeover(group: Group, key: Key, set: boolean): void {
+    const id = `${group}.${key}`;
+    if (set) {
+      if (!this.softTakeoverState.has(id)) this.softTakeoverState.set(id, { engaged: true, ignoreNext: false });
+    } else {
+      this.softTakeoverState.delete(id);
+    }
   }
-  softTakeoverIgnoreNextValue(_group: Group, _key: Key): void {
-    /* no-op */
+
+  softTakeoverIgnoreNextValue(group: Group, key: Key): void {
+    const st = this.softTakeoverState.get(`${group}.${key}`);
+    if (st) st.ignoreNext = true;
+    else this.softTakeoverState.set(`${group}.${key}`, { engaged: true, ignoreNext: true });
+  }
+
+  /**
+   * Should a soft-takeover control ACCEPT this incoming parameter (0..1)? Returns true
+   * if soft-takeover isn't active for it, or if the value has caught the current value
+   * (within a small threshold, or crossed it). Called by the router before applying a
+   * direct-bound value. Updates the engaged state.
+   */
+  softTakeoverAllows(group: Group, key: Key, incomingParam: number): boolean {
+    const id = `${group}.${key}`;
+    const st = this.softTakeoverState.get(id);
+    if (!st) return true; // not under soft-takeover → always apply
+    if (st.ignoreNext) {
+      st.ignoreNext = false;
+      st.engaged = true;
+      return false; // explicitly skip one value (e.g. after a programmatic change)
+    }
+    if (!st.engaged) return true; // already caught → pass through
+    const current = this.getParameter(group, key); // 0..1
+    const THRESH = 0.04; // ~5/127 — close enough to "catch"
+    if (Math.abs(incomingParam - current) <= THRESH) {
+      st.engaged = false; // caught — from now on values pass through
+      return true;
+    }
+    return false; // still off — ignore to prevent the jump
+  }
+
+  // --- Motorized-platter / stop ramps (brake, spinback, soft start) ----------
+  // These ramp a deck's rate over time (vinyl-stop / reverse-spin / start-up effects).
+  // We approximate with the rate controls — enough for the mappings that call them not
+  // to crash, and to give an audible ramp. Full sample-accurate ramps live in the
+  // engine; this drives the existing rate/scratch controls.
+
+  brake(deck: number, activate: boolean, _factor?: number, _rate?: number): void {
+    // Engage/disengage a stop: scratch toward 0 rate. Uses the scratch path so it ramps.
+    const group = `[Channel${deck}]`;
+    if (activate) {
+      this.scratchEnable(deck, 128, 33 + 1 / 3, 1 / 8, 1 / 8);
+      this.scratchTick(deck, 0); // ramp to stop
+    } else {
+      this.scratchDisable(deck);
+    }
+    void group;
+  }
+
+  spinback(deck: number, activate: boolean, _factor?: number, rate = -10): void {
+    if (activate) {
+      this.scratchEnable(deck, 128, 33 + 1 / 3, 1 / 8, 1 / 8);
+      this.scratchTick(deck, rate); // negative = reverse spin
+    } else {
+      this.scratchDisable(deck);
+    }
+  }
+
+  softStart(deck: number, activate: boolean, _factor?: number): void {
+    // Ramp from stop up to play rate.
+    if (activate) {
+      this.scratchEnable(deck, 128, 33 + 1 / 3, 1 / 8, 1 / 8);
+      this.scratchTick(deck, 1);
+      this.scratchDisable(deck);
+    }
+  }
+
+  isBrakeActive(deck: number): boolean {
+    return this.isScratching(deck);
+  }
+  isSoftStartActive(_deck: number): boolean {
+    return false;
+  }
+
+  /** Multi-deck shared data (some mappings stash cross-deck state here). */
+  private readonly sharedData: Record<string, unknown> = {};
+  getSharedData(key: string): unknown {
+    return this.sharedData[key];
+  }
+  setSharedData(key: string, value: unknown): void {
+    this.sharedData[key] = value;
+  }
+
+  /** Alias some mappings use for connectControl. */
+  connect(group: Group, key: Key, callback: EngineCallback): ScriptConnection {
+    return this.makeConnection(group, key, callback);
   }
 
   // --- Logging --------------------------------------------------------------
