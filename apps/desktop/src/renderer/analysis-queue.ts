@@ -15,9 +15,9 @@ import type { Engine } from '@dj/audio-engine';
 import type { AnalysisService } from './analysis-service.js';
 
 export interface AnalysisStatus {
-  /** Track id currently being analyzed, or null when idle. */
-  current: number | null;
-  /** How many tracks remain in the queue (including current). */
+  /** Track ids currently being analyzed (several at once with the worker pool). */
+  current: Set<number>;
+  /** How many tracks remain (queued + in-flight). */
   remaining: number;
   /** Track ids analyzed since this session started (so rows can refresh). */
   done: Set<number>;
@@ -28,7 +28,8 @@ type Listener = () => void;
 export class AnalysisQueue {
   private queue: number[] = [];
   private running = false;
-  private status: AnalysisStatus = { current: null, remaining: 0, done: new Set() };
+  private inFlight = new Set<number>();
+  private status: AnalysisStatus = { current: new Set(), remaining: 0, done: new Set() };
   private readonly listeners = new Set<Listener>();
   private stopped = false;
 
@@ -48,7 +49,11 @@ export class AnalysisQueue {
 
   private emit(): void {
     // new object so React's useSyncExternalStore sees a change
-    this.status = { ...this.status, done: new Set(this.status.done) };
+    this.status = {
+      current: new Set(this.inFlight),
+      remaining: this.queue.length + this.inFlight.size,
+      done: new Set(this.status.done),
+    };
     for (const l of this.listeners) l();
   }
 
@@ -56,11 +61,10 @@ export class AnalysisQueue {
   enqueue(ids: number[]): void {
     const known = new Set(this.queue);
     for (const id of ids) {
-      if (!known.has(id) && id !== this.status.current && !this.status.done.has(id)) {
+      if (!known.has(id) && !this.inFlight.has(id) && !this.status.done.has(id)) {
         this.queue.push(id);
       }
     }
-    this.status.remaining = this.queue.length + (this.status.current != null ? 1 : 0);
     this.emit();
     void this.run();
   }
@@ -78,25 +82,39 @@ export class AnalysisQueue {
   private async run(): Promise<void> {
     if (this.running) return;
     this.running = true;
+    // Keep up to `concurrency` analyses in flight (the worker pool size), refilling
+    // as each completes — so a library scan saturates the POOL but not all cores
+    // (the pool itself reserves cores for the UI + audio threads).
+    const concurrency = this.analysis.poolSize;
     try {
-      while (this.queue.length && !this.stopped) {
+      const launch = (): Promise<void> | null => {
+        if (this.stopped || this.queue.length === 0) return null;
         const id = this.queue.shift()!;
-        this.status.current = id;
-        this.status.remaining = this.queue.length + 1;
+        this.inFlight.add(id);
         this.emit();
-        try {
-          await this.analyzeOne(id);
-          this.status.done.add(id);
-        } catch {
-          // mark analyzed-ish so we don't loop forever on a bad file
-          this.status.done.add(id);
+        return this.analyzeOne(id)
+          .catch(() => {
+            /* bad file — still mark done so we don't loop */
+          })
+          .finally(() => {
+            this.inFlight.delete(id);
+            this.status.done.add(id);
+            this.emit();
+          });
+      };
+
+      // Prime up to `concurrency` workers, then as each finishes, launch the next.
+      const runners: Promise<void>[] = [];
+      const pump = async (): Promise<void> => {
+        for (;;) {
+          const p = launch();
+          if (!p) return;
+          await p; // wait for THIS slot's job, then immediately grab the next id
         }
-        // yield so we never block the UI / audio thread
-        await new Promise((r) => setTimeout(r, 0));
-      }
+      };
+      for (let i = 0; i < concurrency; i++) runners.push(pump());
+      await Promise.all(runners);
     } finally {
-      this.status.current = null;
-      this.status.remaining = 0;
       this.running = false;
       this.emit();
     }

@@ -241,7 +241,7 @@ export function Library(): React.JSX.Element {
                 <td className="td-wave">
                   <RowWaveform
                     trackId={t.id}
-                    analyzing={analysisStatus.current === t.id}
+                    analyzing={analysisStatus.current.has(t.id)}
                     done={analysisStatus.done.has(t.id)}
                   />
                 </td>
