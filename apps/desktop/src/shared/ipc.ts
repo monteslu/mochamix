@@ -49,6 +49,8 @@ export interface LibQuery {
 export interface ScanSummary {
   scanned: number;
   added: number;
+  /** Tracks flagged deleted by the sweep (sync only; undefined for a plain add). */
+  removed?: number;
 }
 export interface ScanProgress {
   scanned: number;
@@ -66,7 +68,18 @@ export interface DjApi {
   libraryQuery: (q: LibQuery) => Promise<LibTrack[]>;
   libraryCount: (search?: string) => Promise<number>;
   libraryScan: () => Promise<ScanSummary | null>;
+  /** Sync the whole library: rescan all known folders, add new, sweep deleted. */
+  librarySync: () => Promise<ScanSummary>;
+  /** The watched music folders (roots). */
+  libraryDirectories: () => Promise<string[]>;
+  /** Pick + add a music folder, scan it. Returns the scan summary (or null if canceled). */
+  libraryAddDirectory: () => Promise<ScanSummary | null>;
+  /** Stop watching a folder (its tracks are swept on the next sync). */
+  libraryRemoveDirectory: (dir: string) => Promise<void>;
   onScanProgress: (cb: (p: ScanProgress) => void) => () => void;
+  /** App settings (key/value) — e.g. 'rescanOnStartup'. */
+  settingsGet: (key: string) => Promise<string | null>;
+  settingsSet: (key: string, value: string) => Promise<void>;
   /** Load a track's bytes. preferOriginal=true returns the original song file even if
    *  stems exist (for analysis — smaller + decodes reliably; stems are for playback). */
   readTrackById: (id: number, preferOriginal?: boolean) => Promise<LoadedFile | null>;

@@ -129,6 +129,15 @@ export function Library(): React.JSX.Element {
     }
   }, [refresh, analysisQueue, stemThumbnails]);
 
+  const onSync = useCallback(async () => {
+    setScanning('syncing…');
+    await window.dj.librarySync(); // adds new, sweeps deleted (progress shown via setScanning)
+    setScanning(null);
+    await refresh();
+    void analysisQueue.enqueueUnanalyzed();
+    void stemThumbnails.run();
+  }, [refresh, analysisQueue, stemThumbnails]);
+
   const onReanalyze = useCallback(async () => {
     const ok = window.confirm(
       'Re-analyze the ENTIRE collection? This rebuilds BPM, key, beats, downbeats and ' +
@@ -216,6 +225,13 @@ export function Library(): React.JSX.Element {
         />
         <button onClick={onScan} disabled={!!scanning}>
           {scanning ? scanning : '+ add folder'}
+        </button>
+        <button
+          onClick={onSync}
+          disabled={!!scanning}
+          title="Rescan all watched folders: add new songs, remove deleted ones"
+        >
+          ↻ sync
         </button>
         <button
           onClick={onReanalyze}

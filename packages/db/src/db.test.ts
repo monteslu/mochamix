@@ -224,4 +224,47 @@ describe('LibraryDb', () => {
     db.addDirectory('/more');
     expect(db.listDirectories().sort()).toEqual(['/more', '/music']);
   });
+
+  it('removeDirectory drops a watched root', () => {
+    db.addDirectory('/a');
+    db.addDirectory('/b');
+    db.removeDirectory('/a');
+    expect(db.listDirectories()).toEqual(['/b']);
+  });
+
+  it('stores + reads a directory content hash', () => {
+    db.addDirectory('/music');
+    expect(db.getDirHash('/music')).toBeNull();
+    db.setDirHash('/music', 'abc123');
+    expect(db.getDirHash('/music')).toBe('abc123');
+  });
+
+  it('app settings round-trip', () => {
+    expect(db.getSetting('rescanOnStartup')).toBeNull();
+    db.setSetting('rescanOnStartup', '1');
+    expect(db.getSetting('rescanOnStartup')).toBe('1');
+    db.setSetting('rescanOnStartup', '0'); // upsert
+    expect(db.getSetting('rescanOnStartup')).toBe('0');
+  });
+
+  it('sweepMissingUnder flags tracks not seen, keeps the rest', () => {
+    addTrack({ title: 'keep', location: '/music/keep.mp3' });
+    addTrack({ title: 'gone', location: '/music/gone.mp3' });
+    addTrack({ title: 'other', location: '/elsewhere/other.mp3' });
+    const keep = new Set(['/music/keep.mp3']);
+    const swept = db.sweepMissingUnder('/music', keep);
+    expect(swept).toBe(1); // only /music/gone.mp3
+    const paths = db.allTrackPaths();
+    expect(paths.has('/music/keep.mp3')).toBe(true);
+    expect(paths.has('/music/gone.mp3')).toBe(false); // swept (fs_deleted)
+    expect(paths.has('/elsewhere/other.mp3')).toBe(true); // outside the root, untouched
+  });
+
+  it('markPresent un-sweeps a track', () => {
+    addTrack({ title: 'back', location: '/music/back.mp3' });
+    db.sweepMissingUnder('/music', new Set());
+    expect(db.allTrackPaths().has('/music/back.mp3')).toBe(false);
+    db.markPresent('/music/back.mp3');
+    expect(db.allTrackPaths().has('/music/back.mp3')).toBe(true);
+  });
 });

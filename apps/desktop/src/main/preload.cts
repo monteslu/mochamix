@@ -14,6 +14,12 @@ const api: DjApi = {
   libraryQuery: (q) => electron.ipcRenderer.invoke('library:query', q),
   libraryCount: (search) => electron.ipcRenderer.invoke('library:count', search),
   libraryScan: () => electron.ipcRenderer.invoke('library:scan'),
+  librarySync: () => electron.ipcRenderer.invoke('library:sync'),
+  libraryDirectories: () => electron.ipcRenderer.invoke('library:directories'),
+  libraryAddDirectory: () => electron.ipcRenderer.invoke('library:addDirectory'),
+  libraryRemoveDirectory: (dir) => electron.ipcRenderer.invoke('library:removeDirectory', dir),
+  settingsGet: (key) => electron.ipcRenderer.invoke('settings:get', key),
+  settingsSet: (key, value) => electron.ipcRenderer.invoke('settings:set', key, value),
   onScanProgress: (cb) => {
     const listener = (_e: unknown, p: unknown) => cb(p as never);
     electron.ipcRenderer.on('library:scanProgress', listener);

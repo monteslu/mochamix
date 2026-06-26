@@ -152,6 +152,22 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE library ADD COLUMN stem_waveforms BLOB;
     `,
   },
+  {
+    version: 6,
+    description: 'library sync: directory content hashes + app settings (Mixxx-style)',
+    up: `
+      -- Per-directory content hash so a rescan SKIPS folders whose contents are
+      -- unchanged (Mixxx LibraryHashes). NULL = never hashed → always scanned.
+      ALTER TABLE directories ADD COLUMN dir_hash TEXT;
+
+      -- Simple key/value app settings (e.g. rescan-on-startup). Mixxx keeps these in
+      -- its config; we keep app-level prefs here so they persist with the library.
+      CREATE TABLE app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
+      );
+    `,
+  },
 ];
 
 export const REQUIRED_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

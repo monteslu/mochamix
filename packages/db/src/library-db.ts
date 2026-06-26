@@ -429,10 +429,87 @@ export class LibraryDb {
     this.db.prepare('INSERT OR IGNORE INTO directories (directory) VALUES (?)').run(dir);
   }
 
+  /** Remove a watched root (does NOT remove its tracks — a sync sweep does that). */
+  removeDirectory(dir: string): void {
+    this.db.prepare('DELETE FROM directories WHERE directory = ?').run(dir);
+  }
+
+  // --- App settings (key/value) ---------------------------------------------
+
+  getSetting(key: string): string | null {
+    const row = this.db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key) as
+      | { value: string | null }
+      | undefined;
+    return row?.value ?? null;
+  }
+
+  setSetting(key: string, value: string): void {
+    this.db
+      .prepare(
+        `INSERT INTO app_settings (key, value) VALUES (@k, @v)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      )
+      .run({ k: key, v: value });
+  }
+
   listDirectories(): string[] {
     return (this.db.prepare('SELECT directory FROM directories').all() as Array<{ directory: string }>).map(
       (r) => r.directory,
     );
+  }
+
+  /** The stored content hash for a directory, or null if never hashed. */
+  getDirHash(dir: string): string | null {
+    const row = this.db.prepare('SELECT dir_hash FROM directories WHERE directory = ?').get(dir) as
+      | { dir_hash: string | null }
+      | undefined;
+    return row?.dir_hash ?? null;
+  }
+
+  setDirHash(dir: string, hash: string): void {
+    this.db.prepare('UPDATE directories SET dir_hash = @h WHERE directory = @d').run({ d: dir, h: hash });
+  }
+
+  // --- Library sync (Mixxx-style: verify found tracks, sweep the rest) --------
+
+  /** All non-deleted track locations (a Set, so a scan can O(1) check existence). */
+  allTrackPaths(): Set<string> {
+    const rows = this.db
+      .prepare(
+        `SELECT t.location AS loc FROM track_locations t WHERE t.fs_deleted = 0`,
+      )
+      .all() as Array<{ loc: string }>;
+    return new Set(rows.map((r) => r.loc));
+  }
+
+  /** Mark a track location as still present on disk (clears the missing flag). */
+  markPresent(location: string): void {
+    this.db.prepare('UPDATE track_locations SET fs_deleted = 0 WHERE location = ?').run(location);
+  }
+
+  /**
+   * Mark every track under `dir` (recursively, by location prefix) as missing, EXCEPT
+   * those in `keep`. Returns how many were newly flagged deleted. Mixxx's
+   * verify-and-sweep: after a scan we know exactly which files exist, so anything left
+   * is gone. Tracks aren't hard-deleted (history/playlists), just flagged fs_deleted.
+   */
+  sweepMissingUnder(dir: string, keep: Set<string>): number {
+    const prefix = dir.endsWith('/') ? dir : dir + '/';
+    const rows = this.db
+      .prepare(
+        `SELECT location FROM track_locations
+         WHERE fs_deleted = 0 AND (location = @dir OR location LIKE @like)`,
+      )
+      .all({ dir, like: prefix + '%' }) as Array<{ location: string }>;
+    const mark = this.db.prepare('UPDATE track_locations SET fs_deleted = 1 WHERE location = ?');
+    let swept = 0;
+    for (const { location } of rows) {
+      if (!keep.has(location)) {
+        mark.run(location);
+        swept++;
+      }
+    }
+    return swept;
   }
 }
 

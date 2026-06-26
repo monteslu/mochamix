@@ -99,6 +99,12 @@ export function makeBrowserDj(): DjApi {
       return [...lib.values()].filter((t) => !s || `${t.artist} ${t.title}`.toLowerCase().includes(s)).length;
     },
     libraryScan: async (): Promise<ScanSummary> => ({ scanned: lib.size, added: 0 }),
+    librarySync: async (): Promise<ScanSummary> => ({ scanned: lib.size, added: 0, removed: 0 }),
+    libraryDirectories: async () => [],
+    libraryAddDirectory: async () => null,
+    libraryRemoveDirectory: async () => {},
+    settingsGet: async () => null,
+    settingsSet: async () => {},
     onScanProgress: (_cb: (p: ScanProgress) => void) => () => {},
     readTrackById: async (id: number) => {
       const t = lib.get(id);

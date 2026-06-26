@@ -1567,6 +1567,44 @@ input[type='range'].vfader::-webkit-slider-thumb {
 .controller-settings.embedded {
   padding: 0;
 }
+.prefs-dirs {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.prefs-dir,
+.prefs-dir-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--edge);
+}
+.prefs-dir:last-child {
+  border-bottom: none;
+}
+.prefs-dir-empty {
+  color: var(--text-dim);
+  justify-content: flex-start;
+}
+.prefs-dir-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+.prefs-dir-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
 .bus-routes {
   display: flex;
   flex-direction: column;

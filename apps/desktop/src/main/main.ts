@@ -364,6 +364,35 @@ ipcMain.handle('library:scan', async (e) => {
   return summary;
 });
 
+// IPC: sync the WHOLE library — re-walk every known root, add new, sweep deleted
+// (Mixxx LibraryScanner model). No dialog; uses the stored directories.
+ipcMain.handle('library:sync', async (e) => {
+  return getLibrary().syncLibrary((p) => {
+    e.sender.send('library:scanProgress', p);
+  });
+});
+ipcMain.handle('library:directories', () => getLibrary().db.listDirectories());
+ipcMain.handle('library:addDirectory', async (e) => {
+  const result = await dialog.showOpenDialog({
+    title: 'Add music folder',
+    properties: ['openDirectory'],
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  const root = result.filePaths[0]!;
+  const summary = await getLibrary().scanDirectory(root, (p) => {
+    e.sender.send('library:scanProgress', p);
+  });
+  await getLibrary().pruneMissingStems();
+  return summary;
+});
+ipcMain.handle('library:removeDirectory', (_e, dir: string) => {
+  getLibrary().db.removeDirectory(dir);
+});
+ipcMain.handle('settings:get', (_e, key: string) => getLibrary().db.getSetting(key));
+ipcMain.handle('settings:set', (_e, key: string, value: string) =>
+  getLibrary().db.setSetting(key, value),
+);
+
 app.whenReady().then(() => {
   // (WebGPU switches are set at module load above — too late if done here.)
   protocol.handle(SCHEME, handleAppProtocol);

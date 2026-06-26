@@ -10,13 +10,15 @@ import { AudioSettings } from './AudioSettings.js';
 import { ControllerSettings } from './ControllerSettings.js';
 import { DecksMixingSettings } from './DecksMixingSettings.js';
 import { WaveformSettings } from './WaveformSettings.js';
+import { LibrarySettings } from './LibrarySettings.js';
 
-type TabId = 'sound' | 'decks' | 'waveforms' | 'controllers';
+type TabId = 'sound' | 'decks' | 'waveforms' | 'library' | 'controllers';
 
 const TABS: Array<{ id: TabId; label: string; icon: string }> = [
   { id: 'sound', label: 'Sound Hardware', icon: '🔊' },
   { id: 'decks', label: 'Decks & Mixing', icon: '🎚' },
   { id: 'waveforms', label: 'Waveforms', icon: '〰' },
+  { id: 'library', label: 'Library', icon: '📁' },
   { id: 'controllers', label: 'Controllers', icon: '🎛' },
 ];
 
@@ -49,6 +51,7 @@ export function Preferences({ onClose }: { onClose: () => void }): React.JSX.Ele
             {tab === 'sound' && <AudioSettings embedded />}
             {tab === 'decks' && <DecksMixingSettings />}
             {tab === 'waveforms' && <WaveformSettings />}
+            {tab === 'library' && <LibrarySettings />}
             {tab === 'controllers' && <ControllerSettings embedded />}
           </section>
         </div>

@@ -8,6 +8,7 @@
 
 import { readdir, stat, access } from 'node:fs/promises';
 import { join, extname, basename, dirname } from 'node:path';
+import { createHash } from 'node:crypto';
 import { parseFile } from 'music-metadata';
 import { LibraryDb, type TrackRow, type QueryOptions } from '@dj/db';
 
@@ -74,51 +75,117 @@ export class LibraryService {
    * Recursively scan a directory, adding audio files to the library. Calls
    * onProgress periodically. Returns the count added.
    */
+  /** Scan a single folder (add it as a watched root) and sync it. */
   async scanDirectory(
     root: string,
     onProgress?: (p: ScanProgress) => void,
   ): Promise<{ scanned: number; added: number }> {
     this.db.addDirectory(root);
+    return this.syncRoots([root], onProgress, /* useHash */ false);
+  }
+
+  /**
+   * Sync the WHOLE library: re-walk every watched root, add new tracks, re-mark found
+   * tracks present, and sweep (flag deleted) anything gone from disk. Mixxx's model
+   * (LibraryScanner): rescan known directories, verify, mark-unverified-as-deleted.
+   */
+  async syncLibrary(
+    onProgress?: (p: ScanProgress) => void,
+  ): Promise<{ scanned: number; added: number; removed: number }> {
+    const roots = this.db.listDirectories();
+    const r = await this.syncRoots(roots, onProgress, /* useHash */ true);
+    await this.pruneMissingStems();
+    return r;
+  }
+
+  /**
+   * Core sync over a set of roots. `useHash` skips folders whose content hash is
+   * unchanged since the last sync (Mixxx LibraryHashes) — fast rescans on big
+   * libraries. Always does the verify-and-sweep so deletions are reflected.
+   */
+  private async syncRoots(
+    roots: string[],
+    onProgress: ((p: ScanProgress) => void) | undefined,
+    useHash: boolean,
+  ): Promise<{ scanned: number; added: number; removed: number }> {
     let scanned = 0;
     let added = 0;
-    // Generated stem files found during the walk, linked to their original tracks
-    // afterward (so the original + .stem.mp4 can appear in any directory order).
+    // Load existing paths ONCE (was an O(n²) per-file library scan before).
+    const existing = this.db.allTrackPaths();
+    // Every audio file we SEE this sync, per root, so we can sweep the rest.
+    const seenByRoot = new Map<string, Set<string>>();
     const stemFiles: string[] = [];
 
-    const walk = async (dir: string): Promise<void> => {
+    const walk = async (root: string, dir: string, seen: Set<string>): Promise<void> => {
       let entries;
       try {
         entries = await readdir(dir, { withFileTypes: true });
       } catch {
         return;
       }
+      // Directory-content hash: names + sizes + mtimes of audio files here. If
+      // unchanged since last sync we can skip re-parsing tags for this folder (but we
+      // still record the files as "seen" so the sweep doesn't wrongly delete them).
+      const sig: string[] = [];
+      const audioHere: Array<{ full: string; name: string; size: number; mtime: number }> = [];
+      const subdirs: string[] = [];
       for (const entry of entries) {
         const full = join(dir, entry.name);
         if (entry.isDirectory()) {
-          await walk(full);
+          subdirs.push(full);
         } else if (entry.isFile() && isStemFile(entry.name)) {
-          // A .stem.mp4 is NOT its own track — it's the stems artifact for the
-          // original of the same basename. Defer linking until all tracks exist.
           stemFiles.push(full);
         } else if (entry.isFile() && AUDIO_EXTS.has(extname(entry.name).toLowerCase())) {
-          scanned++;
-          const ok = await this.addFile(full);
-          if (ok) {
-            added++;
+          let size = 0;
+          let mtime = 0;
+          try {
+            const st = await stat(full);
+            size = st.size;
+            mtime = Math.floor(st.mtimeMs);
+          } catch {
+            /* ignore */
           }
-          if (onProgress && scanned % 10 === 0) {
-            onProgress({ scanned, added, current: entry.name });
-          }
+          audioHere.push({ full, name: entry.name, size, mtime });
+          sig.push(`${entry.name}:${size}:${mtime}`);
+          seen.add(full);
         }
       }
+
+      const hash = createHash('sha1').update(sig.sort().join('|')).digest('hex');
+      const unchanged = useHash && audioHere.length > 0 && this.db.getDirHash(dir) === hash;
+      if (!unchanged) {
+        for (const a of audioHere) {
+          scanned++;
+          const isNew = !existing.has(a.full);
+          if (await this.addFile(a.full, isNew)) added++;
+          if (isNew) existing.add(a.full);
+          if (onProgress && scanned % 10 === 0) onProgress({ scanned, added, current: a.name });
+        }
+        this.db.setDirHash(dir, hash);
+      } else {
+        scanned += audioHere.length; // counted as seen, not re-parsed
+      }
+
+      for (const sub of subdirs) await walk(root, sub, seen);
     };
 
-    await walk(root);
-    for (const stemPath of stemFiles) {
-      this.linkStemFile(stemPath);
+    for (const root of roots) {
+      const seen = new Set<string>();
+      seenByRoot.set(root, seen);
+      await walk(root, root, seen);
     }
+
+    // Re-mark everything we saw as present (in case a prior sync flagged it deleted),
+    // then sweep: any track under a root we DIDN'T see is gone from disk.
+    let removed = 0;
+    for (const [root, seen] of seenByRoot) {
+      for (const p of seen) this.db.markPresent(p);
+      removed += this.db.sweepMissingUnder(root, seen);
+    }
+
+    for (const stemPath of stemFiles) this.linkStemFile(stemPath);
     onProgress?.({ scanned, added, current: 'done' });
-    return { scanned, added };
+    return { scanned, added, removed };
   }
 
   /**
@@ -156,12 +223,13 @@ export class LibraryService {
     }
   }
 
-  /** Add (or refresh) a single file. Returns true if newly added. */
-  private async addFile(path: string): Promise<boolean> {
+  /**
+   * Add (or refresh) a single file. `wasNew` is supplied by the caller (it tracks the
+   * existing-paths set, so we avoid an O(n) per-file library scan here). Returns true
+   * if newly added.
+   */
+  private async addFile(path: string, wasNew = true): Promise<boolean> {
     try {
-      const existing = this.db
-        .queryTracks()
-        .some((t) => t.location === path);
       const meta = await parseFile(path, { duration: true, skipCovers: true });
       const st = await stat(path);
       const common = meta.common;
@@ -191,7 +259,7 @@ export class LibraryService {
       if (sibling) {
         this.db.setStems(trackId, { stemPath: sibling });
       }
-      return !existing;
+      return wasNew;
     } catch {
       // Unreadable/corrupt file — skip it.
       return false;
