@@ -12,7 +12,7 @@
 import { decodeArrayBuffer, analysisFromDecoded } from '@dj/codec';
 import { computePeakSet, detailBucketsForDuration, packPeaks } from '@dj/waveform';
 import { deck as deckGroup, DeckKeys, type ControlBus } from '@dj/control-bus';
-import { camelotToKey } from '@dj/analysis';
+import { camelotToKey, shortestStepsToCompatibleKey } from '@dj/analysis';
 import type { Engine } from '@dj/audio-engine';
 import { extractAllTracks } from '@dj/stem-mp4';
 import type { AnalysisService } from './analysis-service.js';
@@ -47,6 +47,31 @@ export interface LoadSource {
   coverPath?: string;
   /** Library track id, for persisting analysis + incrementing play count. */
   libraryId?: number;
+}
+
+const NUM_DECKS = 2;
+
+/**
+ * Auto key-match on load (opt-in, app setting 'autoMatchKey'). If enabled and the OTHER
+ * deck has a detected key, shift THIS deck into a harmonically compatible key — the
+ * key-equivalent of pressing "match" automatically, like sync does for tempo. Only
+ * applies a non-zero shift; a 0 (already compatible) leaves the deck at original key.
+ */
+async function maybeAutoMatchKey(bus: ControlBus, deckIndex: number, thisKey: number): Promise<void> {
+  if (!thisKey) return;
+  let on: boolean;
+  try {
+    on = (await window.dj.settingsGet('autoMatchKey')) === '1';
+  } catch {
+    return;
+  }
+  if (!on) return;
+  const otherIndex = deckIndex === 0 ? 1 : 0;
+  if (otherIndex >= NUM_DECKS) return;
+  const otherKey = bus.get(deckGroup(otherIndex + 1), DeckKeys.fileKeyNum);
+  if (!otherKey) return; // other deck has no known key → nothing to match to
+  const shift = shortestStepsToCompatibleKey(thisKey, otherKey);
+  if (shift !== 0) bus.set(deckGroup(deckIndex + 1), DeckKeys.pitch, shift);
 }
 
 /**
@@ -112,6 +137,9 @@ export async function loadTrackToDeck(
   // Publish the numeric key (for harmonic match) + reset any prior key shift.
   bus.set(g, DeckKeys.fileKeyNum, m.key ? camelotToKey(m.key) : 0);
   bus.set(g, DeckKeys.pitch, 0);
+  // Auto key-match on load (opt-in): if enabled and the OTHER deck has a key, shift this
+  // deck into a harmonically compatible key automatically (like sync, but for key).
+  if (m.key) void maybeAutoMatchKey(bus, deckIndex, camelotToKey(m.key));
   if (src.libraryId != null) {
     void window.dj.libraryIncrementPlay(src.libraryId);
     // Load cached downbeats (real measures from DownBeat) if analyzed.
@@ -144,7 +172,9 @@ export async function loadTrackToDeck(
       }
       if (r.camelot) {
         setDeckTrack(deckIndex, { key: r.camelot });
-        bus.set(g, DeckKeys.fileKeyNum, camelotToKey(r.camelot));
+        const kn = camelotToKey(r.camelot);
+        bus.set(g, DeckKeys.fileKeyNum, kn);
+        void maybeAutoMatchKey(bus, deckIndex, kn);
       }
       if (src.libraryId != null) {
         void window.dj.librarySetAnalysis(src.libraryId, {

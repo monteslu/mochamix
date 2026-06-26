@@ -4,7 +4,7 @@
  * the bus, written to deck 1 and 2 together). Reads current values from the bus.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { deck as deckGroup, DeckKeys } from '@dj/control-bus';
 import { useDj } from '../dj-context.js';
 
@@ -19,6 +19,10 @@ export function DecksMixingSettings(): React.JSX.Element {
     Math.round(bus.get(DECK_GROUPS[0]!, DeckKeys.platterReleaseMode)),
   );
   const [formant, setFormantState] = useState(() => bus.get(DECK_GROUPS[0]!, DeckKeys.formantPreserve) > 0.5);
+  const [autoMatch, setAutoMatchState] = useState(false);
+  useEffect(() => {
+    void window.dj.settingsGet('autoMatchKey').then((v) => setAutoMatchState(v === '1'));
+  }, []);
 
   const setQuantize = (on: boolean): void => {
     setQuantizeState(on);
@@ -31,6 +35,10 @@ export function DecksMixingSettings(): React.JSX.Element {
   const setFormant = (on: boolean): void => {
     setFormantState(on);
     for (const g of DECK_GROUPS) bus.set(g, DeckKeys.formantPreserve, on ? 1 : 0);
+  };
+  const setAutoMatch = (on: boolean): void => {
+    setAutoMatchState(on);
+    void window.dj.settingsSet('autoMatchKey', on ? '1' : '0');
   };
 
   return (
@@ -99,13 +107,28 @@ export function DecksMixingSettings(): React.JSX.Element {
 
       <h3 style={{ marginTop: 22 }}>Key &amp; Harmonic Mixing</h3>
       <label className="prefs-row">
+        <input
+          type="checkbox"
+          checked={autoMatch}
+          onChange={(e) => setAutoMatch(e.target.checked)}
+        />
+        <span>
+          Auto-match key on load
+          <small>
+            When you load a track, automatically shift it into a key compatible with the
+            OTHER deck (like sync, but for key). Off by default — auto-shifting runs the
+            pitch engine on every load. You can always press <strong>match</strong> on a
+            deck manually instead.
+          </small>
+        </span>
+      </label>
+      <label className="prefs-row">
         <input type="checkbox" checked={formant} onChange={(e) => setFormant(e.target.checked)} />
         <span>
           Preserve formants on key shift
           <small>
             Keep voices/instruments sounding natural when you shift key (avoids the
-            &quot;chipmunk&quot; effect). Recommended on. (Effective once the higher-quality
-            shift engine is enabled; small shifts sound fine either way.)
+            &quot;chipmunk&quot; effect) — uses the Rubber Band engine. Recommended on.
           </small>
         </span>
       </label>
