@@ -50,6 +50,56 @@ export function fromAudioBuffer(audioBuffer: AudioBuffer, name?: string): Decode
   };
 }
 
+/** Mono planar samples for ANALYSIS, in a plain (transferable) ArrayBuffer. */
+export interface AnalysisAudio {
+  /** Mono Float32 samples in a regular ArrayBuffer (transferable to a worker). */
+  mono: ArrayBuffer;
+  frames: number;
+  sampleRate: number;
+}
+
+/**
+ * Decode a file for ANALYSIS (not playback). Two memory wins over decodeArrayBuffer:
+ *  - Downmixes to MONO (analysis only needs the mix) → half the data.
+ *  - Returns a plain ArrayBuffer, NOT a SharedArrayBuffer → it can be TRANSFERRED to
+ *    the analysis worker, so the main thread frees it immediately (SABs linger until
+ *    BOTH sides GC, which under heavy concurrency exhausts the renderer heap).
+ * Uses a short-lived OfflineAudioContext so the decoded AudioBuffer is GC'd with it,
+ * not retained by the live engine context.
+ */
+export async function decodeForAnalysis(data: ArrayBuffer): Promise<AnalysisAudio> {
+  // A throwaway context just to decode. The rate doesn't matter for tempo/key (qm uses
+  // the reported sampleRate); 44100 is the analysis convention.
+  const Offline =
+    (globalThis as unknown as { OfflineAudioContext?: typeof OfflineAudioContext }).OfflineAudioContext;
+  if (!Offline) throw new Error('OfflineAudioContext unavailable');
+  const ctx = new Offline(1, 1, 44100);
+  const audioBuffer = await ctx.decodeAudioData(data);
+  const frames = audioBuffer.length;
+  const ch = audioBuffer.numberOfChannels;
+  const left = audioBuffer.getChannelData(0);
+  const right = ch > 1 ? audioBuffer.getChannelData(1) : left;
+  const mono = new Float32Array(frames);
+  for (let i = 0; i < frames; i++) mono[i] = 0.5 * (left[i]! + right[i]!);
+  return { mono: mono.buffer, frames, sampleRate: audioBuffer.sampleRate };
+}
+
+/**
+ * Build AnalysisAudio (mono, transferable) from an already-decoded track. Used by the
+ * deck-load path, which has a DecodedTrack in hand and wants to analyze it without
+ * re-decoding. Copies the mono mix into a fresh ArrayBuffer (the SAB stays with the
+ * deck for playback; the copy is transferred to the worker).
+ */
+export function analysisFromDecoded(track: DecodedTrack): AnalysisAudio {
+  const all = new Float32Array(track.sampleBuffer);
+  const frames = track.frames;
+  const left = all.subarray(0, frames);
+  const right = track.channels > 1 ? all.subarray(frames, frames * 2) : left;
+  const mono = new Float32Array(frames);
+  for (let i = 0; i < frames; i++) mono[i] = 0.5 * (left[i]! + right[i]!);
+  return { mono: mono.buffer, frames, sampleRate: track.sampleRate };
+}
+
 /**
  * Deferred: decode via ffmpeg-wasm in a Worker for formats the platform can't
  * handle (and as the basis for the encode/record path). Mirrors Loukai's

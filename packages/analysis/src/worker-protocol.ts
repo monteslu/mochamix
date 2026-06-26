@@ -8,8 +8,9 @@ export interface AnalyzeRequest {
   type: 'analyze';
   /** Correlation id so the caller can match the response. */
   id: number;
-  sampleBuffer: SharedArrayBuffer;
-  channels: number;
+  /** MONO Float32 samples in a plain ArrayBuffer, TRANSFERRED to the worker (so the
+   *  main thread frees it immediately — no lingering SharedArrayBuffers). */
+  mono: ArrayBuffer;
   frames: number;
   sampleRate: number;
   /** If set, also compute the waveform peak set in the worker (off main thread). */

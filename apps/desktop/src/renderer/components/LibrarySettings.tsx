@@ -22,7 +22,8 @@ export function LibrarySettings(): React.JSX.Element {
 
   useEffect(() => {
     void refreshDirs();
-    void window.dj.settingsGet(RESCAN_KEY).then((v) => setRescanOnStartup(v === '1'));
+    // Default ON (null/unset = on); only an explicit '0' is off.
+    void window.dj.settingsGet(RESCAN_KEY).then((v) => setRescanOnStartup(v !== '0'));
   }, [refreshDirs]);
 
   // Live scan progress while a sync/add runs.

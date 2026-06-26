@@ -5,6 +5,9 @@
 export {
   decodeArrayBuffer,
   fromAudioBuffer,
+  decodeForAnalysis,
+  analysisFromDecoded,
+  type AnalysisAudio,
   decodeWithFfmpeg,
   isPlatformDecodable,
   PLATFORM_DECODABLE,

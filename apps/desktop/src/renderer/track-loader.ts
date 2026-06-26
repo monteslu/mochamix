@@ -9,7 +9,7 @@
  * Pure logic, no React.
  */
 
-import { decodeArrayBuffer } from '@dj/codec';
+import { decodeArrayBuffer, analysisFromDecoded } from '@dj/codec';
 import { computePeakSet, detailBucketsForDuration, packPeaks } from '@dj/waveform';
 import { deck as deckGroup, DeckKeys, type ControlBus } from '@dj/control-bus';
 import type { Engine } from '@dj/audio-engine';
@@ -123,7 +123,7 @@ export async function loadTrackToDeck(
 
   // analyze if BPM/key unknown; cache results (background)
   if (!m.bpm || m.bpm <= 0 || !m.key) {
-    void analysis.analyze(decoded).then((r) => {
+    void analysis.analyze(analysisFromDecoded(decoded)).then((r) => {
       if (r.bpm > 0) {
         bus.set(g, DeckKeys.fileBpm, r.bpm);
         bus.set(g, DeckKeys.firstBeatFrame, r.firstBeatFrame);
@@ -223,7 +223,7 @@ async function loadStemFile(
 
     // Background analysis of the mixdown for bpm/grid if unknown (so sync works).
     if (!m.bpm || m.bpm <= 0) {
-      void analysis.analyze(mixDecoded).then((r) => {
+      void analysis.analyze(analysisFromDecoded(mixDecoded)).then((r) => {
         if (r.bpm > 0) {
           bus.set(g, DeckKeys.fileBpm, r.bpm);
           bus.set(g, DeckKeys.firstBeatFrame, r.firstBeatFrame);

@@ -9,7 +9,7 @@
  * "analyzing" indicator + the progressively-completed set.
  */
 
-import { decodeArrayBuffer } from '@dj/codec';
+import { decodeForAnalysis } from '@dj/codec';
 import { packPeaks } from '@dj/waveform';
 import type { Engine } from '@dj/audio-engine';
 import type { AnalysisService } from './analysis-service.js';
@@ -184,17 +184,14 @@ export class AnalysisQueue {
     if (!file) {
       throw new Error(`track ${id}: no file bytes (readTrackById returned null)`);
     }
-    const ctx = this.engine.audioContext;
-    if (!ctx) {
-      // Engine not started → we CANNOT analyze. Throw so the caller doesn't silently
-      // mark this "done" with nothing persisted (that's the "ran in seconds" bug).
-      throw new Error('audio engine not started — cannot analyze (press ▶ start audio first)');
-    }
-    const decoded = await decodeArrayBuffer(ctx, file.data, file.name);
+    // Decode to MONO in a throwaway OfflineAudioContext → a plain (transferable)
+    // ArrayBuffer. No SharedArrayBuffer, no live-context retention: the buffer is
+    // transferred to the worker and freed on the main thread immediately, so hundreds
+    // of tracks don't pile up and exhaust the renderer heap.
+    const audio = await decodeForAnalysis(file.data);
 
-    // Everything heavy (peaks + beat + key) happens IN THE WORKER, off the main
-    // thread, so background analysis never hiccups live audio.
-    const r = await this.analysis.analyze(decoded, /* computePeaks */ true);
+    // Everything heavy (peaks + beat + key) happens IN THE WORKER, off the main thread.
+    const r = await this.analysis.analyze(audio, /* computePeaks */ true);
 
     // pack amp + band peaks into one blob so the library row can color it
     const waveform =

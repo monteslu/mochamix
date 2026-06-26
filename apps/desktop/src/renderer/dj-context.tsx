@@ -129,10 +129,11 @@ export function DjProvider({ children }: { children: ReactNode }): React.JSX.Ele
     kick();
     setTimeout(kick, 1500);
     setTimeout(kick, 5000);
-    // Rescan-on-startup (Mixxx kRescanOnStartup): if enabled, sync the library now so
-    // songs added/removed since last launch are picked up, then analyze the new ones.
+    // Rescan-on-startup (Mixxx kRescanOnStartup): sync the library on launch so songs
+    // added/removed since last time are picked up, then analyze the new ones. DEFAULT
+    // ON — only an explicit '0' disables it (null/unset = on).
     void window.dj.settingsGet('rescanOnStartup').then((v) => {
-      if (v === '1') {
+      if (v !== '0') {
         void window.dj.librarySync().then(() => {
           kick();
         });

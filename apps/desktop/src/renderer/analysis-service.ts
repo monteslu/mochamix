@@ -12,7 +12,7 @@
  */
 
 import type { AnalyzeRequest, AnalyzeResponse } from '@dj/analysis';
-import type { DecodedTrack } from '@dj/audio-engine';
+import type { AnalysisAudio } from '@dj/codec';
 
 export interface BeatGridResult {
   bpm: number;
@@ -44,10 +44,10 @@ export interface BeatGridResult {
  */
 const POOL_CORE_FRACTION = 0.5;
 /**
- * Absolute ceiling. This is MEMORY-bound, not CPU-bound: every in-flight track holds a
- * full decoded AudioBuffer + a SAB copy + the worker's WASM heap (~100-250MB each), so
- * too many concurrent decodes exhaust the renderer's address space mid-scan. 8 is a
- * safe cap even on many-core machines.
+ * Absolute ceiling. Analysis is partly MEMORY-bound: each in-flight track holds a mono
+ * buffer (transferred to its worker, so the main thread is freed) + that worker's WASM
+ * heap. The transfer + mono downmix keep per-track cost low, but cap concurrency so a
+ * burst of long tracks can't spike the renderer. 8 is safe even on many-core machines.
  */
 const MAX_POOL = 8;
 
@@ -126,24 +126,25 @@ export class AnalysisService {
       const job = this.waiting.shift()!;
       free.busy = true;
       this.pending.set(job.req.id, { resolve: job.resolve, w: free });
-      free.worker.postMessage(job.req);
+      // Transfer the mono buffer so the main thread frees it (no copy, no lingering).
+      free.worker.postMessage(job.req, [job.req.mono]);
     }
   }
 
   /**
-   * Analyze a track in the pool. Pass `computePeaks` to also build the waveform
-   * peaks off the main thread (used by the background queue so nothing heavy runs
-   * on the main/audio path). Resolves when that track's worker reports back.
+   * Analyze decoded MONO audio in the pool. The `mono` ArrayBuffer is TRANSFERRED to
+   * the worker, so the main thread releases it immediately (no lingering buffers that
+   * exhaust the heap under heavy concurrency). Pass `computePeaks` to also build the
+   * waveform peaks off the main thread. Resolves when that track's worker reports back.
    */
-  analyze(track: DecodedTrack, computePeaks = false): Promise<BeatGridResult> {
+  analyze(audio: AnalysisAudio, computePeaks = false): Promise<BeatGridResult> {
     const id = this.nextId++;
     const req: AnalyzeRequest = {
       type: 'analyze',
       id,
-      sampleBuffer: track.sampleBuffer,
-      channels: track.channels,
-      frames: track.frames,
-      sampleRate: track.sampleRate,
+      mono: audio.mono,
+      frames: audio.frames,
+      sampleRate: audio.sampleRate,
       computePeaks,
     };
     return new Promise<BeatGridResult>((resolve) => {

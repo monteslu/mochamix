@@ -35,11 +35,9 @@ self.onmessage = (e: MessageEvent<AnalyzeRequest>) => {
   if (msg.type !== 'analyze') {
     return;
   }
-  const all = new Float32Array(msg.sampleBuffer);
-  const channels: Float32Array[] = [];
-  for (let c = 0; c < msg.channels; c++) {
-    channels.push(all.subarray(c * msg.frames, (c + 1) * msg.frames));
-  }
+  // The mono buffer was TRANSFERRED in (main thread no longer references it).
+  const mono = new Float32Array(msg.mono, 0, msg.frames);
+  const channels: Float32Array[] = [mono];
   const r = qm.analyze(channels, msg.frames, msg.sampleRate);
   const res: AnalyzeResponse = {
     type: 'analyzed',
