@@ -17,7 +17,7 @@
  */
 
 import type { Scaler, SourcePull } from './scaler.js';
-import { KeylockScaler } from './keylock-scaler.js';
+import { RubberBandScaler } from './rubberband-scaler.js';
 import { WasmResampler } from '@dj/dsp-wasm';
 
 export interface DeckTrack {
@@ -142,7 +142,7 @@ export class DeckPlayback {
     this.stemPitch[index] = semitones;
     if (semitones !== 0) {
       if (!this.stemScalers[index]) {
-        const s = new KeylockScaler();
+        const s = new RubberBandScaler();
         s.setFormantPreserved?.(formant);
         this.stemScalers[index] = s;
         this.stemScalerCursor[index] = this.position;
@@ -211,7 +211,7 @@ export class DeckPlayback {
     }
     this.keylock = on;
     if (on && !this.keylockScaler) {
-      this.keylockScaler = new KeylockScaler();
+      this.keylockScaler = new RubberBandScaler();
     }
     this.keylockScaler?.reset();
   }
@@ -230,7 +230,7 @@ export class DeckPlayback {
     this.pitchSemitones = semitones;
     this.formantPreserve = formant;
     if (semitones !== 0 && !this.keylockScaler) {
-      this.keylockScaler = new KeylockScaler();
+      this.keylockScaler = new RubberBandScaler();
       this.keylockScaler.reset();
     }
     if (changed && this.keylockScaler?.setFormantPreserved) {

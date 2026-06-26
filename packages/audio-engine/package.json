@@ -17,7 +17,6 @@
   "dependencies": {
     "@dj/analysis": "*",
     "@dj/control-bus": "*",
-    "@dj/dsp-wasm": "*",
-    "soundtouchjs": "^0.3.0"
+    "@dj/dsp-wasm": "*"
   }
 }

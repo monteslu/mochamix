@@ -3,8 +3,8 @@
  * (04-audio-engine.md §4). Two implementations:
  *   - LinearScaler (varispeed: speed changes pitch; can ramp through zero → used
  *     for scratch/reverse). This is DeckPlayback's built-in path.
- *   - KeylockScaler (independent tempo + pitch via SoundTouch/RubberBand WASM →
- *     used when keylock is on).
+ *   - RubberBandScaler (independent tempo + pitch via the Rubber Band Library in
+ *     WASM, with real formant preservation → used for keylock AND key shifting).
  *
  * The contract: a scaler is fed source samples on demand (it pulls via a
  * callback) and produces exactly the requested number of output frames per call.
