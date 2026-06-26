@@ -85,6 +85,7 @@ export async function loadTrackToDeck(
     peaks,
     stemPeaks: null, // a normal track clears any prior stem-deck coloring
     stemScales: null,
+    downbeatFrames: null, // cleared; loaded from DB below if analyzed
     title,
     artist: m.artist ?? null,
     album: m.album ?? null,
@@ -99,6 +100,15 @@ export async function loadTrackToDeck(
   }
   if (src.libraryId != null) {
     void window.dj.libraryIncrementPlay(src.libraryId);
+    // Load cached downbeats (real measures from DownBeat) if analyzed.
+    void window.dj.libraryDownbeats(src.libraryId).then((blob) => {
+      if (blob && blob.length >= 4) {
+        const u = new Uint8Array(blob);
+        setDeckTrack(deckIndex, {
+          downbeatFrames: new Int32Array(u.buffer, u.byteOffset, u.byteLength >> 2),
+        });
+      }
+    });
   }
 
   // cover art (background)

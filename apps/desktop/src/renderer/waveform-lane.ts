@@ -144,6 +144,7 @@ export class WaveformLaneController {
     drawScrolling(this.canvas, st.peaks.detail, positionFrames, framesPerPx, DEFAULT_COLORS, {
       firstBeatFrame: fbf >= 0 ? fbf : 0,
       framesPerBeat,
+      downbeatFrames: st.downbeatFrames ?? undefined,
       stems: stemBands,
     });
     reportLaneDraw(`deck${this.deckIndex}`, false, performance.now() - t0);

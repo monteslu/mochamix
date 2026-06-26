@@ -70,10 +70,19 @@ export interface DjApi {
   readTrackById: (id: number) => Promise<LoadedFile | null>;
   librarySetAnalysis: (
     id: number,
-    a: { bpm?: number; firstBeatFrame?: number; key?: string; waveform?: Uint8Array; analyzedAt?: number },
+    a: {
+      bpm?: number;
+      firstBeatFrame?: number;
+      key?: string;
+      waveform?: Uint8Array;
+      downbeats?: Uint8Array;
+      analyzedAt?: number;
+    },
   ) => Promise<void>;
   /** Cached overview peaks (Uint8 per bucket) for a track, or null. */
   libraryWaveform: (id: number) => Promise<Uint8Array | null>;
+  /** Packed Int32 downbeat frames (real measures) for a track, or null. */
+  libraryDownbeats: (id: number) => Promise<Uint8Array | null>;
   /** Track ids not yet analyzed (for the background queue). */
   libraryUnanalyzed: (limit?: number) => Promise<number[]>;
   /** Track ids with no generated stems yet (for the stem-generation queue). */

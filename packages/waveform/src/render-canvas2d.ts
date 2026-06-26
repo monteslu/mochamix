@@ -225,6 +225,9 @@ export interface ScrollOverlay {
   /** Beat grid: frame of the first beat + frames per beat (0 = no grid). */
   firstBeatFrame?: number;
   framesPerBeat?: number;
+  /** Real downbeat (bar-start) frames from DownBeat analysis. When present, the red
+   *  measure markers are drawn at THESE exact positions instead of every 4th beat. */
+  downbeatFrames?: Int32Array;
   /** When present, draw the waveform as overlaid color-per-stem bands (mashup view)
    *  instead of the 3-band RGB. Order: drums, bass, other, vocals. */
   stems?: StemBand[];
@@ -259,18 +262,22 @@ export function drawScrolling(
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
 
-  // beat grid (white ticks; brighter downbeat every 4)
+  // beat grid (white ticks; red downbeats). REAL downbeats from DownBeat analysis
+  // are used when available; else fall back to every-4th-beat.
+  const leftFrame = positionFrames - centerX * framesPerPx;
+  const rightFrame = positionFrames + centerX * framesPerPx;
+  const realDownbeats = overlay?.downbeatFrames && overlay.downbeatFrames.length > 0;
   if (overlay?.framesPerBeat && overlay.framesPerBeat > 0) {
     const fpb = overlay.framesPerBeat;
     const first = overlay.firstBeatFrame ?? 0;
-    const leftFrame = positionFrames - centerX * framesPerPx;
-    const rightFrame = positionFrames + centerX * framesPerPx;
     let n = Math.ceil((leftFrame - first) / fpb);
     for (;;) {
       const bf = first + n * fpb;
       if (bf > rightFrame) break;
       const x = centerX + (bf - positionFrames) / framesPerPx;
-      const down = ((n % 4) + 4) % 4 === 0; // downbeat = start of a 4/4 measure
+      // when we have real downbeats, the per-beat loop only draws white ticks; red
+      // measure markers come from the downbeat pass below.
+      const down = !realDownbeats && ((n % 4) + 4) % 4 === 0;
       if (down) {
         // red measure marker (rekordbox / VirtualDJ convention)
         ctx.fillStyle = 'rgba(255,60,60,0.85)';
@@ -281,6 +288,20 @@ export function drawScrolling(
         ctx.fillRect(x, 0, 1, h);
       }
       n++;
+    }
+  }
+
+  // Real measure markers (red) from DownBeat analysis — drawn at the exact bar-start
+  // frames the analyzer found, not assumed every 4th beat.
+  if (realDownbeats) {
+    const db = overlay!.downbeatFrames!;
+    ctx.fillStyle = 'rgba(255,60,60,0.85)';
+    for (let i = 0; i < db.length; i++) {
+      const bf = db[i]!;
+      if (bf < leftFrame) continue;
+      if (bf > rightFrame) break;
+      const x = centerX + (bf - positionFrames) / framesPerPx;
+      ctx.fillRect(x, 0, 2, h);
     }
   }
 

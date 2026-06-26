@@ -20,6 +20,8 @@ export interface BeatGridResult {
   confidence: number;
   key: string;
   camelot: string;
+  /** Bar-start beats (downbeats), in source frames — real measures from DownBeat. */
+  downbeatFrames?: Int32Array;
   /** Overview peaks, when peaks were requested (computed in the worker). */
   overviewPeaks?: Uint8Array;
   overviewLow?: Uint8Array;
@@ -67,6 +69,7 @@ function toResult(msg: Extract<AnalyzeResponse, { type: 'analyzed' }>): BeatGrid
     confidence: msg.confidence,
     key: msg.key,
     camelot: msg.camelot,
+    downbeatFrames: msg.downbeatFrames,
     overviewPeaks: msg.overviewPeaks,
     overviewLow: msg.overviewLow,
     overviewMid: msg.overviewMid,

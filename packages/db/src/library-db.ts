@@ -119,6 +119,8 @@ export class LibraryDb {
       key?: string;
       /** Overview peaks (one Uint8 per bucket) to cache for the mini-waveform. */
       waveform?: Uint8Array;
+      /** Packed Int32 downbeat frames (real measures from DownBeat). */
+      downbeats?: Uint8Array;
       analyzedAt?: number;
     },
   ): void {
@@ -140,6 +142,10 @@ export class LibraryDb {
       sets.push('waveform = @wf', 'waveform_buckets = @wfb');
       params.wf = a.waveform;
       params.wfb = a.waveform.length;
+    }
+    if (a.downbeats !== undefined) {
+      sets.push('downbeats = @db');
+      params.db = a.downbeats;
     }
     if (a.analyzedAt !== undefined) {
       sets.push('analyzed_at = @at');
@@ -206,6 +212,15 @@ export class LibraryDb {
       .get(trackId) as { waveform: Uint8Array | null } | undefined;
     const wf = row?.waveform ?? null;
     return wf && wf.length > 0 ? new Uint8Array(wf) : null;
+  }
+
+  /** Packed Int32 downbeat frames (real measures) for a track, or null. */
+  getDownbeats(trackId: number): Uint8Array | null {
+    const row = this.db
+      .prepare('SELECT downbeats FROM library WHERE id = ?')
+      .get(trackId) as { downbeats: Uint8Array | null } | undefined;
+    const db = row?.downbeats ?? null;
+    return db && db.length > 0 ? new Uint8Array(db) : null;
   }
 
   /** Track ids that have NOT been analyzed yet (for the background queue). */

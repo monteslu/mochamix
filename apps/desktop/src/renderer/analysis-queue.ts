@@ -144,11 +144,18 @@ export class AnalysisQueue {
         frames: r.overviewPeaks.length,
       });
 
+    // Pack downbeat frames (Int32) into a byte blob for the DB → real measures.
+    const downbeats =
+      r.downbeatFrames && r.downbeatFrames.length > 0
+        ? new Uint8Array(r.downbeatFrames.buffer, r.downbeatFrames.byteOffset, r.downbeatFrames.byteLength)
+        : undefined;
+
     await window.dj.librarySetAnalysis(id, {
       bpm: r.bpm,
       firstBeatFrame: r.firstBeatFrame,
       key: r.camelot,
       waveform: waveform ?? undefined,
+      downbeats,
       analyzedAt: Date.now(),
     });
   }

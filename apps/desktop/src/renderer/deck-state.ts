@@ -15,6 +15,8 @@ export interface DeckTrackState {
   stemPeaks: PeakData[] | null;
   /** Stem waveform scale (shared ≈255/loudest-stem-max, Mixxx-style) per stem. */
   stemScales: number[] | null;
+  /** Real downbeat (bar-start) frames from DownBeat, for true measure markers. */
+  downbeatFrames: Int32Array | null;
   title: string | null;
   artist: string | null;
   album: string | null;
@@ -28,6 +30,7 @@ const empty: DeckTrackState = {
   peaks: null,
   stemPeaks: null,
   stemScales: null,
+  downbeatFrames: null,
   title: null,
   artist: null,
   album: null,

@@ -131,6 +131,16 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE library ADD COLUMN stems_generated_at INTEGER DEFAULT 0;
     `,
   },
+  {
+    version: 4,
+    description: 'downbeat positions (real measures from qm-dsp DownBeat)',
+    up: `
+      -- Bar-start beat positions (downbeats) as a packed Int32 blob of source frames.
+      -- From Mixxx's DownBeat analyzer, so the waveform draws REAL measure markers
+      -- instead of assuming every 4th beat. NULL = no downbeats detected.
+      ALTER TABLE library ADD COLUMN downbeats BLOB;
+    `,
+  },
 ];
 
 export const REQUIRED_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

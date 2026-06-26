@@ -218,13 +218,24 @@ export class LibraryService {
 
   setAnalysis(
     trackId: number,
-    a: { bpm?: number; firstBeatFrame?: number; key?: string; waveform?: Uint8Array; analyzedAt?: number },
+    a: {
+      bpm?: number;
+      firstBeatFrame?: number;
+      key?: string;
+      waveform?: Uint8Array;
+      downbeats?: Uint8Array;
+      analyzedAt?: number;
+    },
   ): void {
     this.db.setAnalysis(trackId, a);
   }
 
   getWaveform(trackId: number): Uint8Array | null {
     return this.db.getWaveform(trackId);
+  }
+
+  getDownbeats(trackId: number): Uint8Array | null {
+    return this.db.getDownbeats(trackId);
   }
 
   unanalyzedTrackIds(limit?: number): number[] {
