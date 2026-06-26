@@ -23,6 +23,8 @@
     "@dj/codec": "*",
     "@dj/control-bus": "*",
     "@dj/db": "*",
+    "@dj/stem-mp4": "*",
+    "@dj/stems": "*",
     "@dj/waveform": "*",
     "music-metadata": "^11.13.0",
     "node-sqlite3-wasm": "^0.8.58",

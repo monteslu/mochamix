@@ -8,6 +8,7 @@ import { defineConfig, build as viteBuild, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
+import { isWebGpuPath, resolveWebGpuPath } from '@dj/stems/asset-server';
 
 // Build the AudioWorklet bundle (the engine needs it; Vite can't bundle a .ts
 // worklet on the fly). Run on dev-server start AND on worklet-source change, so
@@ -15,7 +16,6 @@ import { readFile } from 'node:fs/promises';
 function buildWorklets(): Plugin {
   const cfg = fileURLToPath(new URL('./vite.worklet.config.ts', import.meta.url));
   const run = () => viteBuild({ configFile: cfg, logLevel: 'warn' }).catch((e) => {
-    // eslint-disable-next-line no-console
     console.error('[worklet build] failed:', e);
   });
   return {
@@ -99,6 +99,36 @@ function serveMusic(): Plugin {
   };
 }
 
+// Serve the WebGPU stem-generation libs (onnxruntime-web, demucs-web, ffmpeg-core)
+// and ONNX models same-origin (download-once-cache), so the renderer's dynamic
+// import()s + fetch()s resolve. Same resolver the Electron app:// protocol uses.
+function serveWebGpuAssets(): Plugin {
+  return {
+    name: 'serve-webgpu-assets',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        const pathname = req.url?.split('?')[0] ?? '';
+        if (!isWebGpuPath(pathname)) return next();
+        try {
+          const hit = await resolveWebGpuPath(pathname);
+          if (!hit) {
+            res.statusCode = 404;
+            res.end('unknown asset');
+            return;
+          }
+          res.setHeader('Content-Type', hit.mime);
+          res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          res.end(await readFile(hit.file));
+        } catch (e) {
+          res.statusCode = 502;
+          res.end(`asset error: ${String(e)}`);
+        }
+      });
+    },
+  };
+}
+
 const pkg = (name: string) =>
   fileURLToPath(new URL(`../../packages/${name}/src/index.ts`, import.meta.url));
 
@@ -116,7 +146,14 @@ export default defineConfig({
       new Date().toISOString().slice(11, 19) + ' ' + new Date().toISOString().slice(5, 10),
     ),
   },
-  plugins: [defaultToBrowserHtml(), buildWorklets(), react(), serveWorklets(), serveMusic()],
+  plugins: [
+    defaultToBrowserHtml(),
+    buildWorklets(),
+    react(),
+    serveWorklets(),
+    serveMusic(),
+    serveWebGpuAssets(),
+  ],
   resolve: {
     alias: {
       '@dj/analysis/worker': fileURLToPath(
@@ -128,6 +165,8 @@ export default defineConfig({
       '@dj/waveform': pkg('waveform'),
       '@dj/analysis': pkg('analysis'),
       '@dj/dsp-wasm': pkg('dsp-wasm'),
+      '@dj/stem-mp4': pkg('stem-mp4'),
+      '@dj/stems': pkg('stems'),
     },
   },
   server: {

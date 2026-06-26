@@ -4,7 +4,8 @@
     "rootDir": "./src",
     "outDir": "./dist",
     "allowJs": true,
-    "checkJs": false
+    "checkJs": false,
+    "types": ["node"]
   },
   "references": [{ "path": "../stem-mp4" }],
   "include": ["src/**/*"]

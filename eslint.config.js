@@ -91,7 +91,15 @@ export default tseslint.config(
     // packages/db is the SQLite file-access layer — main-process only by design,
     // so Node deps are expected there (Electron's job: file access). Tests run in
     // Node too. Everything else must stay web-standard.
-    ignores: ['**/*.test.ts', '**/*.test.tsx', 'packages/db/**'],
+    ignores: [
+      '**/*.test.ts',
+      '**/*.test.tsx',
+      'packages/db/**',
+      // The WebGPU asset resolver is a deliberate main-process (Node) module — it
+      // downloads/caches assets and is imported only from the Electron main + vite
+      // config, never the renderer. Node builtins are expected here (like db).
+      'packages/stems/src/asset-server.ts',
+    ],
     rules: {
       'no-restricted-globals': [
         'error',

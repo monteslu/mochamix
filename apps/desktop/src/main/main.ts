@@ -21,6 +21,7 @@ import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
 import { dirname, join, normalize } from 'node:path';
 import { LibraryService } from './library-service.js';
 import type { QueryOptions } from '@dj/db';
+import { isWebGpuPath, resolveWebGpuPath } from '@dj/stems/asset-server';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // main.js (esbuild-bundled) lives at dist-main/main.js → renderer is one up.
@@ -96,6 +97,23 @@ function handleAppProtocol(request: Request): Promise<Response> {
   let pathname = decodeURIComponent(url.pathname);
   if (pathname === '/' || pathname === '') {
     pathname = '/index.html';
+  }
+  // WebGPU stem-generation libs + ONNX models: download-once-cache, served
+  // same-origin (so the renderer's dynamic import()s + fetch()s resolve under COEP).
+  if (isWebGpuPath(pathname)) {
+    return resolveWebGpuPath(pathname)
+      .then((hit) => {
+        if (!hit) return new Response('unknown asset', { status: 404 });
+        return net.fetch(pathToFileURL(hit.file).toString()).then((res) => {
+          const headers = new Headers(res.headers);
+          for (const [k, v] of Object.entries(ISOLATION_HEADERS)) headers.set(k, v);
+          headers.set('Content-Type', hit.mime);
+          headers.set('Cross-Origin-Resource-Policy', 'cross-origin');
+          headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+          return new Response(res.body, { status: res.status, headers });
+        });
+      })
+      .catch((e) => new Response(`asset error: ${String(e)}`, { status: 502 }));
   }
   // Prevent path traversal.
   const filePath = normalize(join(RENDERER_DIR, pathname));

@@ -29,6 +29,8 @@ export default defineConfig({
       '@dj/waveform': pkg('waveform'),
       '@dj/analysis': pkg('analysis'),
       '@dj/dsp-wasm': pkg('dsp-wasm'),
+      '@dj/stem-mp4': pkg('stem-mp4'),
+      '@dj/stems': pkg('stems'),
     },
   },
   build: {
