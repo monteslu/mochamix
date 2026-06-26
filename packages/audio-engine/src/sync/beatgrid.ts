@@ -47,41 +47,13 @@ export function nearestBeatFrame(grid: Grid, frame: number): number {
   return frameOfBeat(grid, idx);
 }
 
-const BEATS_PER_BAR = 4;
-
 /**
- * Measure (bar) phase 0..1: position within the 4-beat bar. Aligning two decks on
- * THIS (not just beat phase) makes their DOWNBEATS / measure markers line up, not
- * just their beats — so the bars visibly snap together, not sit a beat or two off.
- */
-export function measureDistance(grid: Grid, frame: number): number {
-  const idx = beatIndexAt(grid, frame) / BEATS_PER_BAR;
-  const frac = idx - Math.floor(idx);
-  return ((frac % 1) + 1) % 1;
-}
-
-/**
- * Align the follower to the leader's MEASURE phase (downbeats line up), moving the
- * smallest distance (≤ half a bar either way). Like alignedFrame but bar-granular.
- */
-export function alignedToMeasure(
-  followerGrid: Grid,
-  followerFrame: number,
-  targetMeasurePhase: number,
-): number {
-  const barFrames = followerGrid.framesPerBeat * BEATS_PER_BAR;
-  const cur = measureDistance(followerGrid, followerFrame);
-  let delta = targetMeasurePhase - cur; // in bars (fraction)
-  if (delta > 0.5) delta -= 1;
-  else if (delta < -0.5) delta += 1;
-  return followerFrame + delta * barFrames;
-}
-
-/**
- * Phase-align: given a follower at `followerFrame` on its grid, return the frame
- * the follower should seek to so its beat phase matches the leader's `targetPhase`
- * (0..1), moving the SMALLEST distance (≤ half a beat either way). Keeps the
- * follower near where it already is — we shift by at most ±½ beat, never jump bars.
+ * Phase-align: seek the follower so its beat fraction matches the leader's
+ * `targetPhase` (0..1). PORTED FROM MIXXX (bpmcontrol.cpp getNearestPositionInPhase):
+ * anchor to a concrete beat boundary chosen by whether THIS and the OTHER deck are
+ * each in the first/second half of their beat (handles pressing sync late/early),
+ * then add targetPhase × beatLength. This is the snap: a hard jump onto the leader's
+ * exact beat, moving ≤ ~1 beat.
  */
 export function alignedFrame(
   followerGrid: Grid,
@@ -89,10 +61,21 @@ export function alignedFrame(
   targetPhase: number,
 ): number {
   const fpb = followerGrid.framesPerBeat;
-  const curPhase = beatDistance(followerGrid, followerFrame);
-  let delta = targetPhase - curPhase; // in beats (fraction)
-  // shortest direction
-  if (delta > 0.5) delta -= 1;
-  else if (delta < -0.5) delta += 1;
-  return followerFrame + delta * fpb;
+  const idx = beatIndexAt(followerGrid, followerFrame);
+  const prevBeat = frameOfBeat(followerGrid, Math.floor(idx));
+  const nextBeat = frameOfBeat(followerGrid, Math.floor(idx) + 1);
+
+  // Mixxx: which half of the beat is each deck in?
+  const thisNearNextBeat = nextBeat - followerFrame <= followerFrame - prevBeat;
+  const otherNearNextBeat = targetPhase >= 0.5;
+
+  let anchor: number;
+  if (thisNearNextBeat === otherNearNextBeat) {
+    anchor = prevBeat;
+  } else if (thisNearNextBeat && !otherNearNextBeat) {
+    anchor = nextBeat; // pushed sync late
+  } else {
+    anchor = frameOfBeat(followerGrid, Math.floor(idx) - 1); // pushed sync early
+  }
+  return anchor + targetPhase * fpb;
 }
