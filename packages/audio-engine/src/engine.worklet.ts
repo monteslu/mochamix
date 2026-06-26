@@ -72,6 +72,7 @@ class EngineProcessor extends AudioWorkletProcessor {
   private control: SabLayout | null = null;
   private decks: DeckSlot[] = [];
   private vuCounter = 0;
+  private wAlignCounter = 0;
 
   constructor() {
     super();
@@ -318,6 +319,47 @@ class EngineProcessor extends AudioWorkletProcessor {
         sabWrite(control, slot.indices.vuMeter, scaled);
         sabWrite(control, slot.indices.peakIndicator, slot.vu.isClipped() ? 1 : 0);
         slot.vu.resetPeak();
+      }
+    }
+
+    // DEBUG: ~1Hz, snapshot BOTH decks' EXACT positions in the SAME process() call
+    // (no SAB staleness, truly simultaneous) and report the real beat gap in ms. This
+    // is the ground truth the renderer-side [ALIGN] can't give (it reads positions at
+    // different, stale instants).
+    if (this.decks.length >= 2 && ++this.wAlignCounter >= 375) {
+      this.wAlignCounter = 0;
+      const a = this.decks[0]!;
+      const b = this.decks[1]!;
+      const pa = sabRead(control, a.indices.play) > 0.5;
+      const pb = sabRead(control, b.indices.play) > 0.5;
+      if (pa && pb) {
+        const grid = (s: DeckSlot) => {
+          const bpm = s.indices.fileBpm !== undefined ? sabRead(control, s.indices.fileBpm) : 0;
+          const fbf = s.indices.firstBeatFrame !== undefined ? Math.max(0, sabRead(control, s.indices.firstBeatFrame)) : 0;
+          const fpb = bpm > 0 ? (60 / bpm) * sampleRate : 0;
+          const ratio = sabRead(control, s.indices.rateRatio) || 1;
+          return { bpm, fbf, fpb, ratio };
+        };
+        // signed real-seconds to each deck's nearest beat (source frames / rate / sr)
+        const secToBeat = (pos: number, g: { fbf: number; fpb: number; ratio: number }) => {
+          if (g.fpb <= 0) return 0;
+          const rel = (pos - g.fbf) / g.fpb;
+          const frac = rel - Math.round(rel);
+          return (frac * g.fpb) / g.ratio / sampleRate;
+        };
+        const ga = grid(a);
+        const gb = grid(b);
+        const ta = secToBeat(a.playback.getPositionFrames(), ga);
+        const tb = secToBeat(b.playback.getPositionFrames(), gb);
+        this.port.postMessage({
+          type: 'snapDbg',
+          msg: 'walign',
+          gapMs: +(Math.abs(ta - tb) * 1000).toFixed(1),
+          d1ToBeatMs: +(ta * 1000).toFixed(1),
+          d2ToBeatMs: +(tb * 1000).toFixed(1),
+          effBpm1: +(ga.bpm * ga.ratio).toFixed(3),
+          effBpm2: +(gb.bpm * gb.ratio).toFixed(3),
+        });
       }
     }
 

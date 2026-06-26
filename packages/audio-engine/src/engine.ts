@@ -157,10 +157,10 @@ export class Engine {
       if (this.smartFader?.isActive()) return;
       this.syncController?.tick();
     }, 16);
-    // DEBUG: ~1Hz alignment check. For each deck dump its CURRENT beat phase from its
-    // actual position + effective BPM, and the offset between deck1 and deck2 — so we
-    // can see if they STAY lined up between snaps (drift) or hold.
-    this.alignTimer = setInterval(() => this.dumpAlignment(), 1000);
+    // NOTE: renderer-side [ALIGN] disabled — it reads the two decks' positions at
+    // different, SAB-stale instants, which reports phantom drift. The worklet's
+    // [WALIGN] reads both positions in the same audio block (true ground truth).
+    void this.dumpAlignment; // kept for reference; not scheduled
 
     // Initialize the worklet with the control SAB + index maps.
     const sab = this.bus.sab;
@@ -517,6 +517,11 @@ export class Engine {
       this.bus.set(deckGroup(msg.deck + 1), DeckKeys.play, 0);
     } else if ((msg as { type: string }).type === 'snapDbg') {
       const m = msg as Record<string, number | string>;
+      if (m.msg === 'walign') {
+        // Ground-truth alignment: both positions read in the SAME audio block.
+        console.log('[WALIGN]', JSON.stringify(msg));
+        return;
+      }
       // After a snap, dump BOTH decks' position vs their nearest beat — in seconds —
       // so we can see if they're actually lined up audibly (offset ~0 = locked).
       if (typeof m.leaderPos === 'number' && typeof m.target === 'number') {
