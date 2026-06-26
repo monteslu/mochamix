@@ -10,7 +10,8 @@
  */
 
 import { decodeArrayBuffer } from '@dj/codec';
-import { generateStems, type GenerateProgress } from '@dj/stems';
+import { generateStemsInWorker } from '@dj/stems/generate-client';
+import type { GenerateProgress } from '@dj/stems';
 import type { Engine } from '@dj/audio-engine';
 
 export interface StemStatus {
@@ -111,6 +112,8 @@ export class StemQueue {
   }
 
   private async generateOne(id: number): Promise<void> {
+    const t0 = performance.now();
+    console.log(`[stems] generating for track ${id} …`);
     const file = await window.dj.readTrackById(id);
     if (!file) throw new Error('track bytes unavailable');
     if (file.isStem) return; // already stems
@@ -123,23 +126,39 @@ export class StemQueue {
     const frames = decoded.frames;
     const left = all.subarray(0, frames);
     const right = decoded.channels > 1 ? all.subarray(frames, frames * 2) : left;
+    console.log(
+      `[stems] decoded "${file.name}" ${(frames / decoded.sampleRate).toFixed(1)}s @ ${decoded.sampleRate}Hz → separating in worker (off main thread)`,
+    );
 
-    const bytes = await generateStems(
+    // Run the WHOLE pipeline in a Worker so the main-thread waveform rAF keeps
+    // ticking while WebGPU Demucs runs.
+    let lastLogged = -1;
+    const bytes = await generateStemsInWorker(
       Float32Array.from(left),
       Float32Array.from(right),
       decoded.sampleRate,
       {
-        metadata: { title: file.name },
-        onProgress: (p) => {
+        title: file.name,
+        onProgress: (p: GenerateProgress) => {
           this.status.progress = p.progress;
           this.status.phase = p.phase;
           this.emit();
+          if (p.log) console.log(`[stems] ${p.log}`);
+          // log every ~10% so the console shows steady progress
+          const pct = Math.floor(p.progress * 10);
+          if (pct !== lastLogged) {
+            lastLogged = pct;
+            console.log(`[stems] ${p.phase} ${Math.round(p.progress * 100)}%`);
+          }
         },
       },
     );
 
     const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-    await window.dj.saveStems(id, ab as ArrayBuffer);
+    const path = await window.dj.saveStems(id, ab as ArrayBuffer);
+    console.log(
+      `[stems] done track ${id} in ${((performance.now() - t0) / 1000).toFixed(1)}s → ${path}`,
+    );
   }
 
   dispose(): void {

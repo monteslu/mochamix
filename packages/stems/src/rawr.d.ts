@@ -7,6 +7,10 @@ declare module 'rawr' {
   }
   interface RawrPeer {
     methods: Record<string, (...args: unknown[]) => Promise<unknown>>;
+    /** Send a notification: peer.notifiers.<name>(...args). */
+    notifiers: Record<string, (...args: unknown[]) => void>;
+    /** Subscribe to notifications: peer.notifications.on<Name>(cb). */
+    notifications: Record<string, (cb: (...args: never[]) => void) => void>;
   }
   export default function rawr(opts: RawrOpts): RawrPeer;
 }

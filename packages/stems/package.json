@@ -9,6 +9,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./asset-server": "./src/asset-server.ts",
+    "./generate-client": "./src/generate-client.ts",
+    "./stems-worker": "./src/stems.worker.ts",
     "./aac-worker": "./src/vendor/aacWorker.js"
   },
   "scripts": {

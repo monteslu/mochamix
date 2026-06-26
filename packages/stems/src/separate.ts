@@ -88,11 +88,20 @@ export async function separateStems(
   const base = opts.assetBase ?? '/webgpu-assets';
   const modelBase = '/webgpu-models';
 
-  if (!(await detectWebGpu())) {
+  // WebGPU is REQUIRED (no WASM/CPU fallback by design — a CPU run would also block
+  // hard). Report the adapter so we can confirm we're truly on the GPU.
+  const gpu = (navigator as unknown as { gpu?: GPU }).gpu;
+  if (!gpu) {
     throw new Error('WebGPU unavailable — stem separation requires a WebGPU device.');
   }
+  const adapter = await gpu.requestAdapter({ powerPreference: 'high-performance' });
+  if (!adapter) {
+    throw new Error('WebGPU: no adapter — stem separation requires a working GPU.');
+  }
+  onLog(`WebGPU adapter OK${adapter.info?.vendor ? ` (${adapter.info.vendor})` : ''}`);
 
   const { ort, demucs } = await loadLibs(base, onLog);
+  onLog(`onnxruntime-web loaded — wasm threads: ${ort.env?.wasm?.numThreads ?? '?'}`);
 
   // Single htdemucs model (fast). The ft ensemble is a future upgrade behind the
   // same interface; the single model is plenty for a first cut and one fetch.
@@ -103,10 +112,12 @@ export async function separateStems(
   });
   const proc = new demucs.DemucsProcessor({
     ort,
+    // webgpu ONLY — if the EP can't run, fail loudly rather than silently dropping
+    // to WASM (a CPU run on the main thread is exactly what causes the stutter).
     sessionOptions: { executionProviders: ['webgpu'] },
     onProgress: ({ progress }: { progress: number }) =>
       onProgress(STEMS.reduce((a, s) => ({ ...a, [s]: progress || 0 }), {})),
-    onLog: (phase: string, m: string) => onLog(`[${phase}] ${m}`),
+    onLog: (phase: string, m: string) => onLog(`[demucs:${phase}] ${m}`),
   });
   await proc.loadModel(modelBuf);
   onLog('separating on WebGPU — htdemucs …');

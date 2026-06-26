@@ -135,6 +135,7 @@ export class WaveformLaneController {
             peaks: p.peaks,
             rgb: STEM_WAVE_COLORS[i]!,
             gain: this.bus.get(g, STEM_GAIN_KEYS[i]!),
+            scale: st.stemScales?.[i] ?? 1,
           }))
         : undefined;
 

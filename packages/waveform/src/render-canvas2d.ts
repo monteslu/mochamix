@@ -214,6 +214,8 @@ export interface StemBand {
   rgb: [number, number, number];
   /** 0..1 live gain (from the stem mixer) — dims/hides a muted stem's wave. */
   gain?: number;
+  /** Per-stem normalization (≈255/maxPeak) so a quiet stem still fills the lane. */
+  scale?: number;
 }
 
 export interface ScrollOverlay {
@@ -303,15 +305,20 @@ export function drawScrolling(
   if (stems && stems.length > 0) {
     // STEM MODE: overlay each stem in its own color (Mixxx waveformrendererstem).
     // Additive blend so overlapping stems mix and the tallest signal shows through;
-    // a muted stem (gain ~0) fades out so the wave reflects the live mix.
+    // a muted stem (gain ~0) fades out so the wave reflects the live mix. Each stem
+    // is normalized to ITS OWN peak (Mixxx: height / m_maxValue) so a quieter stem
+    // (a single stem is a fraction of the full mix) still fills the lane and is
+    // readable, rather than being a short stub next to the others.
     octx.globalCompositeOperation = 'lighter';
     for (const stem of stems) {
       const g = stem.gain ?? 1;
       if (g <= 0.001) continue; // muted → not drawn
       const [r, gg, bl] = stem.rgb;
-      const a = 0.55 * Math.min(1, g + 0.15); // gain dims the band
+      const a = 0.85 * Math.min(1, g + 0.2); // gain dims the band
       octx.fillStyle = `rgba(${r},${gg},${bl},${a})`;
       const sp = stem.peaks;
+      // per-stem normalization scale (255 / this stem's max), so it fills the height
+      const norm = stem.scale ?? 1;
       for (let ox = 0; ox < w + 2; ox++) {
         const x = ox - 1;
         const b = snapPx + (x - centerX);
@@ -319,7 +326,7 @@ export function drawScrolling(
         if (frame < 0) continue;
         const bi = Math.floor(frame / framesPerBucket);
         if (bi >= sp.length) break;
-        const amp = (sp[bi]! / 255) * mid * 0.92;
+        const amp = Math.min(1, (sp[bi]! / 255) * norm) * mid * 0.92;
         if (amp <= 0) continue;
         octx.fillRect(ox, mid - amp, 1, amp * 2);
       }

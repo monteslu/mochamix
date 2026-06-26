@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 // Resolve workspace packages to source (no pre-build step needed; Vite bundles).
 const pkg = (name: string) =>
   fileURLToPath(new URL(`../../packages/${name}/src/index.ts`, import.meta.url));
+const pkgFile = (name: string, file: string) =>
+  fileURLToPath(new URL(`../../packages/${name}/src/${file}`, import.meta.url));
 
 export default defineConfig({
   root: fileURLToPath(new URL('./src/renderer', import.meta.url)),
@@ -30,6 +32,8 @@ export default defineConfig({
       '@dj/analysis': pkg('analysis'),
       '@dj/dsp-wasm': pkg('dsp-wasm'),
       '@dj/stem-mp4': pkg('stem-mp4'),
+      '@dj/stems/generate-client': pkgFile('stems', 'generate-client.ts'),
+      '@dj/stems/asset-server': pkgFile('stems', 'asset-server.ts'),
       '@dj/stems': pkg('stems'),
     },
   },

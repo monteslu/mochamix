@@ -84,6 +84,7 @@ export async function loadTrackToDeck(
   setDeckTrack(deckIndex, {
     peaks,
     stemPeaks: null, // a normal track clears any prior stem-deck coloring
+    stemScales: null,
     title,
     artist: m.artist ?? null,
     album: m.album ?? null,
@@ -182,11 +183,19 @@ async function loadStemFile(
       for (let c = 0; c < s.channels; c++) sCh.push(sAll.subarray(c * s.frames, (c + 1) * s.frames));
       return computePeakSet(sCh, s.frames, detailBuckets, s.sampleRate).detail;
     });
+    // Per-stem normalize: a single stem is a fraction of the full mix, so scale each
+    // to its own max (≈255/maxPeak) so it fills the lane instead of being a stub.
+    const stemScales = stemPeaks.map((p) => {
+      let max = 1;
+      for (let i = 0; i < p.peaks.length; i++) if (p.peaks[i]! > max) max = p.peaks[i]!;
+      return 255 / max;
+    });
 
     const m = src.meta ?? {};
     setDeckTrack(deckIndex, {
       peaks,
       stemPeaks,
+      stemScales,
       title: m.title ?? src.file.name.replace(/\.[^.]+$/, ''),
       artist: m.artist ?? null,
       album: m.album ?? null,
