@@ -37,6 +37,9 @@ export class DeckPlayback {
 
   private keylock = false;
   private keylockScaler: Scaler | null = null;
+  /** Key shift in semitones (0 = original) + formant preservation, for the scaler. */
+  private pitchSemitones = 0;
+  private formantPreserve = true;
   /** The keylock scaler's own source read cursor, decoupled from the authoritative
    *  `position` (which advances at the exact commanded rate). Kept in sync on seek. */
   private scalerCursor = 0;
@@ -51,6 +54,12 @@ export class DeckPlayback {
   // single-source playback (the `wasm` resampler above).
   private stemResamplers: WasmResampler[] = [];
   private stemGains: number[] = [];
+  /** Per-stem key shift in semitones (0 = none) + a lazily-created scaler per stem.
+   *  Only shifted stems incur scaler cost; un-shifted stems use the fast linear pull. */
+  private stemPitch: number[] = [];
+  private stemScalers: (Scaler | null)[] = [];
+  /** Each shifted stem's own scaler read cursor (decoupled from the shared position). */
+  private stemScalerCursor: number[] = [];
   /** Scratch stereo buffers for summing stems (allocated on stem load, not in process). */
   private stemScratchL: Float32Array | null = null;
   private stemScratchR: Float32Array | null = null;
@@ -102,6 +111,9 @@ export class DeckPlayback {
       return r;
     });
     this.stemGains = stems.map(() => 1);
+    this.stemPitch = stems.map(() => 0);
+    this.stemScalers = stems.map(() => null);
+    this.stemScalerCursor = stems.map(() => 0);
     this.stemScratchL = null; // sized lazily in process (numFrames-dependent)
     this.stemScratchR = null;
     // The primary `wasm` resampler is unused in stem mode; clear it.
@@ -112,6 +124,31 @@ export class DeckPlayback {
   setStemGain(index: number, gain: number): void {
     if (index >= 0 && index < this.stemGains.length) {
       this.stemGains[index] = gain;
+    }
+  }
+
+  /**
+   * Set a stem's key shift in semitones (0 = original). A non-zero shift lazily creates
+   * a per-stem time-stretch scaler; un-shifted stems stay on the fast linear path. This
+   * is what lets you transpose just the vocal stem without touching drums.
+   */
+  setStemPitch(index: number, semitones: number, formant: boolean): void {
+    if (index < 0 || index >= this.stemResamplers.length) return;
+    if (semitones === this.stemPitch[index]) {
+      // same shift; only the formant flag may have changed
+      this.stemScalers[index]?.setFormantPreserved?.(formant);
+      return;
+    }
+    this.stemPitch[index] = semitones;
+    if (semitones !== 0) {
+      if (!this.stemScalers[index]) {
+        const s = new KeylockScaler();
+        s.setFormantPreserved?.(formant);
+        this.stemScalers[index] = s;
+        this.stemScalerCursor[index] = this.position;
+      }
+      this.stemScalers[index]!.reset();
+      this.stemScalerCursor[index] = this.position;
     }
   }
 
@@ -181,6 +218,34 @@ export class DeckPlayback {
 
   isKeylock(): boolean {
     return this.keylock;
+  }
+
+  /**
+   * Key shift in SEMITONES (0 = original key). Uses the keylock time-stretcher to shift
+   * pitch independent of tempo. Lazily creates the scaler so a deck with no shift and no
+   * keylock pays nothing. formant = preserve the spectral envelope (natural voices).
+   */
+  setPitch(semitones: number, formant: boolean): void {
+    const changed = semitones !== this.pitchSemitones || formant !== this.formantPreserve;
+    this.pitchSemitones = semitones;
+    this.formantPreserve = formant;
+    if (semitones !== 0 && !this.keylockScaler) {
+      this.keylockScaler = new KeylockScaler();
+      this.keylockScaler.reset();
+    }
+    if (changed && this.keylockScaler?.setFormantPreserved) {
+      this.keylockScaler.setFormantPreserved(formant);
+    }
+  }
+
+  /** True when the scaler must run (keylock on, OR a non-zero key shift). */
+  private usesScaler(): boolean {
+    return (this.keylock || this.pitchSemitones !== 0) && this.keylockScaler !== null;
+  }
+
+  /** Pitch ratio for the scaler: 2^(semitones/12). 1.0 when no shift. */
+  private pitchRatio(): number {
+    return this.pitchSemitones === 0 ? 1 : Math.pow(2, this.pitchSemitones / 12);
   }
 
   /** Set the loop region (frames) and whether it's active. */
@@ -264,15 +329,17 @@ export class DeckPlayback {
       return this.processStems(outputs, numFrames, speed, track);
     }
 
-    // Keylock requires a forward, non-scratch speed; otherwise fall back to the
-    // linear path (which alone can ramp through zero / go reverse — Mixxx does the
-    // same: scratching/reverse always use the linear scaler).
-    const useKeylock =
-      this.keylock && this.keylockScaler !== null && speed > 0.1 && speed < 1.9;
+    // The time-stretch scaler runs when keylock is on OR a key shift is active. It
+    // needs a forward, non-scratch speed; otherwise fall back to the linear path (which
+    // alone can ramp through zero / go reverse — Mixxx does the same: scratching/reverse
+    // always use the linear scaler). When the scaler can't run, the key shift is briefly
+    // dropped (acceptable: you don't key-shift while scratching/reversing).
+    const useScaler = this.usesScaler() && speed > 0.1 && speed < 1.9;
 
-    if (useKeylock) {
+    if (useScaler) {
       const scaler = this.keylockScaler!;
-      scaler.setRatios(speed, 1); // tempo = speed, pitch held
+      // tempo = speed (locked), pitch = the key-shift ratio (1.0 when no shift).
+      scaler.setRatios(speed, this.pitchRatio());
       // The scaler reads source through its OWN cursor (scalerCursor) so its internal
       // buffering/latency stays self-consistent and glitch-free. The pull advances
       // that cursor, NOT the authoritative playback position.
@@ -346,16 +413,50 @@ export class DeckPlayback {
 
     for (let i = 0; i < this.stemResamplers.length; i++) {
       const gain = this.stemGains[i] ?? 0;
-      const res = this.stemResamplers[i]!.pull(sL, sR, numFrames, {
-        position: startPos, // every stem reads from the same spot
+      const res = this.stemResamplers[i]!;
+      const scaler = this.stemScalers[i];
+      const shift = this.stemPitch[i] ?? 0;
+
+      if (shift !== 0 && scaler && speed > 0.1 && speed < 1.9) {
+        // Pitch-shifted stem: tempo = speed (locked), pitch = 2^(semi/12). The scaler
+        // pulls source through THIS stem's own cursor so its buffering stays consistent.
+        scaler.setRatios(speed, Math.pow(2, shift / 12));
+        const pull: SourcePull = (chans, n) => {
+          const r = res.pull(chans[0]!, chans[1] ?? chans[0]!, n, {
+            position: this.stemScalerCursor[i]!,
+            ratio: this.baseRate, // scaler handles tempo; pull at original rate
+            loopEnabled: this.loopEnabled,
+            loopStart: this.loopStart,
+            loopEnd: this.loopEnd,
+            seamFade: DeckPlayback.SEAM_FADE,
+          });
+          this.stemScalerCursor[i] = r.newPosition;
+          return r.produced;
+        };
+        // Scaler writes into the shared scratch (planar), summed below.
+        const flowing = scaler.process([sL, sR], numFrames, pull);
+        produced = flowing ? numFrames : 0;
+        // endPos comes from the unshifted-rate advance (authoritative), set once below.
+        endPos = Math.min(track.frames, startPos + ratio * numFrames);
+        if (gain === 0) continue;
+        for (let f = 0; f < numFrames; f++) {
+          outL[f]! += sL[f]! * gain;
+          outR[f]! += sR[f]! * gain;
+        }
+        continue;
+      }
+
+      // Un-shifted stem (the fast path): linear pull, frame-aligned with the others.
+      const r = res.pull(sL, sR, numFrames, {
+        position: startPos, // every linear stem reads from the same spot
         ratio,
         loopEnabled: this.loopEnabled,
         loopStart: this.loopStart,
         loopEnd: this.loopEnd,
         seamFade: DeckPlayback.SEAM_FADE,
       });
-      produced = res.produced; // identical across stems (same source length/ratio)
-      endPos = res.newPosition;
+      produced = r.produced;
+      endPos = r.newPosition;
       if (gain === 0) continue; // muted stem contributes nothing
       for (let f = 0; f < produced; f++) {
         outL[f]! += sL[f]! * gain;

@@ -47,6 +47,7 @@ self.onmessage = (e: MessageEvent<AnalyzeRequest>) => {
     confidence: r.confidence,
     key: r.key,
     camelot: r.camelot,
+    keyNum: r.keyNum,
     downbeatFrames: r.downbeatFrames,
   };
 

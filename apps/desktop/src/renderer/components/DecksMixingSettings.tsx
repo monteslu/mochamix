@@ -18,6 +18,7 @@ export function DecksMixingSettings(): React.JSX.Element {
   const [releaseMode, setReleaseModeState] = useState(() =>
     Math.round(bus.get(DECK_GROUPS[0]!, DeckKeys.platterReleaseMode)),
   );
+  const [formant, setFormantState] = useState(() => bus.get(DECK_GROUPS[0]!, DeckKeys.formantPreserve) > 0.5);
 
   const setQuantize = (on: boolean): void => {
     setQuantizeState(on);
@@ -26,6 +27,10 @@ export function DecksMixingSettings(): React.JSX.Element {
   const setReleaseMode = (mode: number): void => {
     setReleaseModeState(mode);
     for (const g of DECK_GROUPS) bus.set(g, DeckKeys.platterReleaseMode, mode);
+  };
+  const setFormant = (on: boolean): void => {
+    setFormantState(on);
+    for (const g of DECK_GROUPS) bus.set(g, DeckKeys.formantPreserve, on ? 1 : 0);
   };
 
   return (
@@ -90,6 +95,25 @@ export function DecksMixingSettings(): React.JSX.Element {
         Tip: with real downbeat markers on the waveform, you can hand-align measures by
         eye, then release — the beat snap keeps your alignment locked. We don&apos;t
         auto-jump to the bar (a full-measure jump mid-mix would be jarring).
+      </p>
+
+      <h3 style={{ marginTop: 22 }}>Key &amp; Harmonic Mixing</h3>
+      <label className="prefs-row">
+        <input type="checkbox" checked={formant} onChange={(e) => setFormant(e.target.checked)} />
+        <span>
+          Preserve formants on key shift
+          <small>
+            Keep voices/instruments sounding natural when you shift key (avoids the
+            &quot;chipmunk&quot; effect). Recommended on. (Effective once the higher-quality
+            shift engine is enabled; small shifts sound fine either way.)
+          </small>
+        </span>
+      </label>
+      <p className="prefs-note">
+        Each deck has a key (Camelot, e.g. 8A). Use the ♯/♭ buttons on a deck to shift its
+        key, or <strong>match</strong> to auto-shift it into a harmonically compatible key
+        with the other deck — no music theory needed. The library highlights tracks that
+        already mix in key with the loaded deck.
       </p>
     </div>
   );

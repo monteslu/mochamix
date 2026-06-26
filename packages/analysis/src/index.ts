@@ -6,3 +6,14 @@
 
 export { Beats } from './beats.js';
 export type { AnalyzeRequest, AnalyzeResponse } from './worker-protocol.js';
+export {
+  type KeyNum,
+  isValidKey,
+  keyIsMajor,
+  keyToCamelot,
+  camelotToKey,
+  shortestStepsToKey,
+  shortestStepsToCompatibleKey,
+  transposeKey,
+  areKeysCompatible,
+} from './camelot.js';

@@ -132,6 +132,20 @@ export const DeckKeys = {
   stemGain1: 'stem_gain_1',
   stemGain2: 'stem_gain_2',
   stemGain3: 'stem_gain_3',
+  // Key shift in SEMITONES (Mixxx 'pitch'): transpose the deck's pitch independent of
+  // tempo (via the keylock time-stretcher). 0 = original key.
+  pitch: 'pitch',
+  // Per-stem key shift in semitones (so you can transpose only the vocal, not drums).
+  stemPitch0: 'stem_pitch_0',
+  stemPitch1: 'stem_pitch_1',
+  stemPitch2: 'stem_pitch_2',
+  stemPitch3: 'stem_pitch_3',
+  // Formant preservation for pitch shift (1 = keep voices/instruments natural, not
+  // chipmunked). Applies to the deck + stem shifts.
+  formantPreserve: 'formant_preserve',
+  // Detected musical key as a numeric index 1..24 (Mixxx ChromaticKey: 1-12 major
+  // C..B, 13-24 minor C..B), 0 = unknown. For Camelot harmonic-match math.
+  fileKeyNum: 'file_key_num',
   pfl: 'pfl', // headphone cue
   orientation: 'orientation', // 0=left,1=center,2=right
   eqLow: 'filterLow', // legacy EQ aliases Mixxx exposes for the per-deck EQ

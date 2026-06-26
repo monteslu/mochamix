@@ -29,6 +29,8 @@ export interface AnalyzeResponse {
   key: string;
   /** Camelot code, e.g. "8A". */
   camelot: string;
+  /** Numeric key index 1..24 (0 = none) for Camelot harmonic-match math. */
+  keyNum?: number;
   /** Bar-start beats (downbeats), in source frames — real measures from DownBeat. */
   downbeatFrames?: Int32Array;
   /** Overview peaks (Uint8 per bucket), if computePeaks was requested. */

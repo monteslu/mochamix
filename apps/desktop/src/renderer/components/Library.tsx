@@ -7,8 +7,9 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import type { LibTrack } from '../../shared/ipc.js';
 import type { StemStatus } from '../stem-queue.js';
-import { useDj, NUM_DECKS } from '../dj-context.js';
+import { useDj, useControlValue, NUM_DECKS } from '../dj-context.js';
 import { deck as deckGroup, DeckKeys } from '@dj/control-bus';
+import { camelotToKey, areKeysCompatible } from '@dj/analysis';
 import { loadTrackToDeck } from '../track-loader.js';
 import { RowWaveform } from './RowWaveform.js';
 
@@ -61,6 +62,16 @@ export function Library(): React.JSX.Element {
     (cb) => stemQueue.subscribe(cb),
     () => stemQueue.getStatus(),
   );
+  // Loaded decks' detected keys → highlight library tracks that mix in key with them.
+  const deckKey0 = useControlValue(deckGroup(1), DeckKeys.fileKeyNum);
+  const deckKey1 = useControlValue(deckGroup(2), DeckKeys.fileKeyNum);
+  const loadedKeys = [deckKey0, deckKey1].filter((k) => k > 0);
+  const keyCompatible = (camelot: string | null): boolean => {
+    if (!camelot || loadedKeys.length === 0) return false;
+    const k = camelotToKey(camelot);
+    return k > 0 && loadedKeys.some((dk) => areKeysCompatible(k, dk));
+  };
+
   const [tracks, setTracks] = useState<LibTrack[]>([]);
   const [search, setSearch] = useState('');
   const [sortCol, setSortCol] = useState<SortCol>('artist');
@@ -309,7 +320,9 @@ export function Library(): React.JSX.Element {
                 <td>{t.album}</td>
                 <td>{t.genre}</td>
                 <td className="num">{t.bpm > 0 ? t.bpm.toFixed(0) : ''}</td>
-                <td className="lib-key">{t.key ?? ''}</td>
+                <td className={`lib-key${keyCompatible(t.key) ? ' key-compatible' : ''}`}>
+                  {t.key ?? ''}
+                </td>
                 <td className="num">{fmtDur(t.duration)}</td>
                 <td className="stem-cell">
                   <StemCell track={t} status={stemStatus} onGenerate={generateStems} />

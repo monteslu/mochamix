@@ -12,6 +12,7 @@ import { LoopRow } from './LoopRow.js';
 import { StemRow } from './StemRow.js';
 import { Platter } from './Platter.js';
 import { OverviewStrip } from './OverviewStrip.js';
+import { KeyShift } from './KeyShift.js';
 import { useDeckTrack } from '../deck-state.js';
 import { loadTrackToDeck } from '../track-loader.js';
 
@@ -154,7 +155,6 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
 
   const effectiveBpm = useControlValue(grp, DeckKeys.fileBpm) * rateRatio;
   const posFraction = useControlValue(grp, DeckKeys.playPosition);
-  const deckKey = deckTrack.key;
 
   return (
     <section
@@ -189,8 +189,8 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
             <span className="deck-readout-total">
               -{formatTime(duration * (1 - posFraction))}
             </span>
-            {deckKey && <span className="deck-key">{deckKey}</span>}
           </div>
+          <KeyShift deckIndex={deckIndex} />
           <div className="deck-bpmrow">
             <span className="deck-bpm">{effectiveBpm > 0 ? effectiveBpm.toFixed(1) : '--.-'}</span>
             <span className="deck-rate">

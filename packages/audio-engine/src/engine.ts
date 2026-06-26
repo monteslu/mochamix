@@ -209,6 +209,12 @@ export class Engine {
       stemGain1: r(DeckKeys.stemGain1),
       stemGain2: r(DeckKeys.stemGain2),
       stemGain3: r(DeckKeys.stemGain3),
+      pitch: r(DeckKeys.pitch),
+      stemPitch0: r(DeckKeys.stemPitch0),
+      stemPitch1: r(DeckKeys.stemPitch1),
+      stemPitch2: r(DeckKeys.stemPitch2),
+      stemPitch3: r(DeckKeys.stemPitch3),
+      formantPreserve: r(DeckKeys.formantPreserve),
     };
   }
 

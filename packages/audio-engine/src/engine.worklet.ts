@@ -292,6 +292,8 @@ class EngineProcessor extends AudioWorkletProcessor {
       const rateDir = sabRead(control, idx.rateDirection) >= 0 ? 1 : -1;
       const pregain = sabRead(control, idx.pregain);
       const keylock = sabRead(control, idx.keylock) > 0.5;
+      const pitch = idx.pitch !== undefined ? sabRead(control, idx.pitch) : 0;
+      const formant = idx.formantPreserve === undefined || sabRead(control, idx.formantPreserve) > 0.5;
       const ratioOverride = sabRead(control, idx.rateRatioOverride);
       const scratching = idx.scratching !== undefined && sabRead(control, idx.scratching) > 0.5;
       const scratchRate = idx.scratchRate !== undefined ? sabRead(control, idx.scratchRate) : 0;
@@ -300,6 +302,9 @@ class EngineProcessor extends AudioWorkletProcessor {
       // sounds even when the deck is "stopped" (vinyl moves under the hand).
       // Keylock is forced off while scratching (pitch follows the hand).
       slot.playback.setKeylock(keylock && !scratching);
+      // Key shift (semitones), independent of keylock. Forced off while scratching
+      // (pitch follows the hand). The scaler is created lazily on first non-zero shift.
+      slot.playback.setPitch(scratching ? 0 : pitch, formant);
       let speed: number;
       let processPlaying: boolean;
       if (scratching) {
@@ -318,6 +323,14 @@ class EngineProcessor extends AudioWorkletProcessor {
         slot.playback.setStemGain(1, sabRead(control, idx.stemGain1));
         slot.playback.setStemGain(2, sabRead(control, idx.stemGain2));
         slot.playback.setStemGain(3, sabRead(control, idx.stemGain3));
+        // Per-stem key shift (e.g. transpose only the vocal). Effective shift = deck
+        // pitch + this stem's pitch, so the deck knob moves everything together.
+        if (idx.stemPitch0 !== undefined) {
+          slot.playback.setStemPitch(0, pitch + sabRead(control, idx.stemPitch0), formant);
+          slot.playback.setStemPitch(1, pitch + sabRead(control, idx.stemPitch1), formant);
+          slot.playback.setStemPitch(2, pitch + sabRead(control, idx.stemPitch2), formant);
+          slot.playback.setStemPitch(3, pitch + sabRead(control, idx.stemPitch3), formant);
+        }
       }
 
       const stillPlaying = slot.playback.process(out, numFrames, speed, processPlaying);

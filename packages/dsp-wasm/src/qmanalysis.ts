@@ -35,6 +35,9 @@ export interface QmResult {
   key: string;
   /** Camelot wheel code, e.g. "8B", or '' if none. */
   camelot: string;
+  /** Numeric key index 1..24 (Mixxx ChromaticKey: 1-12 major C..B, 13-24 minor), 0=none.
+   *  The clean representation for Camelot harmonic-match math. */
+  keyNum: number;
   /** Every detected beat, in source frames (real positions, not a constant grid). */
   beatFrames: Int32Array;
   /** Bar-start beats (downbeats), in source frames. Empty if undetected. */
@@ -118,6 +121,7 @@ export class WasmQmAnalysis {
       confidence: ex.qm_confidence(),
       key: KEY_NAMES[k] ?? '',
       camelot: CAMELOT[k] ?? '',
+      keyNum: k >= 1 && k <= 24 ? k : 0,
       beatFrames,
       downbeatFrames,
     };

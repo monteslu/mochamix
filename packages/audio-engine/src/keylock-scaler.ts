@@ -65,6 +65,16 @@ export class KeylockScaler implements Scaler {
     this.primed = false;
   }
 
+  /**
+   * Formant preservation. SoundTouch does NOT support it (its pitch shift is a simple
+   * resample-after-stretch, so vocals chipmunk on large shifts). No-op for now; this
+   * is the seam for a future RubberBand engine swap (which has OptionFormantPreserved).
+   * Small shifts (±1-2 semitones, the harmonic-match range) sound fine without it.
+   */
+  setFormantPreserved(_on: boolean): void {
+    /* not supported by SoundTouch — see RubberBand swap note above */
+  }
+
   /** Pull up to `frames` source frames and push them (interleaved) into SoundTouch. */
   private feed(pull: SourcePull, frames: number): number {
     const want = Math.min(frames, PULL_CHUNK);

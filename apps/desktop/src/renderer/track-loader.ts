@@ -12,6 +12,7 @@
 import { decodeArrayBuffer, analysisFromDecoded } from '@dj/codec';
 import { computePeakSet, detailBucketsForDuration, packPeaks } from '@dj/waveform';
 import { deck as deckGroup, DeckKeys, type ControlBus } from '@dj/control-bus';
+import { camelotToKey } from '@dj/analysis';
 import type { Engine } from '@dj/audio-engine';
 import { extractAllTracks } from '@dj/stem-mp4';
 import type { AnalysisService } from './analysis-service.js';
@@ -108,6 +109,9 @@ export async function loadTrackToDeck(
   if (m.bpm && m.bpm > 0) {
     bus.set(g, DeckKeys.fileBpm, m.bpm);
   }
+  // Publish the numeric key (for harmonic match) + reset any prior key shift.
+  bus.set(g, DeckKeys.fileKeyNum, m.key ? camelotToKey(m.key) : 0);
+  bus.set(g, DeckKeys.pitch, 0);
   if (src.libraryId != null) {
     void window.dj.libraryIncrementPlay(src.libraryId);
     // Load cached downbeats (real measures from DownBeat) if analyzed.
@@ -138,7 +142,10 @@ export async function loadTrackToDeck(
         bus.set(g, DeckKeys.fileBpm, r.bpm);
         bus.set(g, DeckKeys.firstBeatFrame, r.firstBeatFrame);
       }
-      if (r.camelot) setDeckTrack(deckIndex, { key: r.camelot });
+      if (r.camelot) {
+        setDeckTrack(deckIndex, { key: r.camelot });
+        bus.set(g, DeckKeys.fileKeyNum, camelotToKey(r.camelot));
+      }
       if (src.libraryId != null) {
         void window.dj.librarySetAnalysis(src.libraryId, {
           bpm: r.bpm,

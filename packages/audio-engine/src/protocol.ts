@@ -40,6 +40,13 @@ export interface DeckControlIndices {
   stemGain1: number;
   stemGain2: number;
   stemGain3: number;
+  /** Key shift in semitones (deck + per stem) and formant preservation flag. */
+  pitch: number;
+  stemPitch0: number;
+  stemPitch1: number;
+  stemPitch2: number;
+  stemPitch3: number;
+  formantPreserve: number;
 }
 
 /** Static engine configuration sent once at init. */

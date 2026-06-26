@@ -44,4 +44,11 @@ export interface Scaler {
    * re-primed before its output is musically aligned (see KeylockScaler priming).
    */
   reset(): void;
+
+  /**
+   * Preserve formants on pitch shift (keep voices/instruments natural, not chipmunked).
+   * Optional — only engines that support it (e.g. RubberBand) implement this; SoundTouch
+   * ignores it. Safe to call regardless.
+   */
+  setFormantPreserved?(on: boolean): void;
 }
