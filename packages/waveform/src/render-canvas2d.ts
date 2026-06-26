@@ -305,10 +305,10 @@ export function drawScrolling(
   if (stems && stems.length > 0) {
     // STEM MODE: overlay each stem in its own color (Mixxx waveformrendererstem).
     // Additive blend so overlapping stems mix and the tallest signal shows through;
-    // a muted stem (gain ~0) fades out so the wave reflects the live mix. Each stem
-    // is normalized to ITS OWN peak (Mixxx: height / m_maxValue) so a quieter stem
-    // (a single stem is a fraction of the full mix) still fills the lane and is
-    // readable, rather than being a short stub next to the others.
+    // a muted stem (gain ~0) fades out so the wave reflects the live mix. Stems are
+    // normalized by a SHARED max (the loudest stem), like Mixxx (height / one
+    // m_maxValue): the loudest fills the lane, quieter stems stay proportionally
+    // shorter — honest about the real mix.
     octx.globalCompositeOperation = 'lighter';
     for (const stem of stems) {
       const g = stem.gain ?? 1;

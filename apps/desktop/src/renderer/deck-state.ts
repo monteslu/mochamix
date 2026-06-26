@@ -13,7 +13,7 @@ export interface DeckTrackState {
   /** Per-stem detail peaks (drums/bass/other/vocals) when this is a stem deck — the
    *  waveform colors each stem. Same bucketing as `peaks.detail`. null = not stems. */
   stemPeaks: PeakData[] | null;
-  /** Per-stem normalization (≈255/maxPeak) so each stem fills the lane height. */
+  /** Stem waveform scale (shared ≈255/loudest-stem-max, Mixxx-style) per stem. */
   stemScales: number[] | null;
   title: string | null;
   artist: string | null;

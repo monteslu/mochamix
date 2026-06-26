@@ -183,13 +183,17 @@ async function loadStemFile(
       for (let c = 0; c < s.channels; c++) sCh.push(sAll.subarray(c * s.frames, (c + 1) * s.frames));
       return computePeakSet(sCh, s.frames, detailBuckets, s.sampleRate).detail;
     });
-    // Per-stem normalize: a single stem is a fraction of the full mix, so scale each
-    // to its own max (≈255/maxPeak) so it fills the lane instead of being a stub.
-    const stemScales = stemPeaks.map((p) => {
-      let max = 1;
-      for (let i = 0; i < p.peaks.length; i++) if (p.peaks[i]! > max) max = p.peaks[i]!;
-      return 255 / max;
-    });
+    // Normalize all stems by ONE shared max (the loudest stem), like Mixxx
+    // (waveformrendererstem: height / m_maxValue with a single m_maxValue). The
+    // loudest stem fills the lane; quieter stems stay proportionally shorter, so the
+    // wave is honest about the real mix (drums dwarf a near-silent vocal, as they do
+    // in the audio). Same scale for every stem.
+    let sharedMax = 1;
+    for (const p of stemPeaks) {
+      for (let i = 0; i < p.peaks.length; i++) if (p.peaks[i]! > sharedMax) sharedMax = p.peaks[i]!;
+    }
+    const sharedScale = 255 / sharedMax;
+    const stemScales = stemPeaks.map(() => sharedScale);
 
     const m = src.meta ?? {};
     setDeckTrack(deckIndex, {
