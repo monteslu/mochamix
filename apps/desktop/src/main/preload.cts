@@ -24,6 +24,7 @@ const api: DjApi = {
   libraryWaveform: (id) => electron.ipcRenderer.invoke('library:waveform', id),
   libraryDownbeats: (id) => electron.ipcRenderer.invoke('library:downbeats', id),
   libraryUnanalyzed: (limit) => electron.ipcRenderer.invoke('library:unanalyzed', limit),
+  libraryReanalyzeAll: () => electron.ipcRenderer.invoke('library:reanalyzeAll'),
   libraryStemless: (limit) => electron.ipcRenderer.invoke('library:stemless', limit),
   libraryIncrementPlay: (id) => electron.ipcRenderer.invoke('library:incrementPlay', id),
   saveStems: (id, data) => electron.ipcRenderer.invoke('stems:save', id, data),

@@ -249,6 +249,7 @@ ipcMain.handle(
 ipcMain.handle('library:waveform', (_e, id: number) => getLibrary().getWaveform(id));
 ipcMain.handle('library:downbeats', (_e, id: number) => getLibrary().getDownbeats(id));
 ipcMain.handle('library:unanalyzed', (_e, limit?: number) => getLibrary().unanalyzedTrackIds(limit));
+ipcMain.handle('library:reanalyzeAll', () => getLibrary().reanalyzeAll());
 ipcMain.handle('library:stemless', (_e, limit?: number) => getLibrary().db.stemlessTrackIds(limit));
 // Save generated stems (a .stem.mp4 the renderer produced via WebGPU) next to the
 // original track, and link it so playback prefers the 4 separable stems. Returns the

@@ -85,6 +85,8 @@ export interface DjApi {
   libraryDownbeats: (id: number) => Promise<Uint8Array | null>;
   /** Track ids not yet analyzed (for the background queue). */
   libraryUnanalyzed: (limit?: number) => Promise<number[]>;
+  /** Mark every track unanalyzed so the queue re-analyzes the whole collection. Returns the count reset. */
+  libraryReanalyzeAll: () => Promise<number>;
   /** Track ids with no generated stems yet (for the stem-generation queue). */
   libraryStemless: (limit?: number) => Promise<number[]>;
   libraryIncrementPlay: (id: number) => Promise<void>;

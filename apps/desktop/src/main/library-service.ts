@@ -242,6 +242,11 @@ export class LibraryService {
     return this.db.unanalyzedTrackIds(limit);
   }
 
+  /** Mark all tracks unanalyzed so the queue re-analyzes the whole collection. */
+  reanalyzeAll(): number {
+    return this.db.resetAllAnalysis();
+  }
+
   /** Extract the embedded cover image for a file path. Returns {data, mime} or null. */
   async getCover(path: string): Promise<{ data: ArrayBuffer; mime: string } | null> {
     try {

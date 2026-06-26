@@ -27,6 +27,10 @@ const STEM_GAIN_KEYS = [
   DeckKeys.stemGain2,
   DeckKeys.stemGain3,
 ];
+// Paint order (back → front, by NI-Stems index drums/bass/other/vocals): the most-
+// fun-to-toggle stem sits closest to the user. other(0) → bass(1) → drums(2) →
+// VOCALS(3 = on top). Indexed by stem position above.
+const STEM_Z = [2, 1, 0, 3]; // drums=2, bass=1, other=0, vocals=3
 
 // FIXED zoom presets: source frames per screen pixel. Like Mixxx, the waveform's
 // sample→pixel scale is a CONSTANT (never derived from BPM — that caused the
@@ -137,6 +141,7 @@ export class WaveformLaneController {
             rgb: STEM_WAVE_COLORS[i]!,
             gain: this.bus.get(g, STEM_GAIN_KEYS[i]!),
             scale: st.stemScales?.[i] ?? 1,
+            z: STEM_Z[i]!,
           }))
         : undefined;
 

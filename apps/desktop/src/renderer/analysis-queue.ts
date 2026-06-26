@@ -79,6 +79,30 @@ export class AnalysisQueue {
     }
   }
 
+  /**
+   * Re-analyze the ENTIRE collection: mark every track unanalyzed in the DB, clear the
+   * in-session done set (so already-analyzed tracks re-run), then queue them all in
+   * pages. Used after the analyzer changed (e.g. the qm-dsp swap). Returns the count.
+   */
+  async reanalyzeAll(): Promise<number> {
+    let count: number;
+    try {
+      count = await window.dj.libraryReanalyzeAll();
+    } catch {
+      return 0; // DB not ready
+    }
+    this.status.done.clear();
+    // libraryUnanalyzed caps at 1000; pull pages until the DB is drained.
+    for (;;) {
+      const ids = await window.dj.libraryUnanalyzed(1000);
+      const fresh = ids.filter((id) => !this.inFlight.has(id) && !this.queue.includes(id));
+      if (fresh.length === 0) break;
+      this.enqueue(fresh);
+      if (ids.length < 1000) break;
+    }
+    return count;
+  }
+
   private async run(): Promise<void> {
     if (this.running) return;
     this.running = true;

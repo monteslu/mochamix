@@ -219,6 +219,9 @@ export interface StemBand {
   gain?: number;
   /** Shared-max normalization (≈255/loudest-stem-max). */
   scale?: number;
+  /** Paint order (low → high = back → front). Vocals get the highest z so they draw
+   *  on top (closest to the user); default 0 keeps array order if unset. */
+  z?: number;
 }
 
 export interface ScrollOverlay {
@@ -328,17 +331,19 @@ export function drawScrolling(
 
   if (stems && stems.length > 0) {
     // STEM MODE: overlay each stem in its own color (Mixxx waveformrendererstem).
-    // Additive blend so overlapping stems mix and the tallest signal shows through;
-    // a muted stem (gain ~0) fades out so the wave reflects the live mix. Stems are
-    // normalized by a SHARED max (the loudest stem), like Mixxx (height / one
-    // m_maxValue): the loudest fills the lane, quieter stems stay proportionally
-    // shorter — honest about the real mix.
-    octx.globalCompositeOperation = 'lighter';
-    for (const stem of stems) {
+    // Painted back-to-front in a fixed Z-ORDER so the most-fun-to-toggle stem sits
+    // CLOSEST to the user: other → bass → drums → VOCALS (vocals drawn last, on top).
+    // Layers are drawn source-over with high opacity so the front stem visually wins
+    // where they overlap (vocals pop), while quieter/back stems still peek through.
+    // A muted stem (gain ~0) fades out so the wave reflects the live mix. Heights use
+    // a SHARED max (the loudest stem), like Mixxx (height / one m_maxValue).
+    const drawn = [...stems].sort((a, b) => (a.z ?? 0) - (b.z ?? 0));
+    octx.globalCompositeOperation = 'source-over';
+    for (const stem of drawn) {
       const g = stem.gain ?? 1;
       if (g <= 0.001) continue; // muted → not drawn
       const [r, gg, bl] = stem.rgb;
-      const a = 0.85 * Math.min(1, g + 0.2); // gain dims the band
+      const a = 0.92 * Math.min(1, g + 0.25); // gain dims the band; near-opaque so top wins
       octx.fillStyle = `rgba(${r},${gg},${bl},${a})`;
       const sp = stem.peaks;
       const norm = stem.scale ?? 1;
@@ -356,7 +361,6 @@ export function drawScrolling(
         octx.fillRect(ox, mid - amp, 1, amp * 2);
       }
     }
-    octx.globalCompositeOperation = 'source-over';
   } else {
     // offscreen column ox corresponds to lane x = ox - 1 (1px left margin)
     for (let ox = 0; ox < w + 2; ox++) {

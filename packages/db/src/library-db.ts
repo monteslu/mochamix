@@ -236,6 +236,22 @@ export class LibraryDb {
     ).map((r) => r.id);
   }
 
+  /**
+   * Mark EVERY (non-deleted) track as unanalyzed so the background queue re-runs the
+   * full analysis on them (used after the analyzer changed — e.g. the qm-dsp swap).
+   * Returns how many tracks were reset.
+   */
+  resetAllAnalysis(): number {
+    const info = this.db
+      .prepare(
+        `UPDATE library SET analyzed_at = 0
+         WHERE location IN (SELECT id FROM track_locations WHERE fs_deleted = 0)
+           AND mixxx_deleted = 0`,
+      )
+      .run();
+    return info.changes;
+  }
+
   /** Query tracks with search/sort/paging. */
   queryTracks(opts: QueryOptions = {}): TrackRow[] {
     const search = parseSearch(opts.search ?? '');

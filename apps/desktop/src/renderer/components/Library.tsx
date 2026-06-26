@@ -127,6 +127,17 @@ export function Library(): React.JSX.Element {
     }
   }, [refresh, analysisQueue]);
 
+  const onReanalyze = useCallback(async () => {
+    const ok = window.confirm(
+      'Re-analyze the ENTIRE collection? This rebuilds BPM, key, beats, downbeats and ' +
+        'waveforms for every track (with the current analyzer) in the background.',
+    );
+    if (!ok) return;
+    const n = await analysisQueue.reanalyzeAll();
+    setScanning(null);
+    if (n > 0) await refresh();
+  }, [analysisQueue, refresh]);
+
   // Double-click target: first STOPPED deck (Mixxx behavior), else deck 1. Avoids
   // clobbering a deck that's currently playing out.
   const firstStoppedDeck = useCallback((): number => {
@@ -192,6 +203,13 @@ export function Library(): React.JSX.Element {
         />
         <button onClick={onScan} disabled={!!scanning}>
           {scanning ? scanning : '+ add folder'}
+        </button>
+        <button
+          onClick={onReanalyze}
+          disabled={!!scanning || analysisStatus.remaining > 0}
+          title="Rebuild BPM/key/beats/downbeats/waveforms for the whole collection"
+        >
+          ↻ re-analyze all
         </button>
         <span className="library-count">{tracks.length} tracks</span>
         {analysisStatus.remaining > 0 && (
