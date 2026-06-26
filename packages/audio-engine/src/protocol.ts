@@ -111,15 +111,7 @@ export interface WorkletTrackEndedMessage {
   type: 'trackEnded';
   deck: number;
 }
-/** Diagnostic from the worklet's phase snap (temporary, for debugging sync). */
-export interface WorkletSnapDbgMessage {
-  type: 'snapDbg';
-  [k: string]: unknown;
-}
-export type WorkletMessage =
-  | WorkletReadyMessage
-  | WorkletTrackEndedMessage
-  | WorkletSnapDbgMessage;
+export type WorkletMessage = WorkletReadyMessage | WorkletTrackEndedMessage;
 
 /** Re-export for worklet code that wraps the control SAB. */
 export type { SabLayout };

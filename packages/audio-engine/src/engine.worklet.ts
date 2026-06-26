@@ -25,7 +25,7 @@ import { wrapSab, sabRead, sabWrite, type SabLayout } from '@dj/control-bus';
 import { DeckPlayback } from './deck-playback.js';
 import { calculateSpeed } from './rate.js';
 import { VuMeter } from './vu-meter.js';
-import { makeGrid, computeSnapTarget, beatDistance } from './sync/beatgrid.js';
+import { makeGrid, computeSnapTarget } from './sync/beatgrid.js';
 import type {
   DeckControlIndices,
   EngineMessage,
@@ -72,7 +72,6 @@ class EngineProcessor extends AudioWorkletProcessor {
   private control: SabLayout | null = null;
   private decks: DeckSlot[] = [];
   private vuCounter = 0;
-  private wAlignCounter = 0;
 
   constructor() {
     super();
@@ -95,14 +94,6 @@ class EngineProcessor extends AudioWorkletProcessor {
           lastScratching: false,
         }));
         this.vuCounter = 0;
-        // One-shot: prove the message channel works + report each deck's sync index.
-        this.port.postMessage({
-          type: 'snapDbg',
-          msg: 'init',
-          decks: this.decks.length,
-          syncIdx: this.decks.map((s) => s.indices.syncEnabled),
-          bpmIdx: this.decks.map((s) => s.indices.fileBpm),
-        });
         break;
       }
       case 'loadTrack': {
@@ -217,21 +208,6 @@ class EngineProcessor extends AudioWorkletProcessor {
       const target = computeSnapTarget(lg, leaderPos, fg, followerPos);
       slot.playback.seekFrames(target);
       sabWrite(control, idx.playPosition, slot.playback.getPositionFraction());
-      this.port.postMessage({
-        type: 'snapDbg',
-        deck: d,
-        leader,
-        leaderBpm,
-        followerBpm,
-        leaderFbf: lg.firstBeatFrame,
-        followerFbf: fg.firstBeatFrame,
-        leaderPos: Math.round(leaderPos),
-        followerBefore: Math.round(followerPos),
-        target: Math.round(target),
-        moved: Math.round(target - followerPos),
-        leaderPhase: +beatDistance(lg, leaderPos).toFixed(4),
-        followerPhaseAfter: +beatDistance(fg, target).toFixed(4),
-      });
     }
   }
 
@@ -319,61 +295,6 @@ class EngineProcessor extends AudioWorkletProcessor {
         sabWrite(control, slot.indices.vuMeter, scaled);
         sabWrite(control, slot.indices.peakIndicator, slot.vu.isClipped() ? 1 : 0);
         slot.vu.resetPeak();
-      }
-    }
-
-    // DEBUG: ~1Hz, snapshot BOTH decks' EXACT positions in the SAME process() call
-    // (no SAB staleness, truly simultaneous) and report the real beat gap in ms. This
-    // is the ground truth the renderer-side [ALIGN] can't give (it reads positions at
-    // different, stale instants).
-    if (this.decks.length >= 2 && ++this.wAlignCounter >= 375) {
-      this.wAlignCounter = 0;
-      const a = this.decks[0]!;
-      const b = this.decks[1]!;
-      const pa = sabRead(control, a.indices.play) > 0.5;
-      const pb = sabRead(control, b.indices.play) > 0.5;
-      if (pa && pb) {
-        const grid = (s: DeckSlot) => {
-          const bpm = s.indices.fileBpm !== undefined ? sabRead(control, s.indices.fileBpm) : 0;
-          const fbf = s.indices.firstBeatFrame !== undefined ? Math.max(0, sabRead(control, s.indices.firstBeatFrame)) : 0;
-          const fpb = bpm > 0 ? (60 / bpm) * sampleRate : 0;
-          const ratio = sabRead(control, s.indices.rateRatio) || 1;
-          return { bpm, fbf, fpb, ratio };
-        };
-        // beat phase 0..1 within each deck's own beat (source frames; phase is
-        // rate-independent — a beat is a beat regardless of playback speed).
-        const phase = (pos: number, g: { fbf: number; fpb: number }) => {
-          if (g.fpb <= 0) return 0;
-          const rel = (pos - g.fbf) / g.fpb;
-          return ((rel % 1) + 1) % 1;
-        };
-        const ga = grid(a);
-        const gb = grid(b);
-        const p1 = phase(a.playback.getPositionFrames(), ga);
-        const p2 = phase(b.playback.getPositionFrames(), gb);
-        // relative phase 0..0.5 (0 = beats perfectly aligned). THE number that matters,
-        // and it's correct no matter how smart-fade changes the tempo.
-        let rel = Math.abs(p1 - p2);
-        rel = Math.min(rel, 1 - rel);
-        // convert to ms using the CURRENT effective beat period (changes with smart fade)
-        const effBpm = ga.bpm * ga.ratio;
-        const offMs = effBpm > 0 ? (rel * (60 / effBpm)) * 1000 : 0;
-        this.port.postMessage({
-          type: 'snapDbg',
-          msg: 'walign',
-          relPhase: +rel.toFixed(4),
-          offMs: +offMs.toFixed(1),
-          p1: +p1.toFixed(4),
-          p2: +p2.toFixed(4),
-          effBpm1: +effBpm.toFixed(3),
-          effBpm2: +(gb.bpm * gb.ratio).toFixed(3),
-          // is keylock on? the time-stretch scaler can drift position off the
-          // nominal rate even at matched tempo — prime suspect for the drift.
-          keylock1: sabRead(control, a.indices.keylock) > 0.5 ? 1 : 0,
-          keylock2: sabRead(control, b.indices.keylock) > 0.5 ? 1 : 0,
-          pos1: Math.round(a.playback.getPositionFrames()),
-          pos2: Math.round(b.playback.getPositionFrames()),
-        });
       }
     }
 
