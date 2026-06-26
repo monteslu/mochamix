@@ -67,7 +67,13 @@ async function loadLibs(base: string, onLog: (m: string) => void) {
   if (ort.env?.wasm) {
     ort.env.wasm.wasmPaths = `${base}/`;
     const isolated = (self as unknown as { crossOriginIsolated?: boolean }).crossOriginIsolated === true;
-    ort.env.wasm.numThreads = isolated ? navigator.hardwareConcurrency || 4 : 1;
+    // CAP ORT's WASM threadpool. Even with WebGPU inference, demucs-web does CPU work
+    // (STFT/windowing in JS) + ORT may run some ops on WASM — at hardwareConcurrency
+    // threads that saturates EVERY core and starves the renderer's compositor/rAF,
+    // causing visible hiccups during separation. Leave ~40% of cores for the UI + GPU
+    // compositor (same principle as the analysis pool / Mixxx's half-cores rule).
+    const cores = navigator.hardwareConcurrency || 4;
+    ort.env.wasm.numThreads = isolated ? Math.max(1, Math.floor(cores * 0.6)) : 1;
   }
   if (ort.env?.webgpu) ort.env.webgpu.powerPreference = 'high-performance';
   libsCache = { ort, demucs };

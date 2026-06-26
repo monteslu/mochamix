@@ -139,6 +139,8 @@ export class StemQueue {
     // Run the WHOLE pipeline in a Worker so the main-thread waveform rAF keeps
     // ticking while WebGPU Demucs runs.
     let lastLogged = -1;
+    let lastEmitted = -1;
+    let lastPhase: GenerateProgress['phase'] | null = null;
     const bytes = await generateStemsInWorker(
       Float32Array.from(left),
       Float32Array.from(right),
@@ -148,7 +150,16 @@ export class StemQueue {
         onProgress: (p: GenerateProgress) => {
           this.status.progress = p.progress;
           this.status.phase = p.phase;
-          this.emit();
+          // Throttle UI emits: demucs fires progress very frequently and each emit()
+          // re-renders the WHOLE library table (every StemCell/RowWaveform). Only emit
+          // when progress moved ≥1% or the phase changed — otherwise we add main-thread
+          // jank on top of the separation. (The progress bar at 1% steps is plenty.)
+          const bucket = Math.floor(p.progress * 100);
+          if (bucket !== lastEmitted || p.phase !== lastPhase) {
+            lastEmitted = bucket;
+            lastPhase = p.phase;
+            this.emit();
+          }
           if (p.log) console.log(`[stems] ${p.log}`);
           // log every ~10% so the console shows steady progress
           const pct = Math.floor(p.progress * 10);
