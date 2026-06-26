@@ -25,7 +25,7 @@ import { wrapSab, sabRead, sabWrite, type SabLayout } from '@dj/control-bus';
 import { DeckPlayback } from './deck-playback.js';
 import { calculateSpeed } from './rate.js';
 import { VuMeter } from './vu-meter.js';
-import { makeGrid, computeSnapTarget } from './sync/beatgrid.js';
+import { makeGrid, computeSnapTarget, beatDistance } from './sync/beatgrid.js';
 import type {
   DeckControlIndices,
   EngineMessage,
@@ -89,6 +89,14 @@ class EngineProcessor extends AudioWorkletProcessor {
           lastSyncEnabled: false,
         }));
         this.vuCounter = 0;
+        // One-shot: prove the message channel works + report each deck's sync index.
+        this.port.postMessage({
+          type: 'snapDbg',
+          msg: 'init',
+          decks: this.decks.length,
+          syncIdx: this.decks.map((s) => s.indices.syncEnabled),
+          bpmIdx: this.decks.map((s) => s.indices.fileBpm),
+        });
         break;
       }
       case 'loadTrack': {
@@ -151,11 +159,20 @@ class EngineProcessor extends AudioWorkletProcessor {
     for (let d = 0; d < this.decks.length; d++) {
       const slot = this.decks[d]!;
       const idx = slot.indices;
-      if (idx.syncEnabled === undefined) continue;
-      const on = sabRead(control, idx.syncEnabled) > 0.5;
-      const edge = on && !slot.lastSyncEnabled;
-      slot.lastSyncEnabled = on;
-      if (!edge) continue;
+
+      // Fire on EITHER the syncEnabled 0→1 edge (SYNC button) OR a syncRequest pulse
+      // (Smart Fader, manual re-align). Both route to the same engine-side snap.
+      let trigger = false;
+      if (idx.syncEnabled !== undefined) {
+        const on = sabRead(control, idx.syncEnabled) > 0.5;
+        if (on && !slot.lastSyncEnabled) trigger = true;
+        slot.lastSyncEnabled = on;
+      }
+      if (idx.syncRequest !== undefined && sabRead(control, idx.syncRequest) > 0.5) {
+        trigger = true;
+        sabWrite(control, idx.syncRequest, 0); // consume the pulse
+      }
+      if (!trigger) continue;
 
       // find a leader: another deck with a bpm (prefer one that's playing)
       let leader = -1;
@@ -183,6 +200,21 @@ class EngineProcessor extends AudioWorkletProcessor {
       const target = computeSnapTarget(lg, leaderPos, fg, followerPos);
       slot.playback.seekFrames(target);
       sabWrite(control, idx.playPosition, slot.playback.getPositionFraction());
+      this.port.postMessage({
+        type: 'snapDbg',
+        deck: d,
+        leader,
+        leaderBpm,
+        followerBpm,
+        leaderFbf: lg.firstBeatFrame,
+        followerFbf: fg.firstBeatFrame,
+        leaderPos: Math.round(leaderPos),
+        followerBefore: Math.round(followerPos),
+        target: Math.round(target),
+        moved: Math.round(target - followerPos),
+        leaderPhase: +beatDistance(lg, leaderPos).toFixed(4),
+        followerPhaseAfter: +beatDistance(fg, target).toFixed(4),
+      });
     }
   }
 

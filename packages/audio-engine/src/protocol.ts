@@ -17,6 +17,7 @@ export interface DeckControlIndices {
   fileBpm: number;
   firstBeatFrame: number;
   syncEnabled: number;
+  syncRequest: number;
   rate: number;
   rateRange: number;
   rateDirection: number;
@@ -110,7 +111,15 @@ export interface WorkletTrackEndedMessage {
   type: 'trackEnded';
   deck: number;
 }
-export type WorkletMessage = WorkletReadyMessage | WorkletTrackEndedMessage;
+/** Diagnostic from the worklet's phase snap (temporary, for debugging sync). */
+export interface WorkletSnapDbgMessage {
+  type: 'snapDbg';
+  [k: string]: unknown;
+}
+export type WorkletMessage =
+  | WorkletReadyMessage
+  | WorkletTrackEndedMessage
+  | WorkletSnapDbgMessage;
 
 /** Re-export for worklet code that wraps the control SAB. */
 export type { SabLayout };

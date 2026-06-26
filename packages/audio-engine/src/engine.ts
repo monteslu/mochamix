@@ -144,7 +144,9 @@ export class Engine {
     this.smartFader = new SmartFader({
       bus: this.bus,
       setRateRatio: (deckIndex, ratio) => this.setRateRatioOverride(deckIndex, ratio),
-      alignDecks: () => this.syncController?.phaseAlign(1, 0),
+      // Ask the WORKLET to phase-snap deck 2 onto deck 1 (sample-accurate), the
+      // same engine-side snap the SYNC button uses — NOT the old renderer seek.
+      alignDecks: () => this.bus.set(deckGroup(2), DeckKeys.syncRequest, 1),
     });
     // Periodic phase hold + beat-distance publish (~60 Hz). Skipped while Smart
     // Fader is active (it owns the rate then).
@@ -185,6 +187,7 @@ export class Engine {
       fileBpm: r(DeckKeys.fileBpm),
       firstBeatFrame: r(DeckKeys.firstBeatFrame),
       syncEnabled: r(DeckKeys.syncEnabled),
+      syncRequest: r(DeckKeys.syncRequest),
       rate: r(DeckKeys.rate),
       rateRange: r(DeckKeys.rateRange),
       rateDirection: r(DeckKeys.rateDirection),
@@ -445,6 +448,8 @@ export class Engine {
     if (msg.type === 'trackEnded') {
       // The worklet already set play=0 in the SAB; reflect it on the bus so the UI updates.
       this.bus.set(deckGroup(msg.deck + 1), DeckKeys.play, 0);
+    } else if ((msg as { type: string }).type === 'snapDbg') {
+      console.log('[SNAP]', JSON.stringify(msg));
     }
   }
 
