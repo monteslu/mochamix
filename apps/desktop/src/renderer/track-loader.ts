@@ -16,6 +16,18 @@ import type { Engine } from '@dj/audio-engine';
 import type { AnalysisService } from './analysis-service.js';
 import { setDeckTrack } from './deck-state.js';
 
+/** DEBUG: dump a track's beat grid + the first 8 beat frame timings. */
+function logBeats(tag: string, title: string, bpm: number, firstBeatFrame: number, sr: number): void {
+  const fpb = bpm > 0 ? (60 / bpm) * sr : 0;
+  const fbf = firstBeatFrame >= 0 ? firstBeatFrame : 0;
+  const beats: Array<{ beat: number; frame: number; sec: number }> = [];
+  for (let i = 0; i < 8 && fpb > 0; i++) {
+    const frame = Math.round(fbf + i * fpb);
+    beats.push({ beat: i, frame, sec: +(frame / sr).toFixed(3) });
+  }
+  console.log(`[BEATS] ${tag}: "${title}"`, JSON.stringify({ bpm, firstBeatFrame: fbf, framesPerBeat: Math.round(fpb), sr, beats }));
+}
+
 export interface TrackLoaderDeps {
   engine: Engine;
   bus: ControlBus;
@@ -86,6 +98,24 @@ export async function loadTrackToDeck(
   if (m.bpm && m.bpm > 0) {
     bus.set(g, DeckKeys.fileBpm, m.bpm);
   }
+  // DEBUG: dump the loaded file + deck + metadata.
+  console.log(
+    `[LOAD] deck ${deckIndex + 1}`,
+    JSON.stringify({
+      file: src.file.name,
+      title,
+      artist: m.artist ?? null,
+      album: m.album ?? null,
+      bpm: m.bpm ?? null,
+      key: m.key ?? null,
+      lengthSec: +dur.toFixed(2),
+      frames: decoded.frames,
+      sampleRate: decoded.sampleRate,
+      channels: decoded.channels,
+    }),
+  );
+  // metadata BPM grid (firstBeatFrame comes from analysis below, logged there)
+  if (m.bpm && m.bpm > 0) logBeats(`load deck ${deckIndex + 1}`, title, m.bpm, -1, decoded.sampleRate);
   if (src.libraryId != null) {
     void window.dj.libraryIncrementPlay(src.libraryId);
   }
@@ -106,6 +136,7 @@ export async function loadTrackToDeck(
       if (r.bpm > 0) {
         bus.set(g, DeckKeys.fileBpm, r.bpm);
         bus.set(g, DeckKeys.firstBeatFrame, r.firstBeatFrame);
+        logBeats(`analyzed deck ${deckIndex + 1}`, title, r.bpm, r.firstBeatFrame, decoded.sampleRate);
       }
       if (r.camelot) setDeckTrack(deckIndex, { key: r.camelot });
       if (src.libraryId != null) {

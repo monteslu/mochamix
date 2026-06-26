@@ -69,6 +69,8 @@ export class Engine {
   private syncController: SyncController | null = null;
   private syncTimer: ReturnType<typeof setInterval> | null = null;
   private quickEffects: EffectUnit[] = [];
+  private sampleRate = 48000;
+  private alignTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(opts: EngineOptions) {
     this.bus = opts.bus;
@@ -148,12 +150,17 @@ export class Engine {
       // same engine-side snap the SYNC button uses — NOT the old renderer seek.
       alignDecks: () => this.bus.set(deckGroup(2), DeckKeys.syncRequest, 1),
     });
+    this.sampleRate = ctx.sampleRate;
     // Periodic phase hold + beat-distance publish (~60 Hz). Skipped while Smart
     // Fader is active (it owns the rate then).
     this.syncTimer = setInterval(() => {
       if (this.smartFader?.isActive()) return;
       this.syncController?.tick();
     }, 16);
+    // DEBUG: ~1Hz alignment check. For each deck dump its CURRENT beat phase from its
+    // actual position + effective BPM, and the offset between deck1 and deck2 — so we
+    // can see if they STAY lined up between snaps (drift) or hold.
+    this.alignTimer = setInterval(() => this.dumpAlignment(), 1000);
 
     // Initialize the worklet with the control SAB + index maps.
     const sab = this.bus.sab;
@@ -365,6 +372,22 @@ export class Engine {
   private installDeckControls(d: number, sampleRate: number): void {
     const g = deckGroup(d + 1);
     const node = this.node!;
+
+    // DEBUG: log play/pause with the position + beat phase at that instant, so we can
+    // correlate transport events with the snap + alignment dumps.
+    this.disconnects.push(
+      this.bus.connect(g, DeckKeys.play, (v) => {
+        const pos = this.positionFrames(d);
+        const bpm = this.bus.get(g, DeckKeys.fileBpm);
+        const fbf = Math.max(0, this.bus.get(g, DeckKeys.firstBeatFrame));
+        const fpb = bpm > 0 ? (60 / bpm) * this.sampleRate : 0;
+        const phase = fpb > 0 ? ((((pos - fbf) % fpb) + fpb) % fpb) / fpb : 0;
+        console.log(
+          `[TRANSPORT] deck ${d + 1} ${v > 0.5 ? 'PLAY' : 'PAUSE'}`,
+          JSON.stringify({ pos: Math.round(pos), posSec: +(pos / this.sampleRate).toFixed(3), beatPhase: +phase.toFixed(4) }),
+        );
+      }),
+    );
     const cue = new CueControl({
       bus: this.bus,
       group: g,
@@ -444,12 +467,66 @@ export class Engine {
     } satisfies EngineMessage);
   }
 
+  /**
+   * DEBUG: log whether the two decks are currently beat-aligned. Uses each deck's
+   * EFFECTIVE bpm (fileBpm × rate_ratio) to find its beat phase right now, then the
+   * phase offset between deck 1 and deck 2. offset≈0 (or ≈1) = locked; anything else
+   * = drifting. Only logs while both decks are playing.
+   */
+  private dumpAlignment(): void {
+    const sr = this.sampleRate;
+    const info = (d: number) => {
+      const g = deckGroup(d + 1);
+      const playing = this.bus.get(g, DeckKeys.play) > 0.5;
+      const bpm = this.bus.get(g, DeckKeys.fileBpm);
+      const ratio = this.bus.get(g, DeckKeys.rateRatio) || 1;
+      const fbf = Math.max(0, this.bus.get(g, DeckKeys.firstBeatFrame));
+      const pos = this.positionFrames(d);
+      const fpb = bpm > 0 ? (60 / bpm) * sr : 0; // SOURCE frames per beat
+      const phase = fpb > 0 ? ((((pos - fbf) % fpb) + fpb) % fpb) / fpb : 0;
+      return { playing, bpm, effBpm: +(bpm * ratio).toFixed(2), pos: Math.round(pos), phase: +phase.toFixed(4) };
+    };
+    const a = info(0);
+    const b = info(1);
+    if (!a.playing || !b.playing) return;
+    let d = Math.abs(a.phase - b.phase);
+    d = Math.min(d, 1 - d); // beats apart, 0..0.5
+    const secApart = a.effBpm > 0 ? +(d * (60 / a.effBpm)).toFixed(4) : 0;
+    console.log(
+      '[ALIGN]',
+      JSON.stringify({ deck1: a, deck2: b, beatsApart: +d.toFixed(4), secApart, locked: d < 0.02 }),
+    );
+  }
+
   private onWorkletMessage(msg: WorkletMessage): void {
     if (msg.type === 'trackEnded') {
       // The worklet already set play=0 in the SAB; reflect it on the bus so the UI updates.
       this.bus.set(deckGroup(msg.deck + 1), DeckKeys.play, 0);
     } else if ((msg as { type: string }).type === 'snapDbg') {
-      console.log('[SNAP]', JSON.stringify(msg));
+      const m = msg as Record<string, number | string>;
+      // After a snap, dump BOTH decks' position vs their nearest beat — in seconds —
+      // so we can see if they're actually lined up audibly (offset ~0 = locked).
+      if (typeof m.leaderPos === 'number' && typeof m.target === 'number') {
+        const sr = this.sampleRate || 48000;
+        const lFpb = (60 / (m.leaderBpm as number)) * sr;
+        const fFpb = (60 / (m.followerBpm as number)) * sr;
+        const distToBeat = (pos: number, fbf: number, fpb: number) => {
+          const off = ((((pos - fbf) % fpb) + fpb) % fpb) / fpb; // 0..1
+          const near = Math.min(off, 1 - off); // beats to nearest
+          return +(near * (fpb / sr)).toFixed(4); // seconds to nearest beat
+        };
+        const leaderOff = distToBeat(m.leaderPos as number, m.leaderFbf as number, lFpb);
+        const followerOff = distToBeat(m.target as number, m.followerFbf as number, fFpb);
+        console.log(
+          '[SNAP]',
+          JSON.stringify(msg),
+          `| LINED UP? leaderToBeat=${leaderOff}s followerToBeat=${followerOff}s phaseDelta=${Math.abs(
+            (m.leaderPhase as number) - (m.followerPhaseAfter as number),
+          ).toFixed(4)}`,
+        );
+      } else {
+        console.log('[SNAP]', JSON.stringify(msg));
+      }
     }
   }
 
@@ -468,6 +545,10 @@ export class Engine {
     if (this.syncTimer) {
       clearInterval(this.syncTimer);
       this.syncTimer = null;
+    }
+    if (this.alignTimer) {
+      clearInterval(this.alignTimer);
+      this.alignTimer = null;
     }
     this.syncController?.dispose();
     this.syncController = null;
