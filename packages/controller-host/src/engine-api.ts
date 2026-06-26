@@ -98,8 +98,10 @@ export class EngineApi {
   // --- Connections ----------------------------------------------------------
 
   makeConnection(group: Group, key: Key, callback: EngineCallback): ScriptConnection {
-    if (!this.bus.has(group, key)) {
-      // Mixxx returns undefined for an invalid control; we return a no-op handle.
+    // Tolerate an invalid control OR a non-function callback (some component code paths
+    // pass an undefined handler) — return a no-op handle rather than crashing the whole
+    // mapping load, matching Mixxx's leniency.
+    if (!this.bus.has(group, key) || typeof callback !== 'function') {
       return { disconnect: () => false, trigger: () => {} };
     }
     const off = this.bus.connect(group, key, (value) => callback(value, group, key));

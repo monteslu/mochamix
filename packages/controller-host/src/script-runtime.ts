@@ -43,13 +43,71 @@ export function runMappingScript(
   engine: EngineApi,
   midi: MidiGlobal,
   logger: Console = console,
+  /** The `script` global (Mixxx common-controller-scripts.js helpers), if provided. */
+  scriptGlobal?: unknown,
 ): RunMappingResult {
-  // A surface the script's top-level `var X = ...` / `X = ...` attach to. We run
-  // the script with `this` = scope and also pass it as a parameter the script
-  // body can see via a `with`-free convention: most mappings do `var Prefix={}`,
-  // which in non-strict Function scope becomes a local — so we capture by
-  // returning `this` after assigning known prefixes onto it.
+  // A surface the script's top-level `var X = ...` / `X = ...` attach to, AND the
+  // `this`/global that helper libraries attach to: lodash sets `this._`, and
+  // midi-components-0.0.js ends with `global.components = exports` (global === this).
+  // So running ALL files (lodash → midi-components → device script) in this one scope
+  // makes `_` and `components` available to the device script exactly as in Mixxx.
+  // lodash.mixxx defines `_` on the global object via a NON-configurable getter
+  // (root = freeGlobal || freeSelf || (function(){return this})()). When a 2nd lodash-
+  // based mapping loads, redefining `_` throws "Cannot redefine property: _". We force
+  // any `_` definition to be configurable (so it can be redefined) by patching
+  // Object.defineProperty for the duration of the run, then restore it. This keeps each
+  // mapping load independent without polluting/locking the host global.
+  const realDefineProperty = Object.defineProperty;
+  const patchedDefineProperty = function (
+    obj: object,
+    prop: PropertyKey,
+    desc: PropertyDescriptor,
+  ): object {
+    if (prop === '_') desc = { ...desc, configurable: true };
+    return realDefineProperty(obj, prop, desc);
+  };
+  // Best-effort: if the host global already has a locked `_`, try to relax it.
+  try {
+    const host = globalThis as unknown as Record<PropertyKey, unknown>;
+    const d = Object.getOwnPropertyDescriptor(host, '_');
+    if (d && !d.configurable) realDefineProperty(host, '_', { ...d, configurable: true });
+  } catch {
+    /* ignore */
+  }
+  Object.defineProperty = patchedDefineProperty as typeof Object.defineProperty;
+
   const scope: Record<string, unknown> = {};
+  // Pre-seed CONFIGURABLE placeholders for the globals helper libs define via
+  // Object.defineProperty (lodash does `defineProperty(root,"_",…)` which is
+  // non-configurable by default → a redefine throws "Cannot redefine property: _").
+  // Seeding them configurable lets the libs (re)define cleanly.
+  for (const g of ['_', 'components', 'ColorMapper', 'Controller', 'HIDController']) {
+    Object.defineProperty(scope, g, { value: undefined, writable: true, configurable: true });
+  }
+  // Mixxx globals some mappings call directly (shims — fine per the design).
+  scope.print = (...args: unknown[]) => logger.log('[mapping]', ...args);
+  // `Controller` / `ColorMapper` / `HIDController` are Mixxx engine globals for HID/bulk
+  // and LED color mapping. Provide minimal shims so MIDI mappings that merely REFERENCE
+  // them at load time don't crash (full HID is out of scope for Web MIDI).
+  if (scope.ColorMapper === undefined) {
+    scope.ColorMapper = class {
+      getValueForNearestColor(): number {
+        return 0;
+      }
+      getNearestColor(): number {
+        return 0;
+      }
+    };
+  }
+  if (scope.Controller === undefined) {
+    // Some mappings do `new Controller()` — make it constructable (HID/bulk shim).
+    scope.Controller = class {
+      getValue(): number {
+        return 0;
+      }
+      setValue(): void {}
+    };
+  }
 
   // Build a preamble that, after the script runs, copies each functionprefix
   // local into the scope object so we can read them back out.
@@ -58,13 +116,24 @@ export function runMappingScript(
     .map((p) => `try { this[${JSON.stringify(p)}] = ${p}; } catch (e) {}`)
     .join('\n');
 
-  const factory = new Function(
-    'engine',
-    'midi',
-    'console',
-    `${js}\n;${exporter}\n; return this;`,
-  );
-  const result = factory.call(scope, engine, midi, logger) as Record<string, unknown>;
+  // `script` is a Mixxx global (common-controller-scripts.js). Many mappings AND
+  // midi-components depend on it. Pass it as a parameter so it's in scope.
+  //
+  // The helper libs (lodash.mixxx.js, midi-components-0.0.js) do `global.X = …` where
+  // `global === this` — so they attach `_` and `components` onto our `this` (scope) at
+  // RUNTIME. A `with(this)` block makes those bare identifiers (`components`, `_`)
+  // resolve from the scope object for the device script that follows, exactly as Mixxx's
+  // single global object does. (`with` is the correct tool for a dynamic global object.)
+  //
+  const body = `with (this) {\n${js}\n;${exporter}\n} return this;`;
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval
+  const factory = new Function('engine', 'midi', 'console', 'script', body);
+  let result: Record<string, unknown>;
+  try {
+    result = factory.call(scope, engine, midi, logger, scriptGlobal ?? {}) as Record<string, unknown>;
+  } finally {
+    Object.defineProperty = realDefineProperty; // restore
+  }
 
   const resolveFn = (path: string): ((...a: Array<number | string>) => void) | undefined => {
     const parts = path.split('.');

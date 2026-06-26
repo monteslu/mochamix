@@ -26,6 +26,10 @@ import { isWebGpuPath, resolveWebGpuPath } from '@dj/stems/asset-server';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // main.js (esbuild-bundled) lives at dist-main/main.js → renderer is one up.
 const RENDERER_DIR = join(__dirname, '../dist-renderer');
+// Bundled Mixxx controller mappings (their actual GPL res/controllers tree). In dev the
+// source lives at apps/desktop/resources/controllers; packaged, electron-builder copies
+// it under resources/. Resolve to whichever exists.
+const CONTROLLERS_DIR = join(__dirname, '../resources/controllers');
 const isDev = process.argv.includes('--dev');
 
 // Log versions on startup so a pasted console dump unambiguously shows WHICH
@@ -246,6 +250,28 @@ function getLibrary(): LibraryService {
 
 ipcMain.handle('library:query', (_e, opts: QueryOptions) => getLibrary().query(opts));
 ipcMain.handle('library:count', (_e, search?: string) => getLibrary().count(search));
+// ── Controller mappings (bundled Mixxx res/controllers) ──────────────────────
+// list = the picker index (name/author/file); readFile = a single mapping file's text
+// (xml or js), used to load a mapping + its referenced <file> scripts.
+ipcMain.handle('controllers:list', async () => {
+  try {
+    const idx = await readFile(join(CONTROLLERS_DIR, 'index.json'), 'utf8');
+    return JSON.parse(idx) as Array<{ file: string; name: string; author: string }>;
+  } catch {
+    return [];
+  }
+});
+ipcMain.handle('controllers:readFile', async (_e, filename: string) => {
+  // Guard against path traversal — only files directly inside the controllers dir.
+  const safe = basename(filename);
+  if (safe !== filename) return null;
+  try {
+    return await readFile(join(CONTROLLERS_DIR, safe), 'utf8');
+  } catch {
+    return null;
+  }
+});
+
 ipcMain.handle('library:crates', () => getLibrary().listCrates());
 ipcMain.handle('library:crateTracks', (_e, id: number) => getLibrary().crateTracks(id));
 ipcMain.handle(

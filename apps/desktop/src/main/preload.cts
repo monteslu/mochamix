@@ -20,6 +20,8 @@ const api: DjApi = {
   libraryRemoveDirectory: (dir) => electron.ipcRenderer.invoke('library:removeDirectory', dir),
   settingsGet: (key) => electron.ipcRenderer.invoke('settings:get', key),
   settingsSet: (key, value) => electron.ipcRenderer.invoke('settings:set', key, value),
+  controllersList: () => electron.ipcRenderer.invoke('controllers:list'),
+  controllersReadFile: (filename) => electron.ipcRenderer.invoke('controllers:readFile', filename),
   onScanProgress: (cb) => {
     const listener = (_e: unknown, p: unknown) => cb(p as never);
     electron.ipcRenderer.on('library:scanProgress', listener);

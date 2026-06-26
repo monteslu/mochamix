@@ -32,6 +32,8 @@ export class ControllerService {
   private userLoaded = false;
   /** Guards the one-time statechange hook for auto-connect. */
   private autoHooked = false;
+  /** Cached Mixxx `script` helper global (common-controller-scripts.js), built once. */
+  private scriptGlobalCache: unknown = null;
   private current: {
     router: MidiRouter;
     input: MIDIInput | null;
@@ -134,6 +136,7 @@ export class ControllerService {
     inputName?: string,
     outputName?: string,
     manual = true,
+    scriptGlobal?: unknown,
   ): LoadedMapping {
     if (manual) this.userLoaded = true;
     const mapping = parseMidiMapping(xml);
@@ -144,17 +147,30 @@ export class ControllerService {
       output?.send([status, d1, d2]);
     };
 
-    // The `midi` global the scripts use for output.
+    // The `midi` global the scripts use for output (incl. sysex for device init/LEDs).
+    const sysexOut = outputName ? this.findOutput(outputName) : output;
     const midi = {
       sendShortMsg: (status: number, d1: number, d2: number) => send(status, d1, d2),
-      sendSysexMsg: () => {
-        /* sysex disabled */
+      sendSysexMsg: (data: number[]) => {
+        try {
+          sysexOut?.send(data);
+        } catch {
+          /* device may reject malformed sysex; ignore */
+        }
       },
     };
 
-    // Run the mapping JS in a scope with the Mixxx globals (shared, tested
-    // runtime). The script defines an object named by its functionPrefix.
-    const { functions, prefixObjects } = runMappingScript(js, mapping, this.engine, midi, console);
+    // Run the mapping JS (already concatenated: lodash → midi-components → device
+    // script) in a scope with the Mixxx globals. `scriptGlobal` is the common-
+    // controller-scripts.js `script` helper object (or {} for the simple generic map).
+    const { functions, prefixObjects } = runMappingScript(
+      js,
+      mapping,
+      this.engine,
+      midi,
+      console,
+      scriptGlobal,
+    );
 
     const router = new MidiRouter({
       bus: this.bus,
@@ -199,6 +215,69 @@ export class ControllerService {
     this.disposeCurrent();
     this.current = { router, input, output, onmidi };
     return { name: mapping.name, router, mapping };
+  }
+
+  /**
+   * Load one of the BUNDLED Mixxx mappings by its .midi.xml filename. Reads the XML,
+   * resolves its <file> list (lodash.mixxx.js → midi-components-0.0.js → device script,
+   * in order), concatenates them, builds the `script` helper global from
+   * common-controller-scripts.js, and runs them all in one scope — exactly the global
+   * environment a Mixxx mapping expects. Their mappings ARE JavaScript, so they run
+   * nearly verbatim once the globals are right. `manual` marks a user choice.
+   */
+  async loadMixxxMapping(xmlFilename: string, manual = true): Promise<LoadedMapping | null> {
+    const xml = await window.dj.controllersReadFile(xmlFilename);
+    if (!xml) {
+      console.warn(`[midi] mapping file not found: ${xmlFilename}`);
+      return null;
+    }
+    // Parse just to discover the <file> list (full parse happens in loadMapping too).
+    const mapping = parseMidiMapping(xml);
+    const fileNames = mapping.scriptFiles.map((f) => f.filename).filter(Boolean);
+
+    // Read + concatenate every referenced script file IN ORDER (helpers first). Missing
+    // files are skipped with a warning (some mappings reference files we don't ship).
+    const parts: string[] = [];
+    for (const fn of fileNames) {
+      const content = await window.dj.controllersReadFile(fn);
+      if (content) parts.push(`// ==== ${fn} ====\n${content}`);
+      else console.warn(`[midi] referenced script not found: ${fn}`);
+    }
+    const js = parts.join('\n;\n');
+
+    const scriptGlobal = await this.buildScriptGlobal();
+    console.log(
+      `[midi] loading Mixxx mapping "${mapping.name}" (${fileNames.length} script file(s))`,
+    );
+    return this.loadMapping(xml, js, undefined, undefined, manual, scriptGlobal);
+  }
+
+  /**
+   * Build the Mixxx `script` global by running common-controller-scripts.js (it defines
+   * `var script = {}; script.foo = …`). Cached — it's the same for every mapping.
+   */
+  private async buildScriptGlobal(): Promise<unknown> {
+    if (this.scriptGlobalCache) return this.scriptGlobalCache;
+    const src = await window.dj.controllersReadFile('common-controller-scripts.js');
+    if (!src) {
+      console.warn('[midi] common-controller-scripts.js not found — `script` helpers unavailable');
+      this.scriptGlobalCache = {};
+      return this.scriptGlobalCache;
+    }
+    try {
+      // Run it in a scope with engine/console; recover the `script` object via `this`.
+      const factory = new Function(
+        'engine',
+        'console',
+        `${src}\n; try { this.script = script; } catch(e){} ; return this;`,
+      );
+      const out = factory.call({}, this.engine, console) as { script?: unknown };
+      this.scriptGlobalCache = out.script ?? {};
+    } catch (e) {
+      console.warn('[midi] failed to build `script` global', e);
+      this.scriptGlobalCache = {};
+    }
+    return this.scriptGlobalCache;
   }
 
 

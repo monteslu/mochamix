@@ -88,6 +88,10 @@ export interface DjApi {
   /** App settings (key/value) — e.g. 'rescanOnStartup'. */
   settingsGet: (key: string) => Promise<string | null>;
   settingsSet: (key: string, value: string) => Promise<void>;
+  /** The bundled Mixxx controller mappings (picker index). */
+  controllersList: () => Promise<Array<{ file: string; name: string; author: string }>>;
+  /** Read one bundled controller file's text (mapping .xml or referenced .js), or null. */
+  controllersReadFile: (filename: string) => Promise<string | null>;
   /** Load a track's bytes. preferOriginal=true returns the original song file even if
    *  stems exist (for analysis — smaller + decodes reliably; stems are for playback). */
   readTrackById: (id: number, preferOriginal?: boolean) => Promise<LoadedFile | null>;
