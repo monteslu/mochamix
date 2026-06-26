@@ -367,6 +367,12 @@ class EngineProcessor extends AudioWorkletProcessor {
           p2: +p2.toFixed(4),
           effBpm1: +effBpm.toFixed(3),
           effBpm2: +(gb.bpm * gb.ratio).toFixed(3),
+          // is keylock on? the time-stretch scaler can drift position off the
+          // nominal rate even at matched tempo — prime suspect for the drift.
+          keylock1: sabRead(control, a.indices.keylock) > 0.5 ? 1 : 0,
+          keylock2: sabRead(control, b.indices.keylock) > 0.5 ? 1 : 0,
+          pos1: Math.round(a.playback.getPositionFrames()),
+          pos2: Math.round(b.playback.getPositionFrames()),
         });
       }
     }
