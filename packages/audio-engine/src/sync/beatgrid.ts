@@ -60,7 +60,14 @@ export function computeSnapTarget(
   followerFrame: number,
 ): number {
   if (!leaderGrid || !followerGrid) return followerFrame;
-  return alignedFrame(followerGrid, followerFrame, beatDistance(leaderGrid, leaderFrame));
+  let target = alignedFrame(followerGrid, followerFrame, beatDistance(leaderGrid, leaderFrame));
+  // The grid is periodic, so any beat ± N beats is an equally valid phase match.
+  // If the nearest match landed BEFORE the track start (common when a deck sits at
+  // frame 0, before its firstBeatFrame), step forward whole beats until it's ≥ 0 —
+  // never seek to a negative/invalid position (that's what made the deck "shake").
+  const fpb = followerGrid.framesPerBeat;
+  while (target < 0) target += fpb;
+  return target;
 }
 
 /**

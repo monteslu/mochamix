@@ -1,7 +1,22 @@
 import { describe, it, expect } from 'vitest';
-import { makeGrid, beatDistance, alignedFrame } from './beatgrid.js';
+import { makeGrid, beatDistance, alignedFrame, computeSnapTarget } from './beatgrid.js';
 
 const SR = 48000;
+
+// Regression: both decks at frame 0 (paused, before their firstBeatFrame) used to
+// produce a NEGATIVE seek target (e.g. -10108), which made the deck jump out of
+// bounds and "shake". computeSnapTarget must return a valid (≥0) forward position
+// at the same beat phase.
+describe('snap never seeks to a negative/invalid frame', () => {
+  it('clamps the real-world both-at-zero case forward instead of negative', () => {
+    const lg = makeGrid(88.24, 3840, SR)!; // leader: firstBeat at 3840
+    const fg = makeGrid(100, 22080, SR)!; // follower: firstBeat at 22080
+    const target = computeSnapTarget(lg, 0, fg, 0);
+    expect(target).toBeGreaterThanOrEqual(0); // not -10108
+    // and it still matches the leader's phase
+    expect(beatDistance(fg, target)).toBeCloseTo(beatDistance(lg, 0), 3);
+  });
+});
 
 // Mixxx's getNearestPositionInPhase handles pressing SYNC at any point in the beat
 // (late = near next beat, early = near prev beat). After the snap, the follower's
