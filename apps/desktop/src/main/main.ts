@@ -165,6 +165,17 @@ function createWindow(): BrowserWindow {
     },
   });
 
+  // Grant Web MIDI. Without these handlers Electron silently hands the renderer an
+  // EMPTY device list (navigator.requestMIDIAccess resolves but enumerates nothing),
+  // which looks like "no controller" even when one is plugged in. We approve midi +
+  // midiSysex (DJ controllers need sysex for LED/display init). setPermissionCheckHandler
+  // is the SYNCHRONOUS check requestMIDIAccess uses; the request handler covers the
+  // async prompt path. (Our own app, local content — safe to grant.)
+  const ses = win.webContents.session;
+  // Our own local app content → grant the permissions it needs (notably midi/midiSysex).
+  ses.setPermissionRequestHandler((_wc, _permission, callback) => callback(true));
+  ses.setPermissionCheckHandler(() => true);
+
   win.webContents.on('console-message', (_e, _level, message) => {
     console.log(`[renderer] ${message}`);
   });
