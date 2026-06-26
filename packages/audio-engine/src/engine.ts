@@ -203,6 +203,10 @@ export class Engine {
       duration: r(DeckKeys.duration),
       vuMeter: r(DeckKeys.vuMeter),
       peakIndicator: r(DeckKeys.peakIndicator),
+      stemGain0: r(DeckKeys.stemGain0),
+      stemGain1: r(DeckKeys.stemGain1),
+      stemGain2: r(DeckKeys.stemGain2),
+      stemGain3: r(DeckKeys.stemGain3),
     };
   }
 
@@ -423,12 +427,50 @@ export class Engine {
     }
   }
 
+  /**
+   * Load 4 stems onto a deck as a stem deck (independently mixable for mashups).
+   * `stems` are the decoded drums/bass/other/vocals in NI-Stems order; `meta` carries
+   * the original track's bpm/grid (the stems share it).
+   */
+  loadStems(d: number, stems: DecodedTrack[], meta?: { bpm?: number }): void {
+    if (!this.node) {
+      throw new Error('Engine not started');
+    }
+    if (stems.length === 0) return;
+    const first = stems[0]!;
+    const msg: EngineMessage = {
+      type: 'loadStems',
+      deck: d,
+      stems: stems.map((s) => ({
+        sampleBuffer: s.sampleBuffer,
+        channels: s.channels,
+        frames: s.frames,
+      })),
+      trackSampleRate: first.sampleRate,
+    };
+    this.node.port.postMessage(msg);
+    const g = deckGroup(d + 1);
+    this.bus.set(g, DeckKeys.duration, first.frames / first.sampleRate);
+    this.bus.set(g, DeckKeys.trackSamples, first.frames);
+    this.bus.set(g, DeckKeys.trackLoaded, 1);
+    this.bus.set(g, DeckKeys.hasStems, 1);
+    this.bus.set(g, DeckKeys.cuePoint, 0);
+    this.bus.set(g, DeckKeys.playPosition, 0);
+    // reset stem gains to full on load
+    this.bus.set(g, DeckKeys.stemGain0, 1);
+    this.bus.set(g, DeckKeys.stemGain1, 1);
+    this.bus.set(g, DeckKeys.stemGain2, 1);
+    this.bus.set(g, DeckKeys.stemGain3, 1);
+    if (meta?.bpm) this.bus.set(g, DeckKeys.fileBpm, meta.bpm);
+  }
+
   /** Eject a deck. */
   eject(d: number): void {
     this.node?.port.postMessage({ type: 'eject', deck: d } satisfies EngineMessage);
     const g = deckGroup(d + 1);
     this.bus.set(g, DeckKeys.play, 0);
     this.bus.set(g, DeckKeys.trackLoaded, 0);
+    this.bus.set(g, DeckKeys.hasStems, 0);
   }
 
   /** Seek a deck to a 0..1 fraction. */

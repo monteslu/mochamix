@@ -30,6 +30,7 @@ import type {
   DeckControlIndices,
   EngineMessage,
   LoadTrackMessage,
+  LoadStemsMessage,
 } from './protocol.js';
 
 // AudioWorkletProcessor globals (provided by the audio worklet global scope).
@@ -100,6 +101,10 @@ class EngineProcessor extends AudioWorkletProcessor {
         this.loadTrack(msg);
         break;
       }
+      case 'loadStems': {
+        this.loadStems(msg);
+        break;
+      }
       case 'eject': {
         this.decks[msg.deck]?.playback.eject();
         break;
@@ -141,6 +146,27 @@ class EngineProcessor extends AudioWorkletProcessor {
       sabWrite(this.control, slot.indices.trackLoaded, 1);
       sabWrite(this.control, slot.indices.trackSamples, msg.frames);
       sabWrite(this.control, slot.indices.duration, msg.frames / msg.trackSampleRate);
+      sabWrite(this.control, slot.indices.playPosition, 0);
+    }
+  }
+
+  private loadStems(msg: LoadStemsMessage): void {
+    const slot = this.decks[msg.deck];
+    if (!slot) return;
+    const stems = msg.stems.map((s) => {
+      const all = new Float32Array(s.sampleBuffer);
+      const channelData: Float32Array[] = [];
+      for (let c = 0; c < s.channels; c++) {
+        channelData.push(all.subarray(c * s.frames, (c + 1) * s.frames));
+      }
+      return { channelData, channels: s.channels, frames: s.frames, sampleRate: msg.trackSampleRate };
+    });
+    slot.playback.loadStems(stems);
+    const frames = stems[0]?.frames ?? 0;
+    if (this.control) {
+      sabWrite(this.control, slot.indices.trackLoaded, 1);
+      sabWrite(this.control, slot.indices.trackSamples, frames);
+      sabWrite(this.control, slot.indices.duration, frames / msg.trackSampleRate);
       sabWrite(this.control, slot.indices.playPosition, 0);
     }
   }
@@ -250,6 +276,15 @@ class EngineProcessor extends AudioWorkletProcessor {
         // Sync / smart fader can force a rate ratio beyond the slider's range.
         speed = ratioOverride > 0 ? ratioOverride : calculateSpeed(rate, rateRange, rateDir);
         processPlaying = playing;
+      }
+
+      // Stem decks: push the 4 per-stem gains before mixing (cheap, only when stems
+      // are loaded). This is the live-mashup control — mute/solo a stem in real time.
+      if (slot.playback.hasStems()) {
+        slot.playback.setStemGain(0, sabRead(control, idx.stemGain0));
+        slot.playback.setStemGain(1, sabRead(control, idx.stemGain1));
+        slot.playback.setStemGain(2, sabRead(control, idx.stemGain2));
+        slot.playback.setStemGain(3, sabRead(control, idx.stemGain3));
       }
 
       const stillPlaying = slot.playback.process(out, numFrames, speed, processPlaying);

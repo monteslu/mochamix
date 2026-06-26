@@ -44,6 +44,17 @@ export class DeckPlayback {
   /** The WASM+SIMD resampler — the real-time read path (replaces the JS loop). */
   private readonly wasm = new WasmResampler();
 
+  // ── stem decks (the live-mashup differentiator) ──────────────────────────
+  // When a .stem.mp4 is loaded, the deck plays the SUM of 4 stems, each through its
+  // own resampler at the SAME position, with a per-stem gain (0 = muted). This lets
+  // a DJ isolate vocals on one deck over another deck's instrumental. Empty = normal
+  // single-source playback (the `wasm` resampler above).
+  private stemResamplers: WasmResampler[] = [];
+  private stemGains: number[] = [];
+  /** Scratch stereo buffers for summing stems (allocated on stem load, not in process). */
+  private stemScratchL: Float32Array | null = null;
+  private stemScratchR: Float32Array | null = null;
+
   // Loop state (in source frames). When enabled and playing forward, the read
   // position wraps from loopEnd back to loopStart with a short seam crossfade.
   private loopEnabled = false;
@@ -66,11 +77,57 @@ export class DeckPlayback {
     this.keylockScaler?.reset();
   }
 
+  /**
+   * Load N stems (each a stereo DeckTrack at the same sample rate/length) as a stem
+   * deck. The deck then plays SUM(stem_i × gain_i). Stems must share the source
+   * frame count + sample rate (they're separations of one track). Gains default to 1.
+   */
+  loadStems(stems: DeckTrack[]): void {
+    if (stems.length === 0) {
+      return;
+    }
+    const first = stems[0]!;
+    // Drive shared playback state off the first stem (they're frame-aligned).
+    this.track = first;
+    this.position = 0;
+    this.scalerCursor = 0;
+    this.baseRate = first.sampleRate / this.engineSampleRate;
+    this.keylockScaler?.reset();
+
+    this.stemResamplers = stems.map((s) => {
+      const r = new WasmResampler();
+      const l = s.channelData[0]!;
+      const rr = s.channels > 1 ? s.channelData[1]! : l;
+      r.setSource(l, rr, s.frames);
+      return r;
+    });
+    this.stemGains = stems.map(() => 1);
+    this.stemScratchL = null; // sized lazily in process (numFrames-dependent)
+    this.stemScratchR = null;
+    // The primary `wasm` resampler is unused in stem mode; clear it.
+    this.wasm.clearSource();
+  }
+
+  /** Set a stem's gain (0..1+). Index matches the load order (drums,bass,other,vocals). */
+  setStemGain(index: number, gain: number): void {
+    if (index >= 0 && index < this.stemGains.length) {
+      this.stemGains[index] = gain;
+    }
+  }
+
+  hasStems(): boolean {
+    return this.stemResamplers.length > 0;
+  }
+
   eject(): void {
     this.track = null;
     this.position = 0;
     this.scalerCursor = 0;
     this.wasm.clearSource();
+    this.stemResamplers = [];
+    this.stemGains = [];
+    this.stemScratchL = null;
+    this.stemScratchR = null;
     this.keylockScaler?.reset();
   }
 
@@ -200,6 +257,13 @@ export class DeckPlayback {
       return track !== null && this.position < track.frames;
     }
 
+    // Stem deck: sum the 4 stems (each through its own resampler, same position +
+    // speed) with per-stem gain. The mashup engine. (Keylock for stems is a future
+    // refinement; stems use the linear varispeed path, which is correct for mixing.)
+    if (this.stemResamplers.length > 0) {
+      return this.processStems(outputs, numFrames, speed, track);
+    }
+
     // Keylock requires a forward, non-scratch speed; otherwise fall back to the
     // linear path (which alone can ramp through zero / go reverse — Mixxx does the
     // same: scratching/reverse always use the linear scaler).
@@ -246,6 +310,59 @@ export class DeckPlayback {
     for (let c = 0; c < outChannels; c++) {
       outputs[c]!.fill(0, produced, numFrames);
     }
+    return produced === numFrames && (this.loopEnabled || this.position < track.frames);
+  }
+
+  /**
+   * Stem-deck mix: pull each stem from the SAME start position + ratio (they're
+   * frame-aligned), sum with per-stem gain into the stereo output, then advance the
+   * shared position once. Linear varispeed (sync/scratch/loops all work via the
+   * shared position). This is what makes live mashups possible — mute a deck's
+   * vocals, solo another's, etc.
+   */
+  private processStems(
+    outputs: Float32Array[],
+    numFrames: number,
+    speed: number,
+    track: DeckTrack,
+  ): boolean {
+    const outL = outputs[0]!;
+    const outR = outputs[1] ?? outputs[0]!;
+    outL.fill(0, 0, numFrames);
+    outR.fill(0, 0, numFrames);
+
+    // Lazily (re)size the scratch buffers — never allocate in the steady state.
+    if (!this.stemScratchL || this.stemScratchL.length < numFrames) {
+      this.stemScratchL = new Float32Array(numFrames);
+      this.stemScratchR = new Float32Array(numFrames);
+    }
+    const sL = this.stemScratchL;
+    const sR = this.stemScratchR!;
+
+    const ratio = this.baseRate * speed;
+    const startPos = this.position;
+    let produced = 0;
+    let endPos = startPos;
+
+    for (let i = 0; i < this.stemResamplers.length; i++) {
+      const gain = this.stemGains[i] ?? 0;
+      const res = this.stemResamplers[i]!.pull(sL, sR, numFrames, {
+        position: startPos, // every stem reads from the same spot
+        ratio,
+        loopEnabled: this.loopEnabled,
+        loopStart: this.loopStart,
+        loopEnd: this.loopEnd,
+        seamFade: DeckPlayback.SEAM_FADE,
+      });
+      produced = res.produced; // identical across stems (same source length/ratio)
+      endPos = res.newPosition;
+      if (gain === 0) continue; // muted stem contributes nothing
+      for (let f = 0; f < produced; f++) {
+        outL[f]! += sL[f]! * gain;
+        outR[f]! += sR[f]! * gain;
+      }
+    }
+    this.position = endPos;
     return produced === numFrames && (this.loopEnabled || this.position < track.frames);
   }
 }

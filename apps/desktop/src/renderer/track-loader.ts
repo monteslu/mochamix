@@ -13,6 +13,7 @@ import { decodeArrayBuffer } from '@dj/codec';
 import { computePeakSet, detailBucketsForDuration, packPeaks } from '@dj/waveform';
 import { deck as deckGroup, DeckKeys, type ControlBus } from '@dj/control-bus';
 import type { Engine } from '@dj/audio-engine';
+import { extractAllTracks } from '@dj/stem-mp4';
 import type { AnalysisService } from './analysis-service.js';
 import { setDeckTrack } from './deck-state.js';
 
@@ -24,8 +25,8 @@ export interface TrackLoaderDeps {
 
 /** Where the audio bytes come from + the metadata we already know. */
 export interface LoadSource {
-  /** Raw file bytes + name (decode input). */
-  file: { name: string; data: ArrayBuffer; path?: string };
+  /** Raw file bytes + name (decode input). isStem = a NI-Stems .stem.mp4. */
+  file: { name: string; data: ArrayBuffer; path?: string; isStem?: boolean };
   /** Known metadata (from the library DB), if any. */
   meta?: {
     title?: string | null;
@@ -53,6 +54,14 @@ export async function loadTrackToDeck(
   const { engine, bus, analysis } = deps;
   const ctx = engine.audioContext;
   if (!ctx) return; // engine not started
+
+  // Stem deck: a .stem.mp4 holds the mixdown + 4 separable stems. Decode the 4 stems
+  // and load them as a stem deck (independent per-stem gain → live mashups).
+  if (src.file.isStem) {
+    const loaded = await loadStemFile(deps, deckIndex, src);
+    if (loaded) return;
+    // If stem extraction failed, fall through to play it as a normal mixed track.
+  }
 
   const decoded = await decodeArrayBuffer(ctx, src.file.data, src.file.name);
 
@@ -118,5 +127,78 @@ export async function loadTrackToDeck(
         });
       }
     });
+  }
+}
+
+/**
+ * Load a .stem.mp4 as a stem deck: extract its 4 stem tracks (drums/bass/other/
+ * vocals — track 0 is the mixdown, skipped), decode each, and hand them to the
+ * engine for independent per-stem mixing. Peaks/waveform come from the mixdown
+ * (track 0). Returns true on success, false to fall back to normal playback.
+ */
+async function loadStemFile(
+  deps: TrackLoaderDeps,
+  deckIndex: number,
+  src: LoadSource,
+): Promise<boolean> {
+  const { engine, bus, analysis } = deps;
+  const ctx = engine.audioContext;
+  if (!ctx) return false;
+  try {
+    const tracks = extractAllTracks(new Uint8Array(src.file.data));
+    // STEMS-4 layout: [mixdown, drums, bass, other, vocals]. Need all 5.
+    if (tracks.length < 5) return false;
+    const mixdown = tracks[0]!;
+    const stemBytes = tracks.slice(1, 5);
+
+    // Decode the 4 stems (each a standalone AAC m4a) to planar Float32.
+    const stems = await Promise.all(
+      stemBytes.map((b) => {
+        const ab = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
+        return decodeArrayBuffer(ctx, ab, 'stem.m4a');
+      }),
+    );
+
+    // Waveform peaks from the mixdown (what the DJ sees on the lane).
+    const mixAb = mixdown.buffer.slice(
+      mixdown.byteOffset,
+      mixdown.byteOffset + mixdown.byteLength,
+    ) as ArrayBuffer;
+    const mixDecoded = await decodeArrayBuffer(ctx, mixAb, 'mixdown.m4a');
+    const all = new Float32Array(mixDecoded.sampleBuffer);
+    const ch: Float32Array[] = [];
+    for (let c = 0; c < mixDecoded.channels; c++) {
+      ch.push(all.subarray(c * mixDecoded.frames, (c + 1) * mixDecoded.frames));
+    }
+    const dur = mixDecoded.frames / mixDecoded.sampleRate;
+    const peaks = computePeakSet(ch, mixDecoded.frames, detailBucketsForDuration(dur), mixDecoded.sampleRate);
+
+    const m = src.meta ?? {};
+    setDeckTrack(deckIndex, {
+      peaks,
+      title: m.title ?? src.file.name.replace(/\.[^.]+$/, ''),
+      artist: m.artist ?? null,
+      album: m.album ?? null,
+      key: m.key ?? null,
+      coverUrl: null,
+    });
+
+    engine.loadStems(deckIndex, stems, { bpm: m.bpm });
+    const g = deckGroup(deckIndex + 1);
+    if (m.bpm && m.bpm > 0) bus.set(g, DeckKeys.fileBpm, m.bpm);
+
+    // Background analysis of the mixdown for bpm/grid if unknown (so sync works).
+    if (!m.bpm || m.bpm <= 0) {
+      void analysis.analyze(mixDecoded).then((r) => {
+        if (r.bpm > 0) {
+          bus.set(g, DeckKeys.fileBpm, r.bpm);
+          bus.set(g, DeckKeys.firstBeatFrame, r.firstBeatFrame);
+        }
+      });
+    }
+    return true;
+  } catch (e) {
+    console.error('[stems] failed to load stem file, falling back to mixed playback', e);
+    return false;
   }
 }

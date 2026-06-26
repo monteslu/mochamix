@@ -121,6 +121,13 @@ export const DeckKeys = {
   volume: 'volume', // 0..1
   pregain: 'pregain', // gain/trim, 0..1..4
   mute: 'mute',
+  // stem decks (NI-Stems .stem.mp4): 1 = this deck is playing 4 separable stems.
+  hasStems: 'has_stems',
+  // per-stem gain (0=muted..1=full), order: 0 drums, 1 bass, 2 other, 3 vocals.
+  stemGain0: 'stem_gain_0',
+  stemGain1: 'stem_gain_1',
+  stemGain2: 'stem_gain_2',
+  stemGain3: 'stem_gain_3',
   pfl: 'pfl', // headphone cue
   orientation: 'orientation', // 0=left,1=center,2=right
   eqLow: 'filterLow', // legacy EQ aliases Mixxx exposes for the per-deck EQ

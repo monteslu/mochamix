@@ -33,6 +33,11 @@ export interface DeckControlIndices {
   duration: number;
   vuMeter: number;
   peakIndicator: number;
+  /** Per-stem gains for stem decks (drums, bass, other, vocals). */
+  stemGain0: number;
+  stemGain1: number;
+  stemGain2: number;
+  stemGain3: number;
 }
 
 /** Static engine configuration sent once at init. */
@@ -63,6 +68,22 @@ export interface LoadTrackMessage {
   channels: number;
   frames: number;
   /** The track's own sample rate (may differ from the engine's). */
+  trackSampleRate: number;
+}
+
+/** One stem's planar Float32 data (drums/bass/other/vocals). */
+export interface StemSource {
+  sampleBuffer: SharedArrayBuffer;
+  channels: number;
+  frames: number;
+}
+
+/** Load 4 stems onto a deck as a stem deck (independently mixable). */
+export interface LoadStemsMessage {
+  type: 'loadStems';
+  deck: number;
+  /** drums, bass, other, vocals — in NI-Stems order. */
+  stems: StemSource[];
   trackSampleRate: number;
 }
 
@@ -98,6 +119,7 @@ export interface LoopEnableMessage {
 export type EngineMessage =
   | EngineInitMessage
   | LoadTrackMessage
+  | LoadStemsMessage
   | EjectMessage
   | SeekMessage
   | SetLoopMessage
