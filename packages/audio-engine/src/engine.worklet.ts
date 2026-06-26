@@ -59,6 +59,9 @@ interface DeckSlot {
   positionPublishCounter: number;
   /** Previous syncEnabled, to detect the 0→1 edge that triggers the phase snap. */
   lastSyncEnabled: boolean;
+  /** Previous play / scratching, to re-snap on resume and scratch-release. */
+  lastPlay: boolean;
+  lastScratching: boolean;
 }
 
 const POSITION_PUBLISH_EVERY = 4; // ~every 4 blocks (~11ms @48k/128) → smooth UI, low churn
@@ -87,6 +90,8 @@ class EngineProcessor extends AudioWorkletProcessor {
           lastVolume: 1,
           positionPublishCounter: 0,
           lastSyncEnabled: false,
+          lastPlay: false,
+          lastScratching: false,
         }));
         this.vuCounter = 0;
         // One-shot: prove the message channel works + report each deck's sync index.
@@ -160,30 +165,41 @@ class EngineProcessor extends AudioWorkletProcessor {
       const slot = this.decks[d]!;
       const idx = slot.indices;
 
-      // Fire on EITHER the syncEnabled 0→1 edge (SYNC button) OR a syncRequest pulse
-      // (Smart Fader, manual re-align). Both route to the same engine-side snap.
+      // "Synced" = this deck is under sync/smart-fade tempo control (either sets a
+      // rate override). Only such a deck phase-tracks the leader.
+      const synced =
+        (idx.syncEnabled !== undefined && sabRead(control, idx.syncEnabled) > 0.5) ||
+        (idx.rateRatioOverride !== undefined && sabRead(control, idx.rateRatioOverride) > 0);
+
+      const playing = sabRead(control, idx.play) > 0.5;
+      const scratching = idx.scratching !== undefined && sabRead(control, idx.scratching) > 0.5;
+
+      // Re-snap on the RIGHT moments (not at load): the deck starts/resumes playing,
+      // or a scratch ends — plus an explicit syncRequest pulse. NOT every buffer.
       let trigger = false;
-      if (idx.syncEnabled !== undefined) {
-        const on = sabRead(control, idx.syncEnabled) > 0.5;
-        if (on && !slot.lastSyncEnabled) trigger = true;
-        slot.lastSyncEnabled = on;
+      if (synced) {
+        if (playing && !slot.lastPlay) trigger = true; // play / resume
+        if (!scratching && slot.lastScratching) trigger = true; // scratch released
       }
       if (idx.syncRequest !== undefined && sabRead(control, idx.syncRequest) > 0.5) {
         trigger = true;
         sabWrite(control, idx.syncRequest, 0); // consume the pulse
       }
+      slot.lastPlay = playing;
+      slot.lastScratching = scratching;
+      if (idx.syncEnabled !== undefined) slot.lastSyncEnabled = sabRead(control, idx.syncEnabled) > 0.5;
       if (!trigger) continue;
 
-      // find a leader: another deck with a bpm (prefer one that's playing)
+      // find a leader: another deck with a bpm that is actually PLAYING — snapping to
+      // a paused leader gives a garbage phase (the bug: aligned to pos 0 pre-grid).
       let leader = -1;
       for (let o = 0; o < this.decks.length; o++) {
         if (o === d) continue;
         const oi = this.decks[o]!.indices;
         if (oi.fileBpm === undefined || sabRead(control, oi.fileBpm) <= 0) continue;
-        if (leader < 0) leader = o;
         if (sabRead(control, oi.play) > 0.5) { leader = o; break; }
       }
-      if (leader < 0) continue;
+      if (leader < 0) continue; // no playing leader → nothing meaningful to align to
 
       const li = this.decks[leader]!.indices;
       const leaderBpm = sabRead(control, li.fileBpm!);
