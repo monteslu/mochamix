@@ -9,6 +9,8 @@ export interface LoadedFile {
   data: ArrayBuffer;
   /** Absolute path (when known), so cover art can be read. */
   path?: string;
+  /** True when `data` is a generated NI-Stems .stem.mp4 (4 separable stems). */
+  isStem?: boolean;
 }
 
 /** A library track row (mirrors @dj/db TrackRow; kept local to avoid a
@@ -30,6 +32,10 @@ export interface LibTrack {
   rating: number;
   timesPlayed: number;
   filetype: string | null;
+  /** Path to the generated .stem.mp4, or null. Non-null = stems ready. */
+  stemPath: string | null;
+  /** Epoch ms stems were generated; 0 = none. */
+  stemsGeneratedAt: number;
 }
 
 export interface LibQuery {

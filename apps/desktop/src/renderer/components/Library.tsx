@@ -46,6 +46,8 @@ const DEMO_TRACKS: LibTrack[] = (
   rating: 0,
   timesPlayed: 0,
   filetype: 'flac',
+  stemPath: null,
+  stemsGeneratedAt: 0,
 }));
 
 export function Library(): React.JSX.Element {

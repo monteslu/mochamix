@@ -17,7 +17,7 @@
 
 import { app, BrowserWindow, ipcMain, dialog, protocol, net } from 'electron';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
 import { dirname, join, normalize } from 'node:path';
 import { LibraryService } from './library-service.js';
 import type { QueryOptions } from '@dj/db';
@@ -251,9 +251,23 @@ ipcMain.handle('library:readTrackById', async (_e, id: number) => {
   if (!track) {
     return null;
   }
-  const buf = await readFile(track.location);
+  // Prefer the generated .stem.mp4 when present: it carries 4 independently-
+  // controllable stems for live mashups. Fall back to the original file. The
+  // original is never deleted, just ignored in favor of the stems.
+  let source = track.location;
+  let isStem = false;
+  if (track.stemPath) {
+    try {
+      await access(track.stemPath);
+      source = track.stemPath;
+      isStem = true;
+    } catch {
+      source = track.location; // stem file went missing; use the original
+    }
+  }
+  const buf = await readFile(source);
   const arrayBuffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-  return { name: track.filename, data: arrayBuffer, path: track.location };
+  return { name: track.filename, data: arrayBuffer, path: source, isStem };
 });
 
 // IPC: pick a folder + scan it, streaming progress back to the renderer.

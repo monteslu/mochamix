@@ -6,7 +6,7 @@
  * It runs in the main process (Node) because better-sqlite3 + fs live there.
  */
 
-import { readdir, stat } from 'node:fs/promises';
+import { readdir, stat, access } from 'node:fs/promises';
 import { join, extname, basename, dirname } from 'node:path';
 import { parseFile } from 'music-metadata';
 import { LibraryDb, type TrackRow, type QueryOptions } from '@dj/db';
@@ -24,6 +24,22 @@ const AUDIO_EXTS = new Set([
   '.oga',
   '.opus',
 ]);
+
+/** The NI-Stems file suffix. A `<base>.stem.mp4` is the generated stems for `<base>`. */
+const STEM_SUFFIX = '.stem.mp4';
+
+/** Is this path a generated stems artifact (not a standalone track)? */
+function isStemFile(name: string): boolean {
+  return name.toLowerCase().endsWith(STEM_SUFFIX);
+}
+
+/**
+ * The original-track basename a stem file belongs to. `foo.stem.mp4` → `foo` (it
+ * was generated from `foo.mp3`/`foo.wav`/etc, which keep their own basename).
+ */
+function stemBaseName(stemPath: string): string {
+  return basename(stemPath).slice(0, -STEM_SUFFIX.length);
+}
 
 export interface ScanProgress {
   scanned: number;
@@ -65,6 +81,9 @@ export class LibraryService {
     this.db.addDirectory(root);
     let scanned = 0;
     let added = 0;
+    // Generated stem files found during the walk, linked to their original tracks
+    // afterward (so the original + .stem.mp4 can appear in any directory order).
+    const stemFiles: string[] = [];
 
     const walk = async (dir: string): Promise<void> => {
       let entries;
@@ -77,6 +96,10 @@ export class LibraryService {
         const full = join(dir, entry.name);
         if (entry.isDirectory()) {
           await walk(full);
+        } else if (entry.isFile() && isStemFile(entry.name)) {
+          // A .stem.mp4 is NOT its own track — it's the stems artifact for the
+          // original of the same basename. Defer linking until all tracks exist.
+          stemFiles.push(full);
         } else if (entry.isFile() && AUDIO_EXTS.has(extname(entry.name).toLowerCase())) {
           scanned++;
           const ok = await this.addFile(full);
@@ -91,8 +114,46 @@ export class LibraryService {
     };
 
     await walk(root);
+    for (const stemPath of stemFiles) {
+      this.linkStemFile(stemPath);
+    }
     onProgress?.({ scanned, added, current: 'done' });
     return { scanned, added };
+  }
+
+  /**
+   * Link a `<base>.stem.mp4` to the original track of the same basename in the same
+   * directory (`<base>.mp3` / .wav / …). Sets the track's stem_path so playback
+   * prefers the stems. No-op if the original isn't in the library.
+   */
+  private linkStemFile(stemPath: string): void {
+    const dir = dirname(stemPath);
+    const base = stemBaseName(stemPath).toLowerCase();
+    const orig = this.db
+      .queryTracks()
+      .find(
+        (t) =>
+          dirname(t.location) === dir &&
+          !isStemFile(t.location) &&
+          basename(t.location, extname(t.location)).toLowerCase() === base,
+      );
+    if (orig) {
+      this.db.setStems(orig.id, { stemPath });
+    }
+  }
+
+  /** Find a sibling `<base>.stem.mp4` for an original track path, if it exists. */
+  private async findSiblingStem(originalPath: string): Promise<string | null> {
+    const candidate = join(
+      dirname(originalPath),
+      basename(originalPath, extname(originalPath)) + STEM_SUFFIX,
+    );
+    try {
+      await access(candidate);
+      return candidate;
+    } catch {
+      return null;
+    }
   }
 
   /** Add (or refresh) a single file. Returns true if newly added. */
@@ -105,7 +166,7 @@ export class LibraryService {
       const st = await stat(path);
       const common = meta.common;
       const fmt = meta.format;
-      this.db.upsertTrack({
+      const trackId = this.db.upsertTrack({
         location: path,
         filename: basename(path),
         directory: dirname(path),
@@ -124,6 +185,12 @@ export class LibraryService {
         channels: fmt.numberOfChannels ?? null,
         filetype: extname(path).slice(1).toLowerCase(),
       });
+      // If a <base>.stem.mp4 already sits next to this track, link it now so playback
+      // prefers the stems (covers the "stems made on a prior run" case).
+      const sibling = await this.findSiblingStem(path);
+      if (sibling) {
+        this.db.setStems(trackId, { stemPath: sibling });
+      }
       return !existing;
     } catch {
       // Unreadable/corrupt file — skip it.
