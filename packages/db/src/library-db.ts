@@ -158,6 +158,25 @@ export class LibraryDb {
       .run({ id: trackId, p: s.stemPath, at: s.generatedAt ?? Date.now() });
   }
 
+  /** Clear a track's stems link (e.g. the .stem.mp4 was deleted off disk). */
+  clearStems(trackId: number): void {
+    this.db
+      .prepare('UPDATE library SET stem_path = NULL, stems_generated_at = 0 WHERE id = @id')
+      .run({ id: trackId });
+  }
+
+  /** All (id, stem_path) rows that have a stems link, for staleness checks. */
+  tracksWithStems(): Array<{ id: number; stemPath: string }> {
+    return (
+      this.db
+        .prepare(
+          `SELECT l.id, l.stem_path AS stemPath FROM library l
+           WHERE l.stem_path IS NOT NULL AND l.stem_path != ''`,
+        )
+        .all() as Array<{ id: number; stemPath: string }>
+    );
+  }
+
   /** The generated stem file path for a track, or null if none. */
   getStemPath(trackId: number): string | null {
     const row = this.db

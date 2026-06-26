@@ -218,6 +218,11 @@ function getLibrary(): LibraryService {
   const dbPath = join(app.getPath('userData'), 'library.db');
   try {
     library = new LibraryService(dbPath);
+    // Self-heal: drop stem links whose .stem.mp4 was deleted off disk while the app
+    // was closed, so a row never shows "stems" for a file that's gone.
+    void library.pruneMissingStems().then((n) => {
+      if (n > 0) console.log(`[library] pruned ${n} missing stem file(s)`);
+    });
   } catch (err) {
     // The on-disk DB couldn't be opened (corruption / stale lock the cleanup
     // missed / permissions). Rather than fail every IPC call, fall back to an
@@ -293,7 +298,10 @@ ipcMain.handle('library:readTrackById', async (_e, id: number) => {
       source = track.stemPath;
       isStem = true;
     } catch {
-      source = track.location; // stem file went missing; use the original
+      // The .stem.mp4 was deleted off disk — clear the stale link so the row stops
+      // showing "stems" and future loads use the original.
+      getLibrary().db.clearStems(track.id);
+      source = track.location;
     }
   }
   const buf = await readFile(source);
@@ -314,6 +322,8 @@ ipcMain.handle('library:scan', async (e) => {
   const summary = await getLibrary().scanDirectory(root, (p) => {
     e.sender.send('library:scanProgress', p);
   });
+  // also drop any stem links whose file disappeared since last time
+  await getLibrary().pruneMissingStems();
   return summary;
 });
 

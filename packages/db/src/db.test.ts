@@ -118,6 +118,18 @@ describe('LibraryDb', () => {
     expect(db.stemlessTrackIds()).not.toContain(id); // now has stems
   });
 
+  it('clearStems drops a stale link (e.g. the .stem.mp4 was deleted)', () => {
+    const id = addTrack({ title: 'Gone', location: '/music/gone.mp3' });
+    db.setStems(id, { stemPath: '/music/gone.stem.mp4' });
+    expect(db.tracksWithStems().map((t) => t.id)).toContain(id);
+
+    db.clearStems(id);
+    expect(db.getStemPath(id)).toBeNull();
+    expect(db.queryTracks().find((t) => t.id === id)!.stemsGeneratedAt).toBe(0);
+    expect(db.tracksWithStems()).toHaveLength(0);
+    expect(db.stemlessTrackIds()).toContain(id); // available to regenerate
+  });
+
   it('upsert is idempotent by location', () => {
     const a = addTrack({ title: 'Same', location: '/music/same.mp3' });
     const b = addTrack({ title: 'Same', location: '/music/same.mp3' });

@@ -198,6 +198,24 @@ export class LibraryService {
     }
   }
 
+  /**
+   * Drop stem links whose .stem.mp4 no longer exists on disk (the user deleted it).
+   * Returns how many were cleared. Called on startup + after a scan so the library
+   * never shows "stems" for a file that's gone.
+   */
+  async pruneMissingStems(): Promise<number> {
+    let cleared = 0;
+    for (const { id, stemPath } of this.db.tracksWithStems()) {
+      try {
+        await access(stemPath);
+      } catch {
+        this.db.clearStems(id);
+        cleared++;
+      }
+    }
+    return cleared;
+  }
+
   setAnalysis(
     trackId: number,
     a: { bpm?: number; firstBeatFrame?: number; key?: string; waveform?: Uint8Array; analyzedAt?: number },
