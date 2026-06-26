@@ -208,13 +208,16 @@ const PALETTE_PLAYED = /* @__PURE__ */ buildPalette(true);
 
 /** One stem's per-bucket amplitude + display color, for stem-colored waveforms. */
 export interface StemBand {
-  /** Per-bucket max-abs amplitude 0..255 (same bucketing as the detail peaks). */
+  /** Per-bucket max-abs amplitude 0..255. */
   peaks: Uint8Array;
+  /** Source frames per bucket for THIS stem (may differ from the mixdown's after
+   *  independent decode — use it so buckets map to the right screen position). */
+  framesPerBucket: number;
   /** Display color [r,g,b] 0..255. */
   rgb: [number, number, number];
   /** 0..1 live gain (from the stem mixer) — dims/hides a muted stem's wave. */
   gain?: number;
-  /** Per-stem normalization (≈255/maxPeak) so a quiet stem still fills the lane. */
+  /** Shared-max normalization (≈255/loudest-stem-max). */
   scale?: number;
 }
 
@@ -317,14 +320,15 @@ export function drawScrolling(
       const a = 0.85 * Math.min(1, g + 0.2); // gain dims the band
       octx.fillStyle = `rgba(${r},${gg},${bl},${a})`;
       const sp = stem.peaks;
-      // per-stem normalization scale (255 / this stem's max), so it fills the height
       const norm = stem.scale ?? 1;
+      // use THIS stem's own bucketing (not the mixdown's) so its bars map correctly
+      const sfpb = stem.framesPerBucket || framesPerBucket;
       for (let ox = 0; ox < w + 2; ox++) {
         const x = ox - 1;
         const b = snapPx + (x - centerX);
         const frame = b * framesPerPx;
         if (frame < 0) continue;
-        const bi = Math.floor(frame / framesPerBucket);
+        const bi = Math.floor(frame / sfpb);
         if (bi >= sp.length) break;
         const amp = Math.min(1, (sp[bi]! / 255) * norm) * mid * 0.92;
         if (amp <= 0) continue;
