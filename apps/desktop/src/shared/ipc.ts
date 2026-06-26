@@ -88,6 +88,12 @@ export interface DjApi {
   /** App settings (key/value) — e.g. 'rescanOnStartup'. */
   settingsGet: (key: string) => Promise<string | null>;
   settingsSet: (key: string, value: string) => Promise<void>;
+  /** Open a popup visualizer display window. */
+  displayOpen: () => Promise<boolean>;
+  /** Producer: send an output-bus frame (relayed by main to all display windows). */
+  displaySend: (frame: unknown) => void;
+  /** Display side: receive output-bus frames. Returns an unsubscribe fn. */
+  onDisplayFrame: (cb: (frame: unknown) => void) => () => void;
   /** The bundled Mixxx controller mappings (picker index). */
   controllersList: () => Promise<Array<{ file: string; name: string; author: string }>>;
   /** Read one bundled controller file's text (mapping .xml or referenced .js), or null. */

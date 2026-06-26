@@ -261,6 +261,41 @@ function getLibrary(): LibraryService {
 
 ipcMain.handle('library:query', (_e, opts: QueryOptions) => getLibrary().query(opts));
 ipcMain.handle('library:count', (_e, search?: string) => getLibrary().count(search));
+
+// ── Visual display windows (the output-bus consumer side) ────────────────────
+// dj-app emits data; a popup display window renders the visuals. The main process
+// relays frames from the producer (main renderer) to every open display window.
+const displayWindows = new Set<BrowserWindow>();
+ipcMain.handle('display:open', () => {
+  const disp = new BrowserWindow({
+    width: 1280,
+    height: 720,
+    backgroundColor: '#000000',
+    title: 'dj-app visualizer',
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: join(__dirname, 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  if (isDev && process.env.VITE_DEV_SERVER_URL) {
+    void disp.loadURL(new URL('display.html', process.env.VITE_DEV_SERVER_URL).href);
+  } else {
+    void disp.loadURL(`${SCHEME}://app/display.html`);
+  }
+  displayWindows.add(disp);
+  disp.on('closed', () => displayWindows.delete(disp));
+  return true;
+});
+// Producer (main renderer) → relay each frame to all display windows. Audio frames are
+// high-rate; this is a thin forward (no processing). The transferable Uint8Array is
+// structured-cloned over IPC.
+ipcMain.on('display:frame', (_e, frame: unknown) => {
+  for (const w of displayWindows) {
+    if (!w.isDestroyed()) w.webContents.send('display:frame', frame);
+  }
+});
 // ── Controller mappings (bundled Mixxx res/controllers) ──────────────────────
 // list = the picker index (name/author/file); readFile = a single mapping file's text
 // (xml or js), used to load a mapping + its referenced <file> scripts.

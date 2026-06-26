@@ -45,6 +45,7 @@ export default defineConfig({
       input: {
         index: fileURLToPath(new URL('./src/renderer/index.html', import.meta.url)),
         verify: fileURLToPath(new URL('./src/renderer/verify.html', import.meta.url)),
+        display: fileURLToPath(new URL('./src/renderer/display.html', import.meta.url)),
       },
     },
   },

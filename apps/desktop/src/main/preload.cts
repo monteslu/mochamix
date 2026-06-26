@@ -20,6 +20,14 @@ const api: DjApi = {
   libraryRemoveDirectory: (dir) => electron.ipcRenderer.invoke('library:removeDirectory', dir),
   settingsGet: (key) => electron.ipcRenderer.invoke('settings:get', key),
   settingsSet: (key, value) => electron.ipcRenderer.invoke('settings:set', key, value),
+  // Visual displays: open a popup display window; producer sends frames; display receives.
+  displayOpen: () => electron.ipcRenderer.invoke('display:open'),
+  displaySend: (frame) => electron.ipcRenderer.send('display:frame', frame),
+  onDisplayFrame: (cb) => {
+    const listener = (_e: unknown, frame: unknown) => cb(frame as never);
+    electron.ipcRenderer.on('display:frame', listener);
+    return () => electron.ipcRenderer.removeListener('display:frame', listener);
+  },
   controllersList: () => electron.ipcRenderer.invoke('controllers:list'),
   controllersReadFile: (filename) => electron.ipcRenderer.invoke('controllers:readFile', filename),
   userControllersList: () => electron.ipcRenderer.invoke('userControllers:list'),

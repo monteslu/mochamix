@@ -58,6 +58,10 @@ export function DisplaysSettings(): React.JSX.Element {
 
       {emitting && (
         <>
+          <div className="prefs-dir-actions" style={{ marginTop: 10 }}>
+            <button onClick={() => void window.dj.displayOpen()}>🖥 Open display window</button>
+            <span className="bus-hint">Opens a popup visualizer; open several for multiple screens.</span>
+          </div>
           <h4 style={{ margin: '16px 0 6px', fontSize: 12, color: 'var(--text-dim)' }}>
             Tell displays what to show
           </h4>

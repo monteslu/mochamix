@@ -16,4 +16,5 @@ export type {
 } from './contract.js';
 export { OutputProducer } from './producer.js';
 export { BroadcastChannelTransport } from './transports/broadcast-channel.js';
-export { OutputConsumer } from './consumer.js';
+export { IpcTransport, type IpcTransportOptions } from './transports/ipc.js';
+export { OutputConsumer, type ConsumerIdentity } from './consumer.js';

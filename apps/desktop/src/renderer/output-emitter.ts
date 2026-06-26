@@ -14,10 +14,11 @@
 
 import {
   OutputProducer,
-  BroadcastChannelTransport,
+  IpcTransport,
   type DeckMeta,
   type ControlTarget,
   type VizDirective,
+  type OutFrame,
 } from '@dj/output-bus';
 import { deck as deckGroup, DeckKeys, MASTER, MasterKeys, type ControlBus } from '@dj/control-bus';
 import type { Engine } from '@dj/audio-engine';
@@ -61,10 +62,14 @@ export class OutputEmitter {
     this.samples = new Uint8Array(this.analyser.fftSize);
     buses.master.connect(this.analyser);
 
-    this.producer = new OutputProducer(new BroadcastChannelTransport('dj-output-bus'));
+    // IPC transport: frames go to the main process, which relays them to all open
+    // display windows (a different renderer process — BroadcastChannel can't reach it).
+    this.producer = new OutputProducer(
+      new IpcTransport({ send: (f: OutFrame) => window.dj.displaySend(f) }),
+    );
     this.running = true;
     this.unsub = onFrame((now) => this.tick(now));
-    console.log('[output] emitting on BroadcastChannel "dj-output-bus"');
+    console.log('[output] emitting to display windows over IPC');
   }
 
   stop(): void {
