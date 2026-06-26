@@ -59,11 +59,16 @@ if (process.env.DJ_WEBGPU === '1') {
   app.commandLine.appendSwitch('enable-features', 'Vulkan');
 }
 
-// Unthrottle the frame rate. Chromium caps rAF to ~30fps on this Wayland/4K
-// display (verified: a blank headed browser page runs at 30fps; these two flags
-// take it to 58-60). Both switches are present in the Electron binary; they pass
-// through unchanged. DJ_VSYNC=1 restores the default cap.
-if (process.env.DJ_VSYNC !== '1') {
+// Frame pacing. By DEFAULT we leave Chromium's normal vsync in place: rAF fires once
+// per display refresh (60/120Hz), which is smooth, tear-free, and renders exactly the
+// frames that get shown — no waste. (Our render loop is a single shared rAF; audio is
+// on the AudioWorklet's real-time thread, independent of frame rate.)
+//
+// DJ_UNCAP=1 disables the frame-rate limit + GPU vsync. This is ONLY needed as a
+// workaround for a specific Wayland/4K Linux setup where Chromium otherwise pegs rAF
+// at 30fps. It causes tearing + renders thousands of discarded fps (wasted power), so
+// it is opt-in, not the default.
+if (process.env.DJ_UNCAP === '1') {
   app.commandLine.appendSwitch('disable-frame-rate-limit');
   app.commandLine.appendSwitch('disable-gpu-vsync');
 }
