@@ -352,6 +352,11 @@ export class ControllerService {
         this.current.onmidi as EventListener,
       );
       this.current.router.dispose();
+      // Stop the old mapping's LED-refresh / one-shot timers. router.dispose() only
+      // releases control→LED connections; engine timers started in init() would
+      // otherwise keep firing against the stale (possibly disconnected) device after a
+      // mapping switch. The next mapping re-creates its own timers in its init().
+      this.engine.stopAllTimers();
       this.current = null;
     }
   }

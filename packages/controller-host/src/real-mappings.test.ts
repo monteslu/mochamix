@@ -47,7 +47,13 @@ function loadMapping(xmlFile: string) {
   for (const sf of mapping.scriptFiles) {
     res.prefixObjects[sf.functionPrefix]?.init?.(mapping.name, false);
   }
-  return { mapping, ...res };
+  // Many mappings start LED-refresh timers in init(). Without tearing them down, those
+  // callbacks fire AFTER the test finishes — and a few throw async (e.g. setLED reading
+  // `.off` on a not-yet-connected component), surfacing as Vitest "unhandled errors"
+  // that the per-load try/catch can't catch. Stop them, mirroring a real session's
+  // dispose. (A live ControllerService disposes the previous mapping on switch.)
+  engine.stopAllTimers();
+  return { mapping, engine, ...res };
 }
 
 const haveResources = existsSync(join(DIR, 'common-controller-scripts.js'));
@@ -74,6 +80,22 @@ describe.runIf(haveResources)('real Mixxx mappings', () => {
     if (!existsSync(join(DIR, f))) return;
     const { functions } = loadMapping(f);
     expect(Object.keys(functions).length).toBeGreaterThan(0);
+  });
+
+  // Numark DJ2GO2 Touch — the controller from the field report. Its script builds two
+  // Decks (new Deck([1]) / new Deck([2])) AND sets up its prototype via `new
+  // components.Deck()` with no args, which logs a benign "ERROR! new Deck() called
+  // without specifying any deck numbers" warning (standard midi-components subclassing).
+  // That warning is NOT a failure — assert the mapping loads, exposes its prefix, and
+  // init() runs without throwing, so the controller works once it's bound to the device.
+  it('loads the Numark DJ2GO2 Touch mapping (the field-report controller)', () => {
+    const f = 'Numark_DJ2GO2_Touch.midi.xml';
+    if (!existsSync(join(DIR, f))) return;
+    const { mapping, functions, prefixObjects } = loadMapping(f);
+    expect(mapping.name).toBe('Numark DJ2GO2 Touch');
+    expect(Object.keys(functions).length).toBeGreaterThan(0);
+    // The device script's prefix object must exist and have run init() without throwing.
+    expect(prefixObjects['DJ2GO2Touch']).toBeTruthy();
   });
 
   // Bulk smoke test: load EVERY bundled mapping and count how many run without throwing.

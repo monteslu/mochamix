@@ -150,14 +150,25 @@ export class EngineApi {
   beginTimer(intervalMs: number, callback: () => void, oneShot = false): number {
     const ms = Math.max(20, intervalMs); // Mixxx enforces a 20ms minimum
     const id = this.nextTimerId++;
+    // A timer callback that throws must NOT crash the host. Mixxx mapping LED-refresh
+    // timers can throw transiently (e.g. setLED touching a component before it's
+    // connected, or after the device went away). Mixxx's QJSEngine isolates these;
+    // mirror that — log and swallow so one bad mapping can't take down MIDI for all.
+    const safe = () => {
+      try {
+        callback();
+      } catch (e) {
+        this.logFn(`timer callback error (suppressed): ${(e as Error).message}`);
+      }
+    };
     if (oneShot) {
       const t = setTimeout(() => {
         this.timers.delete(id);
-        callback();
+        safe();
       }, ms);
       this.timers.set(id, t);
     } else {
-      const t = setInterval(callback, ms);
+      const t = setInterval(safe, ms);
       this.timers.set(id, t);
     }
     return id;
