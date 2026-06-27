@@ -128,4 +128,19 @@ describe('ControllerService persistence', () => {
     expect(access.inputs.get('DJ2GO2 Touch MIDI 1')!.addEventListener).toHaveBeenCalled();
     expect(access.inputs.get('Midi Through Port-0')!.addEventListener).not.toHaveBeenCalled();
   });
+
+  it('does NOT auto-connect when the only input is a virtual loopback', async () => {
+    // The bare-machine case (ALSA exposes "Midi Through" but no controller): binding
+    // Generic to the loopback is useless, so wait for a real device instead.
+    const access = fakeAccess(['Midi Through Port-0']);
+    vi.stubGlobal('navigator', { requestMIDIAccess: vi.fn(async () => access) });
+    vi.stubGlobal('window', {
+      dj: { controllerConfigGet: vi.fn(async () => null), controllerConfigSet: vi.fn() },
+    });
+
+    const svc = new ControllerService(makeBus());
+    await svc.autoConnect();
+
+    expect(access.inputs.get('Midi Through Port-0')!.addEventListener).not.toHaveBeenCalled();
+  });
 });

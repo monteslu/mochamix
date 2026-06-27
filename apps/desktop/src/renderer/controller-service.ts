@@ -201,11 +201,13 @@ export class ControllerService {
 
   private attachGenericToFirstInput(): void {
     if (!this.access) return;
-    // Prefer a REAL controller. ALSA exposes "Midi Through Port-0" (a virtual loopback)
-    // which is usually first in the list — auto-connecting to it does nothing useful.
-    // Skip virtual/through ports; only fall back to one if nothing else is connected.
+    // Auto-connect only to a REAL controller. ALSA always exposes "Midi Through Port-0"
+    // (a virtual loopback) — auto-binding Generic to it does nothing useful and just
+    // masks "no controller". Skip virtual/through ports entirely; if the only connected
+    // inputs are virtual, wait (a real controller will trigger statechange). The user
+    // can still pick a virtual port manually in settings.
     const connected = [...this.access.inputs.values()].filter((i) => i.state === 'connected');
-    const first = connected.find((i) => !isVirtualPort(i.name)) ?? connected[0];
+    const first = connected.find((i) => !isVirtualPort(i.name));
     if (!first) {
       console.log('[midi] no controller connected yet — will auto-connect when one is plugged in');
       return;
