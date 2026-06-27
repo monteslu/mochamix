@@ -1,5 +1,11 @@
-import { describe, it, expect } from 'vitest';
-import { nameTokens, isVirtualPort, matchPort } from './controller-service.js';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { ControlBus, standardControls } from '@dj/control-bus';
+import {
+  ControllerService,
+  nameTokens,
+  isVirtualPort,
+  matchPort,
+} from './controller-service.js';
 
 // Regression tests for the controller auto-connect / device matching that failed in the
 // field with a Numark DJ2GO2 Touch: the mapping is named "Numark DJ2GO2 Touch" but the
@@ -54,5 +60,72 @@ describe('matchPort', () => {
   it('does not match purely on noise words', () => {
     // Only shared token would be "midi"/"port" (noise) → no match.
     expect(matchPort([port('Some Other MIDI Port 2')], 'Generic MIDI')).toBeNull();
+  });
+});
+
+// --- Persistence: a saved controller choice is restored on launch (autoConnect). ---
+
+/** Minimal Web MIDI input/access doubles. */
+function fakeInput(name: string) {
+  return { name, state: 'connected', addEventListener: vi.fn(), removeEventListener: vi.fn() };
+}
+function fakeAccess(inputNames: string[]) {
+  const inputs = new Map(inputNames.map((n) => [n, fakeInput(n)]));
+  return {
+    inputs,
+    outputs: new Map(),
+    onstatechange: null as ((e: unknown) => void) | null,
+  };
+}
+
+describe('ControllerService persistence', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function makeBus() {
+    const bus = new ControlBus();
+    for (const c of standardControls(2)) bus.define(c);
+    return bus;
+  }
+
+  it('restores a saved Generic mapping onto the saved device on autoConnect', async () => {
+    const access = fakeAccess(['Midi Through Port-0', 'DJ2GO2 Touch MIDI 1']);
+    vi.stubGlobal('navigator', { requestMIDIAccess: vi.fn(async () => access) });
+    const configSet = vi.fn(async () => true);
+    vi.stubGlobal('window', {
+      dj: {
+        controllerConfigGet: vi.fn(async () => ({
+          mapping: 'generic',
+          device: 'DJ2GO2 Touch MIDI 1',
+        })),
+        controllerConfigSet: configSet,
+      },
+    });
+
+    const svc = new ControllerService(makeBus());
+    await svc.autoConnect();
+
+    // The saved device's input must have been bound (addEventListener called), NOT the
+    // virtual "Midi Through" port.
+    const real = access.inputs.get('DJ2GO2 Touch MIDI 1')!;
+    const virtual = access.inputs.get('Midi Through Port-0')!;
+    expect(real.addEventListener).toHaveBeenCalledWith('midimessage', expect.anything());
+    expect(virtual.addEventListener).not.toHaveBeenCalled();
+  });
+
+  it('falls back to auto-connecting Generic when nothing is saved (skips virtual port)', async () => {
+    const access = fakeAccess(['Midi Through Port-0', 'DJ2GO2 Touch MIDI 1']);
+    vi.stubGlobal('navigator', { requestMIDIAccess: vi.fn(async () => access) });
+    vi.stubGlobal('window', {
+      dj: { controllerConfigGet: vi.fn(async () => null), controllerConfigSet: vi.fn() },
+    });
+
+    const svc = new ControllerService(makeBus());
+    await svc.autoConnect();
+
+    // No saved config → auto-connect picks the REAL controller, never the virtual port.
+    expect(access.inputs.get('DJ2GO2 Touch MIDI 1')!.addEventListener).toHaveBeenCalled();
+    expect(access.inputs.get('Midi Through Port-0')!.addEventListener).not.toHaveBeenCalled();
   });
 });

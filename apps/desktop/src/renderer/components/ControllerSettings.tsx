@@ -68,15 +68,18 @@ export function ControllerSettings({
         if (selected === 'generic') {
           controllers.loadMapping(GENERIC_MIDI_XML, GENERIC_MIDI_JS, device || undefined, device || undefined);
           setStatus(`Loaded "Generic MIDI"${device ? ` on ${device}` : ''}.`);
+          // Remember the choice so it auto-loads next launch.
+          void window.dj.controllerConfigSet({ mapping: 'generic', device: device || null });
           return;
         }
         const m = mappings.find((x) => x.file === selected);
-        const res = await controllers.loadMixxxMapping(selected, true);
+        const res = await controllers.loadMixxxMapping(selected, true, device || undefined);
         setStatus(
           res
             ? `Loaded "${res.name}"${device ? ` on ${device}` : ''}.`
             : `Failed to load ${m?.name ?? selected}.`,
         );
+        if (res) void window.dj.controllerConfigSet({ mapping: selected, device: device || null });
       } catch (e) {
         setStatus(`Failed: ${String(e)}`);
       }

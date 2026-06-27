@@ -143,6 +143,10 @@ export class ControllerService {
     } catch {
       return; // Web MIDI unavailable
     }
+    // Restore the user's saved mapping first, so their controller setup survives a
+    // restart instead of falling back to Generic. Only if there's no saved choice do
+    // we auto-connect Generic to a connected controller.
+    await this.restoreSavedMapping();
     // Re-attempt auto-connect whenever devices change (covers plug-in-after-launch).
     if (this.access && !this.autoHooked) {
       this.autoHooked = true;
@@ -154,6 +158,45 @@ export class ControllerService {
       };
     }
     if (!this.userLoaded) this.attachGenericToFirstInput();
+  }
+
+  /**
+   * On launch, reload the controller mapping the user last chose (persisted in
+   * userData). Marks userLoaded so auto-connect won't override it. No-op if nothing
+   * was saved, the dj bridge is absent (browser mode), or the load fails.
+   */
+  private async restoreSavedMapping(): Promise<void> {
+    if (this.userLoaded) return;
+    let saved: { mapping: string; device: string | null } | null;
+    try {
+      saved = (await window.dj?.controllerConfigGet?.()) ?? null;
+    } catch {
+      return;
+    }
+    if (!saved?.mapping) return;
+    try {
+      if (saved.mapping === 'generic') {
+        this.loadMapping(
+          GENERIC_MIDI_XML,
+          GENERIC_MIDI_JS,
+          saved.device ?? undefined,
+          saved.device ?? undefined,
+          true, // restore counts as the user's choice → don't auto-override
+        );
+        console.log(`[midi] restored saved mapping "Generic MIDI"${saved.device ? ` on ${saved.device}` : ''}`);
+      } else {
+        const res = await this.loadMixxxMapping(saved.mapping, true, saved.device ?? undefined);
+        if (res) {
+          console.log(`[midi] restored saved mapping "${res.name}"${saved.device ? ` on ${saved.device}` : ''}`);
+        } else {
+          console.warn(`[midi] saved mapping "${saved.mapping}" could not be restored`);
+          this.userLoaded = false; // let auto-connect try instead
+        }
+      }
+    } catch (e) {
+      console.warn('[midi] failed to restore saved mapping', e);
+      this.userLoaded = false;
+    }
   }
 
   private attachGenericToFirstInput(): void {
@@ -281,7 +324,11 @@ export class ControllerService {
    * environment a Mixxx mapping expects. Their mappings ARE JavaScript, so they run
    * nearly verbatim once the globals are right. `manual` marks a user choice.
    */
-  async loadMixxxMapping(xmlFilename: string, manual = true): Promise<LoadedMapping | null> {
+  async loadMixxxMapping(
+    xmlFilename: string,
+    manual = true,
+    deviceName?: string,
+  ): Promise<LoadedMapping | null> {
     const xml = await window.dj.controllersReadFile(xmlFilename);
     if (!xml) {
       console.warn(`[midi] mapping file not found: ${xmlFilename}`);
@@ -305,7 +352,9 @@ export class ControllerService {
     console.log(
       `[midi] loading Mixxx mapping "${mapping.name}" (${fileNames.length} script file(s))`,
     );
-    return this.loadMapping(xml, js, undefined, undefined, manual, scriptGlobal);
+    // Bind to the user's explicitly-picked device when given; else fall back to
+    // matching the mapping name against connected devices (token match).
+    return this.loadMapping(xml, js, deviceName, deviceName, manual, scriptGlobal);
   }
 
   /**

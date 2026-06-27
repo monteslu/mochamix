@@ -371,6 +371,37 @@ ipcMain.handle('userControllers:delete', async (_e, filename: string) => {
   }
 });
 
+// Persist the user's chosen controller mapping + device so it auto-loads next launch
+// (instead of falling back to Generic auto-connect). Stored as a small JSON in userData.
+function controllerConfigPath(): string {
+  return join(app.getPath('userData'), 'controller-config.json');
+}
+ipcMain.handle('controllerConfig:get', async () => {
+  try {
+    return JSON.parse(await readFile(controllerConfigPath(), 'utf8')) as {
+      mapping: string;
+      device: string | null;
+    };
+  } catch {
+    return null; // nothing saved yet (or unreadable) → caller falls back to auto-connect
+  }
+});
+ipcMain.handle(
+  'controllerConfig:set',
+  async (_e, config: { mapping: string; device: string | null } | null) => {
+    try {
+      if (config === null) {
+        await rm(controllerConfigPath(), { force: true });
+      } else {
+        await writeFile(controllerConfigPath(), JSON.stringify(config), 'utf8');
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  },
+);
+
 ipcMain.handle('library:crates', () => getLibrary().listCrates());
 ipcMain.handle('library:crateTracks', (_e, id: number) => getLibrary().crateTracks(id));
 ipcMain.handle(
