@@ -18,7 +18,7 @@
 import { app, BrowserWindow, ipcMain, dialog, protocol, net } from 'electron';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readFile, writeFile, mkdir, access, readdir, rm } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, cpSync, renameSync, writeFileSync, statSync } from 'node:fs';
 import { dirname, join, normalize, basename, extname } from 'node:path';
 import { LibraryService } from './library-service.js';
 import type { QueryOptions } from '@dj/db';
@@ -45,14 +45,58 @@ console.log(
 // (.config/@dj/desktop) — fragile for file creation. Use a flat name.
 app.setName('MochaMix');
 
-// IMPORTANT: keep using the LEGACY 'dj-app' userData dir so the existing library + settings
-// survive the MochaMix rename. setName('MochaMix') would otherwise point Electron at a fresh
-// empty dir (<appData>/MochaMix) and the library would appear wiped. We pin userData to the
-// old path (<appData>/dj-app) when it exists, falling back to the new name for clean installs.
-{
-  const legacy = join(app.getPath('appData'), 'dj-app');
-  if (existsSync(legacy)) {
+// One-time migration of the pre-rename data dir. The app used to be "dj-app", so its
+// userData lived at <appData>/dj-app. After the MochaMix rename Electron points at
+// <appData>/MochaMix; without migrating, the existing library + settings would look wiped.
+// If the legacy dir exists and the new one hasn't been populated with a real library yet,
+// move the legacy data into the MochaMix dir ONCE, then use the properly-named dir forever.
+migrateLegacyUserData();
+
+function migrateLegacyUserData(): void {
+  const appData = app.getPath('appData');
+  const legacy = join(appData, 'dj-app');
+  const current = join(appData, 'MochaMix'); // = userData under the new name
+  const marker = join(current, '.migrated-from-dj-app');
+
+  // Already migrated, or nothing to migrate.
+  if (existsSync(marker) || !existsSync(legacy)) return;
+
+  // Which dir holds the real library? The library lives in library.db. The MochaMix dir
+  // was auto-created on first launch after the rename (so its db is just a fresh schema),
+  // while the legacy dir has the user's actual tracks. The legacy db being LARGER is the
+  // honest signal that it's the one to keep. (Also migrate localStorage = theme/settings.)
+  const newDb = join(current, 'library.db');
+  const legacyDb = join(legacy, 'library.db');
+  const hasLegacyLibrary = existsSync(legacyDb);
+  const legacyIsRicher = hasLegacyLibrary && safeSize(legacyDb) >= safeSize(newDb);
+
+  try {
+    if (!hasLegacyLibrary || !legacyIsRicher) {
+      // Legacy has no db, or the new dir already holds an equal/larger library → keep new.
+      writeFileSync(marker, new Date().toISOString());
+      return;
+    }
+    // MochaMix is the auto-created throwaway. Replace it with the legacy data:
+    // 1) move the throwaway aside, 2) copy legacy → MochaMix, 3) drop the marker.
+    if (existsSync(current)) {
+      const stash = `${current}.pre-migrate-${Date.now()}`;
+      renameSync(current, stash);
+    }
+    cpSync(legacy, current, { recursive: true });
+    writeFileSync(marker, new Date().toISOString());
+    console.log(`[MochaMix] migrated userData from ${legacy} → ${current}`);
+  } catch (e) {
+    // Migration failed — fall back to the legacy dir so the library is never lost.
+    console.error('[MochaMix] userData migration failed, using legacy dir:', e);
     app.setPath('userData', legacy);
+  }
+}
+
+function safeSize(p: string): number {
+  try {
+    return statSync(p).size;
+  } catch {
+    return 0;
   }
 }
 
