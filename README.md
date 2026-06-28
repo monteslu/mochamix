@@ -119,6 +119,19 @@ packages/
   output-bus/          pluggable data-emission bus (audio + metadata -> external displays)
 ```
 
+### Releasing (maintainers)
+
+One command builds, bundles, and publishes the self-contained `mochamix` package to npm
+(the `@dj/*` workspace packages stay internal — they're inlined into the bundle):
+
+```bash
+npm run release        # build → pack → npm publish  (needs `npm login`)
+```
+
+To preview without publishing: `npm run pack:publish` then
+`cd apps/desktop/publish && npm publish --dry-run`. Pass a version with
+`npm run pack:publish -- 0.2.0` (defaults to the manifest version).
+
 ## Contributing
 
 Issues and PRs welcome. Run `npm test`, `npm run typecheck`, and `npm run lint` before opening

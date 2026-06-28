@@ -19,7 +19,9 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "typecheck": "tsc --build",
-    "dev": "npm run dev --workspace apps/desktop"
+    "dev": "npm run dev --workspace apps/desktop",
+    "pack:publish": "npm run pack:publish --workspace apps/desktop",
+    "release": "npm run pack:publish --workspace apps/desktop && npm publish ./apps/desktop/publish"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
