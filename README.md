@@ -37,7 +37,7 @@ first run, ~majority of the download). To build from source instead, see **[Deve
   `.stem.mp4` on the GPU, then mix each stem independently per deck for live mashups
 - **Stems on performance pads** — a switchable pad grid (Hot Cue / Beat Loop / Beat Jump /
   **Stems**). Stems mode puts the 4 stems on colored pads (tap = mute, shift = solo) plus
-  one-press combos: drums-only, drumless, instrumental, acapella. Mixxx itself doesn't do this.
+  one-press combos: drums-only, drumless, instrumental, acapella.
 
 **Library**
 - SQLite library: scan folders, search, browse, double-click / drag to load a deck
