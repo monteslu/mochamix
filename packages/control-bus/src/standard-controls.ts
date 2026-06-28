@@ -57,6 +57,12 @@ function deckControls(g: string): ControlDef[] {
     { group: g, key: DeckKeys.rateRatio, default: 1, description: 'Effective rate ratio' },
     { group: g, key: DeckKeys.rateRatioOverride, default: 0, description: 'Sync/SmartFader ratio override; 0=off' },
     { group: g, key: DeckKeys.bpm, default: 0, description: 'Effective BPM' },
+    // tempo nudge (pitch-bend) — held buttons add a temp delta to the speed
+    { group: g, key: DeckKeys.rateTemp, default: 0, description: 'Temp pitch-bend added to speed' },
+    { group: g, key: DeckKeys.rateTempUp, default: 0 },
+    { group: g, key: DeckKeys.rateTempDown, default: 0 },
+    { group: g, key: DeckKeys.rateTempUpSmall, default: 0 },
+    { group: g, key: DeckKeys.rateTempDownSmall, default: 0 },
     { group: g, key: DeckKeys.fileBpm, default: 0, description: 'Analyzed/original BPM' },
     { group: g, key: DeckKeys.firstBeatFrame, default: -1, description: 'Grid phase (first beat frame)' },
     { group: g, key: DeckKeys.scratching, default: 0, description: 'Scratch active' },

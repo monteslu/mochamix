@@ -313,6 +313,10 @@ class EngineProcessor extends AudioWorkletProcessor {
       } else {
         // Sync / smart fader can force a rate ratio beyond the slider's range.
         speed = ratioOverride > 0 ? ratioOverride : calculateSpeed(rate, rateRange, rateDir);
+        // Tempo nudge (pitch-bend): a held button adds a temp delta to the speed (Mixxx
+        // rate_temp_*). Additive so it bends ON TOP of sync/slider without disturbing them.
+        const rateTemp = idx.rateTemp !== undefined ? sabRead(control, idx.rateTemp) : 0;
+        speed += rateTemp;
         processPlaying = playing;
       }
 

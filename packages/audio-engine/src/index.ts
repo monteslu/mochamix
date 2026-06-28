@@ -13,6 +13,7 @@ export { RubberBandScaler } from './rubberband-scaler.js';
 export type { Scaler, SourcePull } from './scaler.js';
 export { CueControl } from './controls/cue-control.js';
 export { LoopControl } from './controls/loop-control.js';
+export { RateControl } from './controls/rate-control.js';
 export {
   SyncEngine,
   shortestBeatError,

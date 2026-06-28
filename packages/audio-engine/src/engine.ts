@@ -30,6 +30,7 @@ import type { DeckControlIndices, EngineMessage, WorkletMessage } from './protoc
 import type { DecodedTrack } from './decoded-track.js';
 import { CueControl } from './controls/cue-control.js';
 import { LoopControl } from './controls/loop-control.js';
+import { RateControl } from './controls/rate-control.js';
 import { SmartFader } from './sync/smart-fader.js';
 import { SyncController } from './sync/sync-controller.js';
 import { makeGrid, nearestBeatFrame } from './sync/beatgrid.js';
@@ -67,6 +68,7 @@ export class Engine {
   private loopControls: LoopControl[] = [];
   private smartFader: SmartFader | null = null;
   private syncController: SyncController | null = null;
+  private rateControl: RateControl | null = null;
   private syncTimer: ReturnType<typeof setInterval> | null = null;
   private quickEffects: EffectUnit[] = [];
 
@@ -139,6 +141,9 @@ export class Engine {
       seekFrames: (d, frame) => this.seekFrames(d, frame),
     });
 
+    // Tempo nudge (pitch-bend): held rate_temp_* buttons add a temp delta to speed.
+    this.rateControl = new RateControl({ bus: this.bus, numDecks: this.numDecks });
+
     // Smart Fader (our fork feature, 09): crossfader drives a tempo blend. On
     // activate it beat-aligns the right deck to the left via the SyncController.
     this.smartFader = new SmartFader({
@@ -189,6 +194,7 @@ export class Engine {
       syncEnabled: r(DeckKeys.syncEnabled),
       syncRequest: r(DeckKeys.syncRequest),
       rate: r(DeckKeys.rate),
+      rateTemp: r(DeckKeys.rateTemp),
       rateRange: r(DeckKeys.rateRange),
       rateDirection: r(DeckKeys.rateDirection),
       rateRatio: r(DeckKeys.rateRatio),
@@ -522,6 +528,8 @@ export class Engine {
     }
     this.syncController?.dispose();
     this.syncController = null;
+    this.rateControl?.dispose();
+    this.rateControl = null;
     for (const fx of this.quickEffects) {
       fx.dispose();
     }

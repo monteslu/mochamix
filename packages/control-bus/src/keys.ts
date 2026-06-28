@@ -122,6 +122,13 @@ export const DeckKeys = {
   rateRange: 'rateRange', // e.g. 0.10 == 10%
   rateDirection: 'rate_dir', // +1 or -1
   rateRatio: 'rate_ratio', // effective rate ratio (1.0 == original)
+  // Temporary pitch-bend (nudge) added to the effective speed while a button is held.
+  // Mixxx rate_temp_up/down (coarse) + _small (fine); RateControl drives rateTemp.
+  rateTemp: 'rate_temp', // signed delta added to speed (engine-internal aggregate)
+  rateTempUp: 'rate_temp_up',
+  rateTempDown: 'rate_temp_down',
+  rateTempUpSmall: 'rate_temp_up_small',
+  rateTempDownSmall: 'rate_temp_down_small',
   // Direct rate-ratio override used by sync / smart fader (which need ratios
   // beyond the slider's range). 0 = inactive (use the slider); >0 = force ratio.
   rateRatioOverride: 'rate_ratio_override',

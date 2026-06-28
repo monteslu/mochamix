@@ -19,6 +19,7 @@ export interface DeckControlIndices {
   syncEnabled: number;
   syncRequest: number;
   rate: number;
+  rateTemp: number;
   rateRange: number;
   rateDirection: number;
   rateRatio: number;
