@@ -41,14 +41,28 @@ export function ControllerSettings({
         const { inputs } = await controllers.init();
         if (!live) return;
         setInputs(inputs);
-        setDevice(inputs[0] ?? '');
-        if (inputs.length === 0) setStatus('No MIDI input devices found. Plug in a controller.');
         // Load the full Mixxx mapping catalog (144 controllers) + any user mappings.
         const list = await window.dj.controllersList();
         const user = await window.dj.userControllersList();
-        if (live) {
-          setMappings(list);
-          setUserMaps(user);
+        if (!live) return;
+        setMappings(list);
+        setUserMaps(user);
+
+        // Pre-select the SAVED controller choice so reopening Preferences shows what's
+        // actually loaded (this is the bug: the screen always defaulted to the first
+        // device + Generic, making a saved selection look lost). Fall back to the first
+        // device / Generic only when nothing is saved.
+        const saved = await window.dj.controllerConfigGet().catch(() => null);
+        if (!live) return;
+        const savedDeviceStillPresent = saved?.device && inputs.includes(saved.device);
+        setDevice(savedDeviceStillPresent ? saved!.device! : (inputs[0] ?? ''));
+        if (saved?.mapping) setSelected(saved.mapping);
+        if (inputs.length === 0) setStatus('No MIDI input devices found. Plug in a controller.');
+        else if (saved?.mapping) {
+          const name =
+            list.find((m) => m.file === saved.mapping)?.name ??
+            (saved.mapping === 'generic' ? 'Generic MIDI' : saved.mapping);
+          setStatus(`Loaded "${name}"${saved.device ? ` on ${saved.device}` : ''}.`);
         }
       } catch {
         if (live) {
