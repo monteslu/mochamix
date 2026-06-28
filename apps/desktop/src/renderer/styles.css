@@ -1615,6 +1615,60 @@ input[type='range'].xfader-slider::-webkit-slider-thumb {
   font-weight: 600;
 }
 
+/* ── track info dialog (right-click → Info) ─────────────────── */
+.track-info-modal {
+  min-width: 420px;
+  max-width: 90vw;
+  padding: 0;
+  background: var(--panel);
+  border: 1px solid var(--edge-bright);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.track-info-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--edge);
+  background: var(--panel-2);
+}
+.track-info-header h2 {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+}
+.track-info-grid {
+  margin: 0;
+  padding: 14px 18px 18px;
+}
+.track-info-row {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--edge) 40%, transparent);
+  font-size: 12px;
+}
+.track-info-row:last-child {
+  border-bottom: none;
+}
+.track-info-row dt {
+  color: var(--text-faint);
+  font-weight: 600;
+}
+.track-info-row dd {
+  margin: 0;
+  color: var(--text);
+}
+.track-info-path {
+  word-break: break-all;
+  color: var(--text-dim);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px;
+}
+
 .library-table-wrap {
   flex: 1;
   overflow: auto;

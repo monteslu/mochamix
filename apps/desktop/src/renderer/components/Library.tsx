@@ -17,6 +17,7 @@ import { getDeckTrack } from '../deck-state.js';
 import { RowWaveform } from './RowWaveform.js';
 import { ContextMenu, type ContextMenuState, type MenuItem } from './ContextMenu.js';
 import { usePrompt } from './PromptModal.js';
+import { TrackInfoModal } from './TrackInfoModal.js';
 
 // Resizable columns, in table order. `sort` is the SortCol they sort by (null = no sort).
 const COLUMNS: { id: ColumnId; label: string; sort: SortCol | null }[] = [
@@ -104,6 +105,7 @@ export function Library(): React.JSX.Element {
   const [playlists, setPlaylists] = useState<Array<{ id: number; name: string; hidden: number }>>([]);
   const [activePlaylist, setActivePlaylist] = useState<number | null>(null);
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
+  const [infoTrack, setInfoTrack] = useState<LibTrack | null>(null);
   const { prompt, modal: promptModal } = usePrompt();
 
   const loadPlaylists = useCallback(async () => {
@@ -451,12 +453,8 @@ export function Library(): React.JSX.Element {
         },
         { label: 'Re-analyze', icon: '↻', onClick: () => void reanalyzeTrack(t) },
         { separator: true },
-        {
-          label: t.stemPath ? 'Stems generated ✓' : 'Generate stems',
-          icon: '🥁',
-          disabled: !!t.stemPath,
-          onClick: () => void generateStems(t),
-        },
+        { separator: true },
+        { label: 'Info', icon: 'ⓘ', onClick: () => setInfoTrack(t) },
       ];
       setCtxMenu({ x: e.clientX, y: e.clientY, items });
     },
@@ -469,7 +467,6 @@ export function Library(): React.JSX.Element {
       createPlaylistWith,
       removeFromActivePlaylist,
       updateRowBpm,
-      generateStems,
       reanalyzeTrack,
     ],
   );
@@ -687,6 +684,7 @@ export function Library(): React.JSX.Element {
       </div>
       <ContextMenu state={ctxMenu} onClose={() => setCtxMenu(null)} />
       {promptModal}
+      {infoTrack && <TrackInfoModal track={infoTrack} onClose={() => setInfoTrack(null)} />}
     </section>
   );
 }
