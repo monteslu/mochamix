@@ -383,6 +383,9 @@ export class Engine {
       positionFrames: () => this.positionFrames(d),
       seekFrames: (frame) => this.seekFrames(d, frame),
       stop: () => this.bus.set(g, DeckKeys.play, 0),
+      play: () => this.bus.set(g, DeckKeys.play, 1),
+      isPlaying: () => this.bus.get(g, DeckKeys.play) > 0.5,
+      isScratching: () => this.bus.get(g, DeckKeys.scratching) > 0.5,
       quantize: (frame) => this.quantizeFrame(d, frame),
     });
     const loop = new LoopControl({

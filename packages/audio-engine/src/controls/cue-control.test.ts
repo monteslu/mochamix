@@ -24,9 +24,16 @@ function setup() {
     },
     stop: () => {
       stopped = true;
+      bus.set(g, DeckKeys.play, 0);
     },
+    play: () => bus.set(g, DeckKeys.play, 1),
+    isPlaying: () => bus.get(g, DeckKeys.play) > 0.5,
+    isScratching: () => bus.get(g, DeckKeys.scratching) > 0.5,
   });
-  return { bus, g, ctl, seeks, getPos: () => position, wasStopped: () => stopped };
+  const setPos = (f: number) => {
+    position = f;
+  };
+  return { bus, g, ctl, seeks, getPos: () => position, setPos, wasStopped: () => stopped };
 }
 
 describe('CueControl', () => {
@@ -70,5 +77,45 @@ describe('CueControl', () => {
     s.bus.set(s.g, DeckKeys.cuePoint, -1); // pretend cleared
     s.bus.set(s.g, DeckKeys.cueSet, 1);
     expect(s.bus.get(s.g, DeckKeys.cuePoint)).toBe(50000);
+  });
+
+  // cue_default — the combined CDJ cue button real controllers (DJ2GO2) send.
+  describe('cue_default (CDJ behavior)', () => {
+    it('press while playing → stop + seek to cue', () => {
+      s.bus.set(s.g, DeckKeys.cuePoint, 1000);
+      s.bus.set(s.g, DeckKeys.play, 1);
+      s.bus.set(s.g, DeckKeys.cueDefault, 1);
+      expect(s.wasStopped()).toBe(true);
+      expect(s.seeks).toContain(1000);
+    });
+
+    it('press while paused away from cue → sets a new cue here', () => {
+      s.bus.set(s.g, DeckKeys.cuePoint, 1000); // cue elsewhere
+      s.bus.set(s.g, DeckKeys.play, 0);
+      s.setPos(50000); // we're at 50000, not the cue
+      s.bus.set(s.g, DeckKeys.cueDefault, 1);
+      expect(s.bus.get(s.g, DeckKeys.cuePoint)).toBe(50000); // cue moved here
+    });
+
+    it('press while paused AT the cue → previews (plays); release → stop + back to cue', () => {
+      s.bus.set(s.g, DeckKeys.cuePoint, 50000);
+      s.setPos(50000); // sitting exactly on the cue
+      s.bus.set(s.g, DeckKeys.play, 0);
+      // press → play preview
+      s.bus.set(s.g, DeckKeys.cueDefault, 1);
+      expect(s.bus.get(s.g, DeckKeys.play)).toBe(1);
+      s.setPos(60000); // playback advanced
+      // release → stop + jump back to cue
+      s.bus.set(s.g, DeckKeys.cueDefault, 0);
+      expect(s.bus.get(s.g, DeckKeys.play)).toBe(0);
+      expect(s.seeks).toContain(50000);
+    });
+
+    it('press with no cue set (cue_point < 0) → sets the cue here', () => {
+      s.bus.set(s.g, DeckKeys.cuePoint, -1);
+      s.setPos(42000);
+      s.bus.set(s.g, DeckKeys.cueDefault, 1);
+      expect(s.bus.get(s.g, DeckKeys.cuePoint)).toBe(42000);
+    });
   });
 });
