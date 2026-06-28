@@ -380,24 +380,28 @@ export function drawScrolling(
     }
   }
 
-  // Real measure markers (red) from DownBeat analysis. A downbeat is BY DEFINITION a beat,
-  // so each marker is SNAPPED to the nearest line on the computed beat grid before drawing.
-  // The DownBeat detector + the bpm/firstBeatFrame grid are separate analyzer outputs and
-  // can drift apart by a fraction of a beat; without this snap a red measure marker would
-  // sit BETWEEN beat ticks — an analysis artifact, not a real state. Snapping keeps the
-  // measure on a beat (rekordbox-correct) regardless of analyzer drift.
+  // Real measure markers (red). A measure is EVERY 4th beat, all on the grid — so we take
+  // only the BAR PHASE from analysis (which of the 4 beats is the "1") and then stride a
+  // uniform 4 beats. Drawing each raw downbeat frame independently was wrong two ways: an
+  // off-grid downbeat lands between beats, AND snapping each one separately let adjacent
+  // markers round to non-4-apart beats → 3- or 5-beat "measures". Phase from the first
+  // downbeat, stride by 4 beats, guarantees uniform 4-beat measures on the grid.
   if (realDownbeats && overlay?.framesPerBeat && overlay.framesPerBeat > 0) {
     const db = overlay!.downbeatFrames!;
     const fpb = overlay.framesPerBeat;
     const first = overlay.firstBeatFrame ?? 0;
+    // bar phase = the first downbeat's beat number mod 4 (which beat starts the bar)
+    const phase = ((Math.round((db[0]! - first) / fpb) % 4) + 4) % 4;
     ctx.fillStyle = 'rgba(255,60,60,0.85)';
-    for (let i = 0; i < db.length; i++) {
-      // snap the analyzer's downbeat to the nearest grid beat
-      const bf = first + Math.round((db[i]! - first) / fpb) * fpb;
-      if (bf < leftFrame) continue;
+    // first visible measure beat-index ≥ leftFrame, on the every-4 grid at this phase
+    const leftBeat = (leftFrame - first) / fpb;
+    let n = phase + Math.ceil((leftBeat - phase) / 4) * 4;
+    for (;;) {
+      const bf = first + n * fpb;
       if (bf > rightFrame) break;
       const x = centerX + (bf - positionFrames) / framesPerPx;
       ctx.fillRect(x, 0, 2, h);
+      n += 4;
     }
   }
 
