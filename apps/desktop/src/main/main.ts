@@ -162,6 +162,11 @@ function createWindow(): BrowserWindow {
       preload: join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
+      // A DJ app is driven by a hardware controller, not the screen — it must keep
+      // rendering at full rate even when the window loses focus (you're looking at the
+      // decks, touching the controller). Electron throttles rAF on unfocused/occluded
+      // windows by default → the 30fps / laggy fader animation. Turn it off.
+      backgroundThrottling: false,
     },
   });
 
@@ -277,6 +282,7 @@ ipcMain.handle('display:open', () => {
       preload: join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
+      backgroundThrottling: false, // visuals must keep rendering when unfocused
     },
   });
   if (isDev && process.env.VITE_DEV_SERVER_URL) {
