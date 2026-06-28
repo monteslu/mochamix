@@ -9,14 +9,14 @@
 :root,
 [data-theme='mocha'] {
   /* darks scale: deepest → lightest panel (warm espresso). Use these, not one-off hex. */
-  --bg: #14100c;
-  --bg-2: #1a1510;
-  --panel: #221b14;
-  --panel-2: #2c241a;
-  --panel-3: #392f22;
-  --sunken: #100c08; /* recessed wells: waveform/overview/table/search backgrounds */
-  --sunken-2: #0a0705; /* deepest gradient stop */
-  --raised: #261e16; /* button/pad gradient bottom stop */
+  --bg: #0f0c08;
+  --bg-2: #141009;
+  --panel: #1b160f;
+  --panel-2: #241d14;
+  --panel-3: #31281c;
+  --sunken: #0b0805; /* recessed wells: waveform/overview/table/search backgrounds */
+  --sunken-2: #070503; /* deepest gradient stop */
+  --raised: #1f1810; /* button/pad gradient bottom stop */
   --edge: #43372a; /* bronze-tinted borders */
   --edge-bright: #5a4a37;
   --text: #f0e6d6; /* warm off-white */
