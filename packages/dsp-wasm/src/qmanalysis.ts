@@ -11,32 +11,6 @@
 import { qmanalysisWasmBase64 } from './generated/qmanalysis-wasm.js';
 import { base64ToBytes } from './base64.js';
 
-/**
- * Octave-fold a detected BPM into a musically-likely range. The Queen Mary tempo tracker
- * (like every beat tracker) is prone to octave errors — it locks onto 2× or ½× the true
- * tempo, especially on sparse-onset / non-4-on-the-floor material (oldies, rock, ballads,
- * waltzes). Real ground truth: a library of classic pop/rock had ~1/3 of tracks doubled
- * (Piano Man → 176, A Change Is Gonna Come → 172, Free Fallin' → 169) while genuinely
- * fast punk (~155) was correct.
- *
- * We fold into [floor, 2*floor): values ≥ ceiling are halved, values < floor are doubled,
- * repeatedly, until inside. A floor of 82 puts the window at [82,164): 176→88, 258→129,
- * 169→84.5, while leaving genuine 150s alone. This is what Mixxx exposes as its BPM
- * detection range; 82 is a good general default for mixed-genre libraries.
- *
- * Note: only the BPM number changes — `firstBeatFrame` stays valid, since halving/doubling
- * a constant tempo keeps beats phase-aligned (every other beat, or the midpoint).
- */
-export function foldTempo(bpm: number, floor = 82): number {
-  if (!Number.isFinite(bpm) || bpm <= 0) return bpm;
-  const ceil = floor * 2;
-  let v = bpm;
-  // Guard against pathological inputs with a bounded loop.
-  for (let i = 0; i < 6 && v >= ceil; i++) v /= 2;
-  for (let i = 0; i < 6 && v < floor; i++) v *= 2;
-  return v;
-}
-
 interface QmExports {
   memory: WebAssembly.Memory;
   qm_malloc(bytes: number): number;
@@ -142,8 +116,7 @@ export class WasmQmAnalysis {
     ex.qm_free(monoPtr);
 
     return {
-      // Octave-fold to correct the tracker's 2×/½× errors (a third of real libraries).
-      bpm: foldTempo(ex.qm_bpm()),
+      bpm: ex.qm_bpm(),
       firstBeatFrame: ex.qm_first_beat_frame(),
       confidence: ex.qm_confidence(),
       key: KEY_NAMES[k] ?? '',

@@ -168,23 +168,6 @@ export const MIGRATIONS: Migration[] = [
       );
     `,
   },
-  {
-    version: 7,
-    description: 'octave-fold existing BPMs (correct the beat trackers 2x/half errors)',
-    up: `
-      -- The Queen Mary beat tracker often locks onto 2x (or 1/2) the true tempo on
-      -- sparse-onset material (oldies, rock, ballads) — a third of a real library was
-      -- doubled (Piano Man -> 176, Free Fallin' -> 169). foldTempo() now corrects new
-      -- analyses; this folds the ALREADY-stored values the same way (floor 82 -> window
-      -- [82,164)). Halving/doubling a constant tempo keeps first_beat_frame valid.
-      -- Halve down from >=164 (two passes cover up to ~656 BPM):
-      UPDATE library SET bpm = bpm / 2.0 WHERE bpm >= 164;
-      UPDATE library SET bpm = bpm / 2.0 WHERE bpm >= 164;
-      -- Double up from <82 (two passes cover down to ~20 BPM):
-      UPDATE library SET bpm = bpm * 2.0 WHERE bpm > 0 AND bpm < 82;
-      UPDATE library SET bpm = bpm * 2.0 WHERE bpm > 0 AND bpm < 82;
-    `,
-  },
 ];
 
 export const REQUIRED_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

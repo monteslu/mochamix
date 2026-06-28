@@ -8,4 +8,4 @@ export {
   type PullOutcome,
 } from './resampler.js';
 export { WasmPeaks, type BandPeaks, type PeakSet } from './peaks.js';
-export { WasmQmAnalysis, foldTempo, type QmResult } from './qmanalysis.js';
+export { WasmQmAnalysis, type QmResult } from './qmanalysis.js';
