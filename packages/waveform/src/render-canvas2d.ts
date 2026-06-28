@@ -380,13 +380,20 @@ export function drawScrolling(
     }
   }
 
-  // Real measure markers (red) from DownBeat analysis — drawn at the exact bar-start
-  // frames the analyzer found, not assumed every 4th beat.
-  if (realDownbeats) {
+  // Real measure markers (red) from DownBeat analysis. A downbeat is BY DEFINITION a beat,
+  // so each marker is SNAPPED to the nearest line on the computed beat grid before drawing.
+  // The DownBeat detector + the bpm/firstBeatFrame grid are separate analyzer outputs and
+  // can drift apart by a fraction of a beat; without this snap a red measure marker would
+  // sit BETWEEN beat ticks — an analysis artifact, not a real state. Snapping keeps the
+  // measure on a beat (rekordbox-correct) regardless of analyzer drift.
+  if (realDownbeats && overlay?.framesPerBeat && overlay.framesPerBeat > 0) {
     const db = overlay!.downbeatFrames!;
+    const fpb = overlay.framesPerBeat;
+    const first = overlay.firstBeatFrame ?? 0;
     ctx.fillStyle = 'rgba(255,60,60,0.85)';
     for (let i = 0; i < db.length; i++) {
-      const bf = db[i]!;
+      // snap the analyzer's downbeat to the nearest grid beat
+      const bf = first + Math.round((db[i]! - first) / fpb) * fpb;
       if (bf < leftFrame) continue;
       if (bf > rightFrame) break;
       const x = centerX + (bf - positionFrames) / framesPerPx;
