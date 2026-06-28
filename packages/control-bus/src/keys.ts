@@ -123,6 +123,11 @@ export const RecordingKeys = {
  */
 export const LibraryKeys = {
   selectedIndex: 'selected_index', // current highlighted row (our addition; UI mirrors it)
+  // Which pane the browse encoder drives: 0 = song list, 1 = playlist sidebar. The encoder
+  // PRESS (GoToItem) toggles: from songs it goes up to the sidebar; from the sidebar it
+  // selects the highlighted playlist and drops focus back into the song list.
+  focusArea: 'focus_area',
+  playlistIndex: 'playlist_index', // highlighted row in the sidebar (UI mirrors it)
   moveVertical: 'MoveVertical', // N rows (knob)
   moveUp: 'MoveUp',
   moveDown: 'MoveDown',

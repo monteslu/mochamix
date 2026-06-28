@@ -302,6 +302,9 @@ export function Library(): React.JSX.Element {
   loadToDeckRef.current = loadToDeck;
   const firstStoppedRef = useRef(firstStoppedDeck);
   firstStoppedRef.current = firstStoppedDeck;
+  // sidebar rows for controller navigation: index 0 = All Tracks, 1..N = playlists
+  const playlistsRef = useRef(playlists);
+  playlistsRef.current = playlists;
 
   useEffect(() => {
     const ctl = new LibraryControl({
@@ -317,6 +320,11 @@ export function Library(): React.JSX.Element {
           if (play) bus.set(deckGroup(deckIndex + 1), DeckKeys.play, 1);
         });
       },
+      sidebarCount: () => playlistsRef.current.length + 1, // +1 for "All Tracks"
+      activateSidebar: (i) => {
+        // 0 = All Tracks, otherwise the (i-1)th playlist
+        setActivePlaylist(i <= 0 ? null : (playlistsRef.current[i - 1]?.id ?? null));
+      },
     });
     return () => ctl.dispose();
   }, [bus]);
@@ -324,6 +332,9 @@ export function Library(): React.JSX.Element {
   // Mirror the bus selection index → the highlighted row id, so a controller's
   // SelectTrackKnob/MoveVertical moves the visible highlight (and scrolls it into view).
   const selIndex = useControlValue(LIBRARY, LibraryKeys.selectedIndex);
+  // controller library focus: 0 = song list, 1 = playlist sidebar; + the highlighted sidebar row
+  const focusArea = useControlValue(LIBRARY, LibraryKeys.focusArea);
+  const plIndex = useControlValue(LIBRARY, LibraryKeys.playlistIndex);
   const rowRefs = useRef(new Map<number, HTMLTableRowElement>());
   // Only scrollIntoView when the SELECTION actually moves (controller knob), never when
   // `tracks` changes for another reason. The in-place stem-done patch makes a NEW tracks
@@ -531,9 +542,11 @@ export function Library(): React.JSX.Element {
       </div>
 
       <div className="library-body">
-        <aside className="playlist-sidebar" aria-label="Playlists">
+        <aside className={`playlist-sidebar${focusArea > 0.5 ? ' pane-focused' : ''}`} aria-label="Playlists">
           <button
-            className={`pl-item${activePlaylist === null ? ' active' : ''}`}
+            className={`pl-item${activePlaylist === null ? ' active' : ''}${
+              focusArea > 0.5 && Math.round(plIndex) === 0 ? ' cursor' : ''
+            }`}
             onClick={() => setActivePlaylist(null)}
           >
             <span className="pl-icon">♫</span> All Tracks
@@ -545,10 +558,12 @@ export function Library(): React.JSX.Element {
             </button>
           </div>
           {playlists.length === 0 && <div className="pl-empty">No playlists yet</div>}
-          {playlists.map((p) => (
+          {playlists.map((p, pi) => (
             <button
               key={p.id}
-              className={`pl-item${activePlaylist === p.id ? ' active' : ''}`}
+              className={`pl-item${activePlaylist === p.id ? ' active' : ''}${
+                focusArea > 0.5 && Math.round(plIndex) === pi + 1 ? ' cursor' : ''
+              }`}
               onClick={() => setActivePlaylist(p.id)}
               onDragOver={(e) => {
                 if (e.dataTransfer.types.includes('application/x-dj-track-id')) e.preventDefault();

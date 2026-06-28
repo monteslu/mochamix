@@ -37,6 +37,10 @@ export interface LibraryControlDeps {
   loadIndexToDeck: (i: number, deckIndex: number, play: boolean) => void;
   /** Index of the first stopped deck to load into (Mixxx loads to the focused deck). */
   firstStoppedDeck: () => number;
+  /** Number of rows in the playlist sidebar (incl. the "All Tracks" entry at index 0). */
+  sidebarCount: () => number;
+  /** Activate the sidebar row at index `i` (0 = All Tracks, 1.. = playlists). */
+  activateSidebar: (i: number) => void;
 }
 
 export class LibraryControl {
@@ -73,8 +77,42 @@ export class LibraryControl {
     this.deps.bus.set(PLAYLIST, LibraryKeys.selectedIndex, clamped);
   }
 
+  /** 0 = song list, 1 = playlist sidebar. */
+  private get focus(): number {
+    return this.deps.bus.get(LIBRARY, LibraryKeys.focusArea) > 0.5 ? 1 : 0;
+  }
+  private setFocus(area: number): void {
+    this.deps.bus.set(LIBRARY, LibraryKeys.focusArea, area);
+  }
+
+  private get sidebarSel(): number {
+    const n = this.deps.sidebarCount();
+    if (n <= 0) return 0;
+    const i = Math.round(this.deps.bus.get(LIBRARY, LibraryKeys.playlistIndex));
+    return Math.max(0, Math.min(n - 1, i));
+  }
+  private setSidebarSel(i: number): void {
+    const n = this.deps.sidebarCount();
+    const clamped = n <= 0 ? 0 : Math.max(0, Math.min(n - 1, i));
+    this.deps.bus.set(LIBRARY, LibraryKeys.playlistIndex, clamped);
+  }
+
+  /** Scroll the focused pane: the song list, or the playlist sidebar. */
   private move(delta: number): void {
-    if (delta) this.setSelected(this.selected + delta);
+    if (!delta) return;
+    if (this.focus === 1) this.setSidebarSel(this.sidebarSel + delta);
+    else this.setSelected(this.selected + delta);
+  }
+
+  /** Encoder press (GoToItem): from songs go UP to the sidebar; from the sidebar select the
+   *  highlighted playlist and drop focus back into the song list. */
+  private goToItem(): void {
+    if (this.focus === 0) {
+      this.setFocus(1);
+    } else {
+      this.deps.activateSidebar(this.sidebarSel);
+      this.setFocus(0);
+    }
   }
 
   private load(deckIndex: number, play: boolean): void {
@@ -100,8 +138,18 @@ export class LibraryControl {
     this.pulse(g, LibraryKeys.loadSelectedTrackAndPlay, () =>
       this.load(this.deps.firstStoppedDeck(), true),
     );
-    // GoToItem on the track list = load to first stopped deck (Mixxx loads/expands).
-    this.pulse(g, LibraryKeys.goToItem, () => this.load(this.deps.firstStoppedDeck(), false));
+    // GoToItem (encoder press): toggle focus between the song list and the playlist sidebar,
+    // selecting the playlist on the way back down (Mixxx-style library navigation).
+    this.pulse(g, LibraryKeys.goToItem, () => this.goToItem());
+    // Explicit sidebar navigation (mappings that have dedicated prev/next-playlist buttons).
+    this.pulse(g, LibraryKeys.selectNextPlaylist, () => {
+      this.setFocus(1);
+      this.setSidebarSel(this.sidebarSel + 1);
+    });
+    this.pulse(g, LibraryKeys.selectPrevPlaylist, () => {
+      this.setFocus(1);
+      this.setSidebarSel(this.sidebarSel - 1);
+    });
   }
 
   /** Momentary control: fire on a nonzero value, then reset to 0 so it re-triggers. */

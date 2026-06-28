@@ -326,6 +326,11 @@ function libraryControls(): ControlDef[] {
       { group: g, key: LibraryKeys.goToItem, default: 0 },
     );
   }
+  // focus pane + sidebar highlight live once on [Library] (UI-mirror state, not per-group).
+  defs.push(
+    { group: LIBRARY, key: LibraryKeys.focusArea, default: 0, description: '0=songs, 1=sidebar' },
+    { group: LIBRARY, key: LibraryKeys.playlistIndex, default: 0, description: 'Highlighted sidebar row' },
+  );
   return defs;
 }
 
