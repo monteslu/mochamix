@@ -4,17 +4,29 @@ A Mixxx-class, open-source DJ application built in Electron + Web Audio + WASM +
 Modern, stem-native performance workflow (like VirtualDJ) with the freedom of open source, and free.
 Built for the love of it.
 
+![MochaMix — two decks with live stem pads, beatgrids, EQ/crossfader, and a searchable library](mochamix_screenshot.png)
+
 ## Status
 
-Working DJ engine: 2 decks, waveforms, play/cue, **36 hotcues + beatloops + manual loops**,
+Working DJ engine: 2 decks, waveforms (with grid-aligned beat/measure markers), play/cue,
 3-band EQ + crossfader + VU meters, **keylock** (independent tempo/pitch), tempo + pitch-bend,
 **BPM/beatgrid analysis**, **beat sync + Smart Fader** (crossfader-driven tempo blend),
 **effects** (filter/echo/reverb/distortion/bitcrusher) with a per-deck QuickEffect filter,
-a **SQLite library** (scan/search/browse/load-to-deck), and a **Mixxx-compatible controller host**
-(the `engine`/`midi` API + `.midi.xml` parser, so stock Mixxx mappings run nearly unchanged).
+a **SQLite library** (scan/search/browse/load-to-deck, resizable/persisted columns), and a
+**Mixxx-compatible controller host** (the `engine`/`midi` API + `.midi.xml` parser, so stock
+Mixxx mappings run nearly unchanged).
+
+**In-browser WebGPU stem separation + live stem mashups** — generate 4-stem `.stem.mp4` files
+on the GPU, then mix each stem independently per deck. Stems are first-class via a
+**performance-pad grid** (Hot Cue / Beat Loop / Beat Jump / **Stems** modes): the Stems mode
+puts drums/bass/other/vocals on colored pads (tap = mute, shift = solo) plus one-press combos
+(drums-only / drumless / instrumental / acapella) — a stems-on-pads workflow Mixxx itself
+doesn't have.
+
+**Selectable color themes** (Mocha / Nightclub / Graphite / Daylight) in Preferences → Appearance.
 
 The real-time sample resampler and the BPM detector run in **WASM+SIMD**, not JS — per the
-"zero heavy lifting in JS" rule.
+"zero heavy lifting in JS" rule; stem separation runs in **WebGPU**.
 
 ## Run it
 
@@ -61,9 +73,12 @@ packages/
   dsp-wasm/            WASM+SIMD DSP (resampler, beat detector) — emcc from csrc/
   analysis/            beatgrid model + BPM detection (Worker)
   codec/               decode (decodeAudioData → planar SAB)
-  waveform/            peak precompute + canvas render
+  waveform/            peak precompute + canvas render + canonical stem palette
+  stems/               in-browser WebGPU stem separation (htdemucs) + asset server
+  stem-mp4/            4-stem .stem.mp4 mux/demux (NI-Stems layout)
   controller-host/     the Mixxx engine/midi API + .midi.xml parser + MIDI router
-  db/                  SQLite library (better-sqlite3): schema, repos, search parser
+  db/                  SQLite library (node-sqlite3-wasm): schema, repos, search parser
+  output-bus/          pluggable data-emission bus (audio + metadata → external displays)
 ```
 
 ## Design docs
