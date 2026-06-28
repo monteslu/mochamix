@@ -674,11 +674,10 @@ body,
 /* ── transport ────────────────────────────────────────────── */
 .deck-transport {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
-  /* wrap to a second line instead of letting the last button (PFL/headphones) overflow
-     the deck when the window is too narrow to fit the whole row. */
-  flex-wrap: wrap;
+  /* ONE row, never wraps. min-width:0 lets it actually compress instead of overflowing. */
+  min-width: 0;
 }
 /* EVERY button in the row is a tight fixed height with the extra space as vertical
    MARGIN (not internal padding) — cue/play and sync/qnt/keylock/bend/pfl all match. */
@@ -688,6 +687,11 @@ body,
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  /* secondary buttons may shrink so the row compresses to fit ONE line at narrow widths
+     (no wrap, no overflow); cue/play override this to stay fixed-size below. */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
 }
 .play-btn,
 .cue-btn {
@@ -721,7 +725,8 @@ body,
   font-weight: 700;
 }
 .pfl-btn {
-  flex: 0 0 auto;
+  flex: 0 1 auto; /* may shrink so it never spills past the deck edge */
+  min-width: 0;
   font-size: 15px;
   padding: 12px 8px;
 }
