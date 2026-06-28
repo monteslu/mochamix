@@ -10,6 +10,20 @@
 
 import { ControlBus, type Group, type Key } from '@dj/control-bus';
 
+/**
+ * Coerce a script-supplied value to a number. Mixxx ControlObjects are always doubles,
+ * but midi-components writes BOOLEANS for toggle controls (e.g. PlayButton.inToggle →
+ * inSetValue(!inGetValue()) → engine.setValue(group,"play",true)). Storing a raw boolean
+ * on the bus breaks numeric consumers (deck audio reads `play > 0.5`) and the SAB. Mixxx
+ * coerces implicitly; do the same: true→1, false→0, non-finite→0.
+ */
+function toNumber(v: unknown): number {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+  if (typeof v === 'boolean') return v ? 1 : 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
 export type EngineCallback = (value: number, group: Group, key: Key) => void;
 
 /** A connection handle returned by makeConnection (Mixxx ScriptConnection). */
@@ -49,7 +63,7 @@ export class EngineApi {
 
   setValue(group: Group, key: Key, value: number): void {
     if (this.bus.has(group, key)) {
-      this.bus.set(group, key, value);
+      this.bus.set(group, key, toNumber(value));
     }
   }
 
@@ -59,7 +73,7 @@ export class EngineApi {
 
   setParameter(group: Group, key: Key, value: number): void {
     if (this.bus.has(group, key)) {
-      this.bus.setParameter(group, key, value);
+      this.bus.setParameter(group, key, toNumber(value));
     }
   }
 

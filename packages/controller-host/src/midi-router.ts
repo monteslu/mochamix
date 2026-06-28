@@ -33,8 +33,18 @@ export interface MidiRouterDeps {
   bus: ControlBus;
   engine: EngineApi;
   mapping: MidiMapping;
-  /** The mapping's script functions (resolved by the host's sandbox). */
+  /**
+   * Eagerly-resolved script functions (back-compat / simple mappings like Generic MIDI
+   * whose handlers exist at load). Component-based mappings should use `resolveScript`.
+   */
   scripts: ScriptFunctions;
+  /**
+   * Lazily resolve a control's `<key>` to its handler at dispatch time. REQUIRED for
+   * component-based mappings: their handlers (playButton.input, faders, hotcueButtons[n])
+   * are created in init(), which runs after the script loads — so they can't be
+   * snapshotted up front. Falls back to `scripts` when not provided.
+   */
+  resolveScript?: (key: string) => ((...args: Array<number | string>) => void) | undefined;
   send: MidiSend;
 }
 
@@ -65,10 +75,13 @@ export class MidiRouter {
     const channel = status & 0x0f;
 
     if (control.isScript) {
-      const fn = this.deps.scripts[control.key];
+      // Resolve lazily (post-init) so handlers on components built in init() bind; fall
+      // back to the eager map for simple mappings. Mixxx signature: (channel, control,
+      // value, status, group).
+      const fn = this.deps.resolveScript
+        ? this.deps.resolveScript(control.key)
+        : this.deps.scripts[control.key];
       if (typeof fn === 'function') {
-        // Mixxx script handler signature: (channel, control, value, status, group)
-        // We pass group as a trailing arg the function may ignore.
         (fn as (...a: unknown[]) => void)(channel, data1, data2, status, control.group);
       }
       return;

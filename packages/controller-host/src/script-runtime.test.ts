@@ -60,8 +60,8 @@ function setup() {
 describe('runMappingScript (running real-style Mixxx mapping JS)', () => {
   it('resolves the script-binding functions referenced by controls', () => {
     const { result } = setup();
-    expect(typeof result.functions['MyCtrl.playPress']).toBe('function');
-    expect(typeof result.functions['MyCtrl.cuePress']).toBe('function');
+    expect(typeof result.resolveHandler('MyCtrl.playPress')).toBe('function');
+    expect(typeof result.resolveHandler('MyCtrl.cuePress')).toBe('function');
   });
 
   it('exposes the prefix object so init() can run', () => {
@@ -74,7 +74,7 @@ describe('runMappingScript (running real-style Mixxx mapping JS)', () => {
 
   it('a resolved handler drives the control bus through the engine global', () => {
     const { bus, result } = setup();
-    const playPress = result.functions['MyCtrl.playPress']!;
+    const playPress = result.resolveHandler('MyCtrl.playPress')!;
     playPress(0, 0x0b, 127, 0x90, '[Channel1]');
     expect(bus.get('[Channel1]', 'play')).toBe(1);
     playPress(0, 0x0b, 127, 0x90, '[Channel1]'); // toggle off
@@ -83,7 +83,7 @@ describe('runMappingScript (running real-style Mixxx mapping JS)', () => {
 
   it('the cue handler works too', () => {
     const { bus, result } = setup();
-    result.functions['MyCtrl.cuePress']!(0, 0x0c, 127);
+    result.resolveHandler('MyCtrl.cuePress')!(0, 0x0c, 127);
     expect(bus.get('[Channel1]', 'cue_default')).toBe(1);
   });
 

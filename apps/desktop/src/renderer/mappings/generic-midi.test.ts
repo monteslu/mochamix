@@ -13,8 +13,8 @@ function setup() {
   const engine = new EngineApi({ bus });
   const mapping = parseMidiMapping(GENERIC_MIDI_XML);
   const midi = { sendShortMsg: vi.fn(), sendSysexMsg: vi.fn() };
-  const { functions } = runMappingScript(GENERIC_MIDI_JS, mapping, engine, midi, console);
-  return { bus, engine, mapping, functions };
+  const { resolveHandler } = runMappingScript(GENERIC_MIDI_JS, mapping, engine, midi, console);
+  return { bus, engine, mapping, resolveHandler };
 }
 
 describe('Generic MIDI built-in mapping', () => {
@@ -38,8 +38,8 @@ describe('Generic MIDI built-in mapping', () => {
   });
 
   it('the jog script scratches via engine.scratch* (forward + reverse)', () => {
-    const { engine, functions } = setup();
-    const jog1 = functions['Generic.jog1'] ?? functions['jog1'];
+    const { engine, resolveHandler } = setup();
+    const jog1 = resolveHandler('Generic.jog1') ?? resolveHandler('jog1');
     expect(typeof jog1).toBe('function');
 
     // forward jog ticks

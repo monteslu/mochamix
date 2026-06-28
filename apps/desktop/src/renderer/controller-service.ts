@@ -79,6 +79,8 @@ export class ControllerService {
   private access: MIDIAccess | null = null;
   /** True once the user manually picked a mapping (auto-connect then stays out of the way). */
   private userLoaded = false;
+  /** True while restoreSavedMapping() is in flight — blocks the auto-connect race. */
+  private restoring = false;
   /** Guards the one-time statechange hook for auto-connect. */
   private autoHooked = false;
   /** Cached Mixxx `script` helper global (common-controller-scripts.js), built once. */
@@ -143,21 +145,24 @@ export class ControllerService {
     } catch {
       return; // Web MIDI unavailable
     }
-    // Restore the user's saved mapping first, so their controller setup survives a
-    // restart instead of falling back to Generic. Only if there's no saved choice do
-    // we auto-connect Generic to a connected controller.
-    await this.restoreSavedMapping();
-    // Re-attempt auto-connect whenever devices change (covers plug-in-after-launch).
+    // Register the hot-plug handler BEFORE restoring, but gate it on `restoring` so a
+    // device connecting mid-restore can't race in and auto-load Generic on top of (or
+    // instead of) the user's saved mapping. (This race caused the "loads twice" / wrong-
+    // mapping-wins behavior.)
     if (this.access && !this.autoHooked) {
       this.autoHooked = true;
       const access = this.access;
       const prev = access.onstatechange;
       access.onstatechange = (e) => {
         if (typeof prev === 'function') prev.call(access, e);
-        if (!this.userLoaded) this.attachGenericToFirstInput();
+        if (!this.userLoaded && !this.restoring) this.attachGenericToFirstInput();
       };
     }
-    if (!this.userLoaded) this.attachGenericToFirstInput();
+    // Restore the user's saved mapping first, so their controller setup survives a
+    // restart instead of falling back to Generic. Only if there's no saved choice do
+    // we auto-connect Generic to a connected controller.
+    await this.restoreSavedMapping();
+    if (!this.userLoaded && !this.restoring) this.attachGenericToFirstInput();
   }
 
   /**
@@ -167,35 +172,46 @@ export class ControllerService {
    */
   private async restoreSavedMapping(): Promise<void> {
     if (this.userLoaded) return;
-    let saved: { mapping: string; device: string | null } | null;
+    // Block auto-connect for the WHOLE async restore (read config + load mapping), so a
+    // device hot-connecting in the gap can't load Generic on top of the saved mapping.
+    this.restoring = true;
     try {
-      saved = (await window.dj?.controllerConfigGet?.()) ?? null;
-    } catch {
-      return;
-    }
-    if (!saved?.mapping) return;
-    try {
-      if (saved.mapping === 'generic') {
-        this.loadMapping(
-          GENERIC_MIDI_XML,
-          GENERIC_MIDI_JS,
-          saved.device ?? undefined,
-          saved.device ?? undefined,
-          true, // restore counts as the user's choice → don't auto-override
-        );
-        console.log(`[midi] restored saved mapping "Generic MIDI"${saved.device ? ` on ${saved.device}` : ''}`);
-      } else {
-        const res = await this.loadMixxxMapping(saved.mapping, true, saved.device ?? undefined);
-        if (res) {
-          console.log(`[midi] restored saved mapping "${res.name}"${saved.device ? ` on ${saved.device}` : ''}`);
-        } else {
-          console.warn(`[midi] saved mapping "${saved.mapping}" could not be restored`);
-          this.userLoaded = false; // let auto-connect try instead
-        }
+      let saved: { mapping: string; device: string | null } | null;
+      try {
+        saved = (await window.dj?.controllerConfigGet?.()) ?? null;
+      } catch {
+        return;
       }
-    } catch (e) {
-      console.warn('[midi] failed to restore saved mapping', e);
-      this.userLoaded = false;
+      if (!saved?.mapping) return;
+      try {
+        if (saved.mapping === 'generic') {
+          this.loadMapping(
+            GENERIC_MIDI_XML,
+            GENERIC_MIDI_JS,
+            saved.device ?? undefined,
+            saved.device ?? undefined,
+            true, // restore counts as the user's choice → don't auto-override
+          );
+          console.log(
+            `[midi] restored saved mapping "Generic MIDI"${saved.device ? ` on ${saved.device}` : ''}`,
+          );
+        } else {
+          const res = await this.loadMixxxMapping(saved.mapping, true, saved.device ?? undefined);
+          if (res) {
+            console.log(
+              `[midi] restored saved mapping "${res.name}"${saved.device ? ` on ${saved.device}` : ''}`,
+            );
+          } else {
+            console.warn(`[midi] saved mapping "${saved.mapping}" could not be restored`);
+            this.userLoaded = false; // let auto-connect try instead
+          }
+        }
+      } catch (e) {
+        console.warn('[midi] failed to restore saved mapping', e);
+        this.userLoaded = false;
+      }
+    } finally {
+      this.restoring = false;
     }
   }
 
@@ -264,7 +280,7 @@ export class ControllerService {
     // Run the mapping JS (already concatenated: lodash → midi-components → device
     // script) in a scope with the Mixxx globals. `scriptGlobal` is the common-
     // controller-scripts.js `script` helper object (or {} for the simple generic map).
-    const { functions, prefixObjects } = runMappingScript(
+    const { functions, resolveHandler, prefixObjects } = runMappingScript(
       js,
       mapping,
       this.engine,
@@ -278,6 +294,9 @@ export class ControllerService {
       engine: this.engine,
       mapping,
       scripts: functions,
+      // Resolve handlers lazily so component controls created in init() (play/cue/
+      // faders/hotcues) actually dispatch — they don't exist when the script first runs.
+      resolveScript: resolveHandler,
       send,
     });
 

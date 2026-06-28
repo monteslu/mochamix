@@ -26,8 +26,15 @@ export interface MidiGlobal {
 }
 
 export interface RunMappingResult {
-  /** Resolved input-handler functions, keyed by their dotted control name. */
+  /** Eagerly-resolved handlers (kept for back-compat; empty now — see resolveHandler). */
   functions: ScriptFunctions;
+  /**
+   * Resolve a control's `<key>` path to its handler, BOUND to its parent component, at
+   * call time (lazy). Use this from the router per message: components created in init()
+   * (playButton, faders, hotcueButtons[n], …) only exist after init() runs, so handlers
+   * must be looked up on demand, not snapshotted at load.
+   */
+  resolveHandler: (path: string) => ((...a: Array<number | string>) => void) | undefined;
   /** The functionprefix objects (for init()/shutdown()). */
   prefixObjects: Record<string, { init?: (name: string, debug: boolean) => void; shutdown?: () => void }>;
 }
@@ -164,8 +171,23 @@ export function runMappingScript(
   }
   const result = scope; // prefixes/components were written onto scope via the proxy
 
+  // Split a Mixxx control path into property steps, handling BOTH dot access and array
+  // indices: "DJ2GO2Touch.leftDeck.hotcueButtons[1].input" →
+  // ["DJ2GO2Touch","leftDeck","hotcueButtons","1","input"].
+  const pathSteps = (path: string): string[] =>
+    path
+      .replace(/\[(\w+)\]/g, '.$1') // foo[1] → foo.1
+      .split('.')
+      .filter(Boolean);
+
+  // Resolve a control path against the LIVE script scope and return the handler BOUND to
+  // its parent object. Resolved LAZILY (per message) because many handlers live on
+  // components created in init() (e.g. `this.playButton = new components.PlayButton(...)`),
+  // which runs AFTER this function returns — so eager resolution would miss them (they'd
+  // be undefined). Binding to the parent gives `this` = the owning component, matching how
+  // Mixxx evaluates `(Prefix.deck.playButton.input)(...)` as a member call.
   const resolveFn = (path: string): ((...a: Array<number | string>) => void) | undefined => {
-    const parts = path.split('.');
+    const parts = pathSteps(path);
     let obj: unknown = result;
     let parent: unknown = undefined;
     for (const p of parts) {
@@ -178,22 +200,21 @@ export function runMappingScript(
     }
     if (typeof obj !== 'function') return undefined;
     const fn = obj as (...a: Array<number | string>) => void;
-    // Bind to the PARENT object so `this` inside the handler is the component that owns
-    // it — Mixxx invokes these as methods (e.g. `DJ2GO2Touch.browseEncoder.input(...)`),
-    // and the handlers call `this.onKnobEvent(...)` / `this.previewSeekEnabled` / etc.
-    // A bare call would leave `this` undefined → "this.onKnobEvent is not a function".
     return parent && typeof parent === 'object' ? fn.bind(parent) : fn;
   };
 
-  const functions: ScriptFunctions = {};
-  for (const c of mapping.controls) {
-    if (c.isScript) {
-      const fn = resolveFn(c.key);
-      if (fn) {
-        functions[c.key] = fn;
-      }
-    }
-  }
+  // The router dispatches by calling resolveHandler(key) per message (lazy). We keep a
+  // small cache keyed by path so repeated messages don't re-walk the scope, but the
+  // cache is only populated once a path successfully resolves (post-init), so controls
+  // created in init() bind correctly the first time they're actually used.
+  const handlerCache = new Map<string, (...a: Array<number | string>) => void>();
+  const resolveHandler = (path: string): ((...a: Array<number | string>) => void) | undefined => {
+    const cached = handlerCache.get(path);
+    if (cached) return cached;
+    const fn = resolveFn(path);
+    if (fn) handlerCache.set(path, fn);
+    return fn;
+  };
 
   const prefixObjects: RunMappingResult['prefixObjects'] = {};
   for (const p of prefixes) {
@@ -203,5 +224,5 @@ export function runMappingScript(
     }
   }
 
-  return { functions, prefixObjects };
+  return { functions: {}, resolveHandler, prefixObjects };
 }
