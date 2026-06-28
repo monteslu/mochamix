@@ -34,7 +34,10 @@ first run, ~majority of the download). To build from source instead, see **[Deve
 
 **Stems (the headline)**
 - **In-browser WebGPU stem separation**: generate a 4-stem (`drums / bass / other / vocals`)
-  `.stem.mp4` on the GPU, then mix each stem independently per deck for live mashups
+  `.stem.mp4` on the GPU, then mix each stem independently per deck for live mashups.
+  Separation is a heavy GPU/ML job that taxes the whole machine while it runs, so generate
+  stems ahead of your set; once made they're saved and load instantly. Playback/mixing itself
+  is light and stays smooth.
 - **Stems on performance pads**: a switchable pad grid (Hot Cue / Beat Loop / Beat Jump /
   **Stems**). Stems mode puts the 4 stems on colored pads (tap = mute, shift = solo) plus
   one-press combos: drums-only, drumless, instrumental, acapella.
