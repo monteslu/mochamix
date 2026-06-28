@@ -61,4 +61,15 @@ describe('stem deck mixing', () => {
     for (let b = 0; b < 5; b++) pb.process(out, 128, 1, true);
     expect(pb.getPositionFraction()).toBeGreaterThan(start);
   });
+
+  it('loading a normal track over a stem deck fully takes over (clears stems)', () => {
+    const pb = new DeckPlayback(ENGINE_SR);
+    pb.loadStems([dcStem(0.1), dcStem(0.2), dcStem(0.05), dcStem(0.15)]);
+    expect(pb.hasStems()).toBe(true);
+    // Replace with a single non-stem track.
+    pb.loadTrack(dcStem(0.3));
+    expect(pb.hasStems()).toBe(false); // stem state dropped
+    // Plays the single source (0.3), not the old stem sum (0.5).
+    expect(firstSample(pb)).toBeCloseTo(0.3, 3);
+  });
 });

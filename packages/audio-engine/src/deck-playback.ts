@@ -81,6 +81,10 @@ export class DeckPlayback {
   constructor(private engineSampleRate: number) {}
 
   loadTrack(track: DeckTrack): void {
+    // Loading a normal track must FULLY take over the deck — including clearing any
+    // prior stem state, or a deck that previously held a .stem.mp4 keeps summing the old
+    // stems (and the UI keeps showing stem controls). hasStems() reads stemResamplers.
+    this.clearStems();
     this.track = track;
     this.position = 0;
     this.scalerCursor = 0;
@@ -90,6 +94,17 @@ export class DeckPlayback {
     const right = track.channels > 1 ? track.channelData[1]! : left;
     this.wasm.setSource(left, right, track.frames);
     this.keylockScaler?.reset();
+  }
+
+  /** Drop all stem state so the deck plays a single source (the primary `wasm`). */
+  private clearStems(): void {
+    this.stemResamplers = [];
+    this.stemGains = [];
+    this.stemPitch = [];
+    this.stemScalers = [];
+    this.stemScalerCursor = [];
+    this.stemScratchL = null;
+    this.stemScratchR = null;
   }
 
   /**

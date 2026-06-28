@@ -484,6 +484,10 @@ export class Engine {
     this.node.port.postMessage(msg);
     // Reflect file-derived controls on the bus (UI reads these).
     const g = deckGroup(d + 1);
+    // A normal track clears stem mode (the worklet's loadTrack clears the deck's stem
+    // resamplers); reflect it so the UI hides stem controls + coloring when a non-stem
+    // track replaces a stem one on the same deck.
+    this.bus.set(g, DeckKeys.hasStems, 0);
     this.bus.set(g, DeckKeys.duration, track.frames / track.sampleRate);
     this.bus.set(g, DeckKeys.trackSamples, track.frames);
     this.bus.set(g, DeckKeys.trackLoaded, 1);
