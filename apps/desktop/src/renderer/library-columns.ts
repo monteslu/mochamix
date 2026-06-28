@@ -108,7 +108,7 @@ export function startColumnResize(id: ColumnId, startX: number, handle: HTMLElem
   try {
     handle.setPointerCapture(pointerId);
   } catch {
-    /* not all envs support capture; window listeners below still work */
+    /* not all envs support capture; the drag still works via the captured handle */
   }
 
   const flush = () => {

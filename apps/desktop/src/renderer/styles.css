@@ -1399,10 +1399,10 @@ input[type='range'].xfader-slider::-webkit-slider-thumb {
   min-height: 0;
 }
 .library-table {
-  /* width = sum of the column widths (not 100%), so table-layout:fixed honors each
-     <col>'s px width literally instead of rescaling them to fit the pane. min-width
-     keeps it filling the pane when columns are narrow; the wrap scrolls when wider. */
-  width: max-content;
+  /* width is set INLINE (sum of column widths) so table-layout:fixed honors each <col>'s px
+     width literally. NOTE: do NOT use width:max-content here — it makes the table re-derive
+     column widths from content and ignore the <col> widths, which silently breaks resizing.
+     min-width keeps it filling the pane when columns are narrow; the wrap scrolls when wider. */
   min-width: 100%;
   border-collapse: collapse;
   font-size: 13px;
@@ -1422,7 +1422,7 @@ input[type='range'].xfader-slider::-webkit-slider-thumb {
   top: 0;
   /* straddle the column's right edge (overhang both sides) so the grip is easy to hit and
      isn't hidden under the next header cell. */
-  right: -5px;
+  right: -6px;
   width: 12px;
   height: 100%;
   cursor: col-resize;
@@ -1430,10 +1430,14 @@ input[type='range'].xfader-slider::-webkit-slider-thumb {
   touch-action: none;
   /* keep it interactive even though the th sets user-select:none */
   user-select: none;
+  /* faint always-on divider centered on the column edge, so people see a grab line */
+  background:
+    linear-gradient(var(--edge-bright), var(--edge-bright)) 50% 50% / 1px 60% no-repeat;
 }
 .library-table th .col-resize:hover {
-  /* a visible grab line on the right edge */
-  box-shadow: inset -2px 0 0 0 var(--accent);
+  /* brighten + fatten the line on hover so it's obvious where to drag */
+  background:
+    linear-gradient(var(--accent), var(--accent)) 50% 50% / 3px 100% no-repeat;
 }
 .library-table thead th {
   position: sticky;

@@ -321,6 +321,11 @@ export function Library(): React.JSX.Element {
     [stemQueue, started, start],
   );
 
+  // Explicit table width = the two fixed utility cols (WAVE 134 + LOAD 72) + every resizable
+  // column's current width. Needed so table-layout:fixed honors the <col> widths (see table JSX).
+  const FIXED_COLS_W = 134 + 72;
+  const tableWidth = FIXED_COLS_W + COLUMNS.reduce((sum, c) => sum + (widths[c.id] ?? 0), 0);
+
   const toggleSort = (col: SortCol) => {
     if (col === sortCol) {
       setSortDesc((d) => !d);
@@ -373,7 +378,13 @@ export function Library(): React.JSX.Element {
       </div>
 
       <div className="library-table-wrap">
-        <table className="library-table">
+        <table
+          className="library-table"
+          /* explicit total width = sum of all column widths, so table-layout:fixed honors
+             each <col> px width literally. (width:max-content in CSS made the table re-derive
+             column widths from content and IGNORE the <col> widths — resize did nothing.) */
+          style={{ width: `${tableWidth}px` }}
+        >
           <colgroup>
             <col className="col-wave" />
             {COLUMNS.map((c) => (
