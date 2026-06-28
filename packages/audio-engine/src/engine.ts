@@ -400,6 +400,8 @@ export class Engine {
       sampleRate,
       positionFrames: () => this.positionFrames(d),
       trackFrames: () => this.bus.get(g, DeckKeys.trackSamples),
+      seekFrames: (frame) => this.seekFrames(d, frame),
+      stop: () => this.bus.set(g, DeckKeys.play, 0),
       applyLoop: (start, end, enabled) =>
         node.port.postMessage({
           type: 'setLoop',

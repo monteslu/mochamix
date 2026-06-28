@@ -215,6 +215,18 @@ export const DeckKeys = {
   loopHalve: 'loop_halve',
   loopDouble: 'loop_double',
   loopExit: 'loop_exit',
+  reloopExit: 'reloop_exit', // Mixxx alias of reloop_toggle (enter/exit)
+  reloopAndStop: 'reloop_andstop', // re-enter the loop and stop
+  // beatloop (size-driven): activate a loop of beatloop_size beats; roll = while-held.
+  beatloop: 'beatloop',
+  beatloopSize: 'beatloop_size',
+  beatloopActivate: 'beatloop_activate',
+  beatlooprollActivate: 'beatlooproll_activate',
+  // beatjump: jump N beats (beatjump_size) without looping.
+  beatjump: 'beatjump',
+  beatjumpSize: 'beatjump_size',
+  beatjumpForward: 'beatjump_forward',
+  beatjumpBackward: 'beatjump_backward',
   // beatloop_X_toggle controls are generated per-size (see beatloopKey).
 } as const;
 

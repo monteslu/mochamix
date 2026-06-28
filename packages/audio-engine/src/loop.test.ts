@@ -117,6 +117,7 @@ describe('LoopControl', () => {
     bus.set(g, DeckKeys.trackSamples, 48000 * 60);
     let position = 0;
     const applied: Array<{ start: number; end: number; enabled: boolean }> = [];
+    const seeks: number[] = [];
     const loop = new LoopControl({
       bus,
       group: g,
@@ -125,8 +126,13 @@ describe('LoopControl', () => {
       trackFrames: () => 48000 * 60,
       applyLoop: (start, end, enabled) => applied.push({ start, end, enabled }),
       enableLoop: () => {},
+      seekFrames: (f) => {
+        seeks.push(f);
+        position = f;
+      },
+      stop: () => bus.set(g, DeckKeys.play, 0),
     });
-    return { bus, g, loop, applied, setPosition: (p: number) => (position = p) };
+    return { bus, g, loop, applied, seeks, setPosition: (p: number) => (position = p) };
   }
 
   it('loop in/out sets bounds and enables', () => {
@@ -173,5 +179,57 @@ describe('LoopControl', () => {
     expect(bus.get(g, DeckKeys.loopEnabled)).toBe(0);
     bus.set(g, DeckKeys.reloopToggle, 1);
     expect(bus.get(g, DeckKeys.loopEnabled)).toBe(1);
+  });
+
+  it('reloop_exit is an alias of reloop_toggle', () => {
+    const { bus, g, setPosition } = setup();
+    setPosition(0);
+    bus.set(g, DeckKeys.loopIn, 1);
+    setPosition(2000);
+    bus.set(g, DeckKeys.loopOut, 1);
+    expect(bus.get(g, DeckKeys.loopEnabled)).toBe(1);
+    bus.set(g, DeckKeys.reloopExit, 1); // toggles off
+    expect(bus.get(g, DeckKeys.loopEnabled)).toBe(0);
+  });
+
+  it('reloop_andstop re-enters the loop, seeks to start, and stops', () => {
+    const { bus, g, seeks, setPosition } = setup();
+    setPosition(1000);
+    bus.set(g, DeckKeys.loopIn, 1);
+    setPosition(5000);
+    bus.set(g, DeckKeys.loopOut, 1);
+    bus.set(g, DeckKeys.play, 1);
+    bus.set(g, DeckKeys.reloopAndStop, 1);
+    expect(bus.get(g, DeckKeys.loopEnabled)).toBe(1);
+    expect(seeks).toContain(1000); // back to loop start
+    expect(bus.get(g, DeckKeys.play)).toBe(0); // stopped
+  });
+
+  it('beatloop_activate uses beatloop_size', () => {
+    const { bus, g, setPosition } = setup(120); // 24000 frames/beat
+    setPosition(0);
+    bus.set(g, DeckKeys.beatloopSize, 8);
+    bus.set(g, DeckKeys.beatloopActivate, 1);
+    expect(bus.get(g, DeckKeys.loopEndPosition)).toBeCloseTo(8 * 24000, 0);
+    expect(bus.get(g, DeckKeys.loopEnabled)).toBe(1);
+  });
+
+  it('beatjump_forward/backward seeks N beats without looping', () => {
+    const { bus, g, seeks, setPosition } = setup(120); // 24000 frames/beat
+    setPosition(100000);
+    bus.set(g, DeckKeys.beatjumpSize, 4);
+    bus.set(g, DeckKeys.beatjumpForward, 1);
+    expect(seeks.at(-1)).toBeCloseTo(100000 + 4 * 24000, 0);
+    expect(bus.get(g, DeckKeys.loopEnabled)).toBe(0); // no loop created
+    bus.set(g, DeckKeys.beatjumpBackward, 1);
+    expect(seeks.at(-1)).toBeCloseTo(100000 + 4 * 24000 - 4 * 24000, 0);
+  });
+
+  it('beatjump (signed value) jumps and self-resets', () => {
+    const { bus, g, seeks, setPosition } = setup(120);
+    setPosition(50000);
+    bus.set(g, DeckKeys.beatjump, -2); // back 2 beats
+    expect(seeks.at(-1)).toBeCloseTo(50000 - 2 * 24000, 0);
+    expect(bus.get(g, DeckKeys.beatjump)).toBe(0);
   });
 });

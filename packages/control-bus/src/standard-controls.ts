@@ -136,9 +136,21 @@ function deckControls(g: string): ControlDef[] {
     { group: g, key: DeckKeys.loopIn, default: 0 },
     { group: g, key: DeckKeys.loopOut, default: 0 },
     { group: g, key: DeckKeys.reloopToggle, default: 0 },
+    { group: g, key: DeckKeys.reloopExit, default: 0 },
+    { group: g, key: DeckKeys.reloopAndStop, default: 0 },
     { group: g, key: DeckKeys.loopHalve, default: 0 },
     { group: g, key: DeckKeys.loopDouble, default: 0 },
     { group: g, key: DeckKeys.loopExit, default: 0 },
+    // size-driven beatloop + beatlooproll
+    { group: g, key: DeckKeys.beatloop, default: 0 },
+    { group: g, key: DeckKeys.beatloopSize, default: 4, description: 'Beats for beatloop_activate' },
+    { group: g, key: DeckKeys.beatloopActivate, default: 0 },
+    { group: g, key: DeckKeys.beatlooprollActivate, default: 0 },
+    // beatjump (jump N beats, no loop)
+    { group: g, key: DeckKeys.beatjump, default: 0 },
+    { group: g, key: DeckKeys.beatjumpSize, default: 4, description: 'Beats for beatjump fwd/back' },
+    { group: g, key: DeckKeys.beatjumpForward, default: 0 },
+    { group: g, key: DeckKeys.beatjumpBackward, default: 0 },
 
     ...hotcueControls(g),
     ...beatloopControls(g),
