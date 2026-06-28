@@ -39,7 +39,8 @@ function pruneFiles(dir, match) {
 const desktop = join(dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = join(desktop, '..', '..');
 const out = join(desktop, 'publish');
-const version = process.argv[2] || '0.0.1';
+// Default version; CI overrides with the git tag, e.g. `node make-publish-package.mjs 0.2.0`.
+const version = process.argv[2] || '0.1.0';
 
 // Ensure the build ran.
 for (const d of ['dist-main', 'dist-renderer', 'resources']) {
@@ -89,10 +90,13 @@ const pkg = {
   bin: { mochamix: 'bin/mochamix.mjs' },
   main: 'dist-main/main.js',
   files: ['dist-main', 'dist-renderer', 'resources', 'bin', 'README.md', 'LICENSE'],
+  keywords: ['dj', 'stems', 'web', 'party', 'music'],
   engines: { node: '>=22' },
   dependencies,
+  author: 'Luis Montes',
   homepage: 'https://github.com/monteslu/mochamix',
   repository: { type: 'git', url: 'git+https://github.com/monteslu/mochamix.git' },
+  bugs: { url: 'https://github.com/monteslu/mochamix/issues' },
   license: 'MIT',
 };
 writeFileSync(join(out, 'package.json'), JSON.stringify(pkg, null, 2) + '\n');
