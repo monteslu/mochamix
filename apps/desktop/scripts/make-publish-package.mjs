@@ -83,13 +83,13 @@ for (const name of RUNTIME_DEPS) {
 }
 
 const pkg = {
-  // npm package name: 'mochamix' is blocked as too similar to the old 'mocha-mix' package, so
-  // the PACKAGE is published as 'mochamixdj' (unscoped, clean `npx mochamixdj`). The project,
-  // repo, brand, and domain all stay MochaMix — this is only the npm install identifier. The
-  // installed COMMAND stays `mochamix` (the bin name) so the app itself reads clean.
-  name: 'mochamixdj',
+  // npm package name: bare 'mochamix' is blocked as too similar to the old 'mocha-mix'
+  // package, so the PACKAGE is published as 'mochamix-app' (the '-app' convention, cf.
+  // loukai-app). The project, repo, brand, and domain all stay MochaMix — this is only the
+  // npm install identifier. The installed COMMAND stays `mochamix` (the bin name).
+  name: 'mochamix-app',
   version,
-  description: 'MochaMix — an open-source, stem-native DJ application. Run it: npx mochamixdj.',
+  description: 'MochaMix — an open-source, stem-native DJ application. Run it: npx mochamix-app.',
   type: 'module',
   bin: { mochamix: 'bin/mochamix.mjs' },
   main: 'dist-main/main.js',
@@ -105,5 +105,5 @@ const pkg = {
 };
 writeFileSync(join(out, 'package.json'), JSON.stringify(pkg, null, 2) + '\n');
 
-console.log(`Wrote self-contained package → ${out} (mochamixdj@${version})`);
+console.log(`Wrote self-contained package → ${out} (mochamix-app@${version})`);
 console.log('Publish with: npm publish ' + out);

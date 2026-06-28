@@ -11,7 +11,7 @@ Proof you can build just about anything with web tech.
 ## Try it
 
 ```bash
-npx mochamixdj
+npx mochamix-app
 ```
 
 That's it — `npx` fetches the package and launches the app (it pulls the Electron runtime on
