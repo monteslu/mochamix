@@ -81,6 +81,10 @@ export class WaveformLaneController {
   private fit(): void {
     const w = Math.floor(this.canvas.clientWidth);
     if (w && this.canvas.width !== w) this.canvas.width = w;
+    // Match the backing height to the CSS height so a resized band stays crisp (the
+    // band is user-resizable via --wave-h). The ResizeObserver triggers this on change.
+    const h = Math.floor(this.canvas.clientHeight);
+    if (h && this.canvas.height !== h) this.canvas.height = h;
   }
 
   private tick = (): void => {

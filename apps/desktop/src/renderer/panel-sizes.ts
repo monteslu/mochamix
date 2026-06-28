@@ -6,6 +6,7 @@
  */
 
 const KEY = 'dj-panel-console-h';
+const WAVE_KEY = 'dj-panel-wave-h';
 
 export function getConsoleHeight(): number | null {
   try {
@@ -14,6 +15,64 @@ export function getConsoleHeight(): number | null {
   } catch {
     return null;
   }
+}
+
+/** Per-deck waveform lane height (px). null = use the fluid default. */
+export function getWaveHeight(): number | null {
+  try {
+    const v = localStorage.getItem(WAVE_KEY);
+    return v ? Number(v) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setWaveHeight(px: number): void {
+  try {
+    localStorage.setItem(WAVE_KEY, String(Math.round(px)));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Apply the saved waveform height to the .app element (if any). */
+export function applyWaveHeight(app: HTMLElement): void {
+  const h = getWaveHeight();
+  if (h && h > 0) app.style.setProperty('--wave-h', `${h}px`);
+  else app.style.removeProperty('--wave-h');
+}
+
+/**
+ * Resize the waveform lane height by dragging the band's bottom handle. Writes --wave-h
+ * live (rAF-throttled) and persists on release. Wires + cleans up its own listeners.
+ */
+export function startWaveResize(app: HTMLElement, startY: number): void {
+  const start = getWaveHeight() ?? laneHeightPx(app);
+  let last = start;
+  let frame = 0;
+  const apply = () => {
+    frame = 0;
+    app.style.setProperty('--wave-h', `${last}px`);
+  };
+  const move = (ev: PointerEvent) => {
+    last = Math.max(40, Math.min(260, start + (ev.clientY - startY)));
+    if (!frame) frame = requestAnimationFrame(apply); // throttle to one update/frame
+  };
+  const up = () => {
+    if (frame) cancelAnimationFrame(frame);
+    app.style.setProperty('--wave-h', `${last}px`);
+    setWaveHeight(last);
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+  };
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+}
+
+/** Current rendered lane height (for a drag that starts from the fluid default). */
+function laneHeightPx(app: HTMLElement): number {
+  const lane = app.querySelector('.wf-scroll') as HTMLElement | null;
+  return lane ? lane.getBoundingClientRect().height : 84;
 }
 
 export function setConsoleHeight(px: number): void {

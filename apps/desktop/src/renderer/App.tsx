@@ -13,7 +13,6 @@ import { Preferences } from './components/Preferences.js';
 import { MainControls } from './components/MainControls.js';
 import { TempoFader } from './components/Faders.js';
 import { WaveformBand } from './components/WaveformBand.js';
-import { useLayoutControls, applyPrefs, getPrefs } from './layout-prefs.js';
 import { startConsoleResize, clearConsoleHeight, applyConsoleHeight } from './panel-sizes.js';
 import { isDemo, seedDemo } from './demo.js';
 
@@ -88,22 +87,12 @@ function RecordButton(): React.JSX.Element {
 function Stage(): React.JSX.Element {
   const { started, bus } = useDj();
   const [showPrefs, setShowPrefs] = useState(false);
-  const { prefs, toggleDensity, setPreset } = useLayoutControls();
 
-  // Apply saved layout prefs to the .app element on mount. A ?layout=/?density=
-  // query param overrides (used for screenshots / sharing a view).
+  // Restore the persisted splitter size on mount.
   useEffect(() => {
-    const q = new URLSearchParams(location.search);
-    const ql = q.get('layout');
-    const qd = q.get('density');
-    if (ql === 'performance' || ql === 'library' || ql === 'minimal') setPreset(ql);
-    if (qd === 'compact' || qd === 'comfortable') {
-      if (getPrefs().density !== qd) toggleDensity();
-    }
-    applyPrefs(getPrefs());
     const app = document.querySelector('.app') as HTMLElement | null;
-    if (app) applyConsoleHeight(app); // restore the persisted splitter size
-  }, [setPreset, toggleDensity]);
+    if (app) applyConsoleHeight(app);
+  }, []);
 
   useEffect(() => {
     if (isDemo()) {
@@ -113,39 +102,14 @@ function Stage(): React.JSX.Element {
     }
   }, [bus]);
 
-  const PRESETS: { id: 'performance' | 'library' | 'minimal'; label: string; hint: string }[] = [
-    { id: 'performance', label: 'Perform', hint: 'Balanced decks + library' },
-    { id: 'library', label: 'Library', hint: 'Maximize the browser' },
-    { id: 'minimal', label: 'Minimal', hint: 'Decks only, compact' },
-  ];
-
   return (
-    <div className="app" data-density={prefs.density} data-layout={prefs.preset}>
+    <div className="app">
       <div className="titlebar">
         <span className="brand">dj-app</span>
         <span className="tagline">built for the love of it</span>
         <span className="build-stamp" title="renderer build time">
           {typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : 'dev'}
         </span>
-        <div className="layout-presets" role="group" aria-label="Layout preset">
-          {PRESETS.map((p) => (
-            <button
-              key={p.id}
-              className={`tiny ${prefs.preset === p.id ? 'active' : ''}`}
-              onClick={() => setPreset(p.id)}
-              title={p.hint}
-            >
-              {p.label}
-            </button>
-          ))}
-          <button
-            className={`tiny ${prefs.density === 'compact' ? 'active' : ''}`}
-            onClick={toggleDensity}
-            title="Toggle compact / comfortable spacing"
-          >
-            {prefs.density === 'compact' ? '⊟ compact' : '⊞ comfy'}
-          </button>
-        </div>
         <MainControls />
         <RecordButton />
         <button className="tiny" onClick={() => setShowPrefs(true)} title="Preferences">

@@ -87,35 +87,6 @@ body,
     radial-gradient(1400px 600px at 50% -10%, #141a26 0%, transparent 70%), var(--bg);
 }
 
-/* density toggle: compact tightens the fluid scale globally */
-.app[data-density='compact'] {
-  --density: 0.86;
-}
-
-/* layout presets — instant, CSS-driven (Mixxx needs separate skin files):
-   performance = balanced (default); library = bigger browser; minimal = decks
-   take the room, browser shrinks to a strip. */
-.app[data-layout='performance'] {
-  --console-h: auto;
-  --library-fr: 1fr;
-}
-.app[data-layout='library'] {
-  --console-h: auto;
-  --library-fr: 1fr;
-  --library-min: 280px;
-}
-.app[data-layout='minimal'] {
-  --console-h: minmax(240px, 1.5fr);
-  --library-min: 80px;
-  --library-fr: 0.5fr;
-}
-
-.layout-presets {
-  display: flex;
-  gap: 4px;
-  margin-left: 12px;
-}
-
 /* drag handle between the decks and the library */
 .splitter {
   grid-area: split;
@@ -286,11 +257,28 @@ body,
 }
 .wf-scroll {
   width: 100%;
-  height: clamp(64px, 9vh, 100px);
+  /* per-deck waveform height — driven by --wave-h so the band is resizable + persists.
+     Falls back to the fluid clamp when no manual size is set. */
+  height: var(--wave-h, clamp(64px, 9vh, 100px));
   display: block;
   border-radius: 4px;
   /* grey panel bg shows through when there's no track / before the GL draws */
   background: #0a0d13;
+}
+/* thin drag handle along the bottom of the waveform band to resize its height */
+.waveform-band .wf-resize {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -3px;
+  height: 7px;
+  cursor: row-resize;
+  z-index: 3;
+  touch-action: none;
+}
+.waveform-band .wf-resize:hover {
+  background: var(--accent);
+  opacity: 0.5;
 }
 /* full-track minimap next to the platter */
 .overview-strip {
@@ -1262,7 +1250,7 @@ input[type='range'].xfader-slider::-webkit-slider-thumb {
 .rowwave {
   display: inline-block;
   width: 120px;
-  height: 26px;
+  height: 22px;
   border-radius: 3px;
   vertical-align: middle;
 }
@@ -1285,6 +1273,30 @@ input[type='range'].xfader-slider::-webkit-slider-thumb {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  /* fixed layout so the <colgroup> px widths are authoritative (resizable columns) */
+  table-layout: fixed;
+}
+/* fixed utility columns (not user-resizable) */
+.library-table col.col-wave {
+  width: 134px;
+}
+.library-table col.col-load {
+  width: 72px;
+}
+/* the right-edge drag handle on each resizable header */
+.library-table th .col-resize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 7px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 1;
+  touch-action: none;
+}
+.library-table th .col-resize:hover {
+  background: var(--accent);
+  opacity: 0.6;
 }
 .library-table thead th {
   position: sticky;
@@ -1304,12 +1316,12 @@ input[type='range'].xfader-slider::-webkit-slider-thumb {
   color: var(--accent);
 }
 .library-table td {
-  padding: 6px 12px;
+  padding: 3px 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 280px;
+  /* widths come from the <colgroup> (table-layout: fixed) */
 }
 .library-table td.num {
   text-align: right;

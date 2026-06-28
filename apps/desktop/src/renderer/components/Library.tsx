@@ -12,7 +12,20 @@ import { deck as deckGroup, DeckKeys, LIBRARY, LibraryKeys } from '@dj/control-b
 import { camelotToKey, areKeysCompatible } from '@dj/analysis';
 import { loadTrackToDeck } from '../track-loader.js';
 import { LibraryControl } from '../library-control.js';
+import { useColumns, type ColumnId } from '../library-columns.js';
 import { RowWaveform } from './RowWaveform.js';
+
+// Resizable columns, in table order. `sort` is the SortCol they sort by (null = no sort).
+const COLUMNS: { id: ColumnId; label: string; sort: SortCol | null }[] = [
+  { id: 'artist', label: 'ARTIST', sort: 'artist' },
+  { id: 'title', label: 'TITLE', sort: 'title' },
+  { id: 'album', label: 'ALBUM', sort: 'album' },
+  { id: 'genre', label: 'GENRE', sort: 'genre' },
+  { id: 'bpm', label: 'BPM', sort: 'bpm' },
+  { id: 'key', label: 'KEY', sort: null },
+  { id: 'time', label: 'TIME', sort: 'duration' },
+  { id: 'stems', label: 'STEMS', sort: 'stems' },
+];
 
 type SortCol = 'artist' | 'title' | 'album' | 'bpm' | 'duration' | 'genre' | 'stems';
 
@@ -79,6 +92,7 @@ export function Library(): React.JSX.Element {
   const [sortDesc, setSortDesc] = useState(false);
   const [scanning, setScanning] = useState<string | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
+  const { widths, onResizeStart, reset: resetColumns } = useColumns();
 
   const [dbError, setDbError] = useState<string | null>(null);
 
@@ -113,11 +127,26 @@ export function Library(): React.JSX.Element {
     void refresh();
   }, [refresh]);
 
-  // When stem generation finishes, re-query so the row's persisted stemPath shows
-  // (otherwise "✓ stems" relies only on the in-session done set).
+  // When stem generation finishes, patch the affected rows IN PLACE rather than
+  // re-querying the whole list. A full refresh re-sorts + replaces the array, which
+  // makes the list jump (scroll + selection shift) every time a stem decode lands.
+  // The "✓ stems" badge reads stemStatus.done directly, so the row updates live; we
+  // only stamp stemsGeneratedAt so the badge survives a later natural refresh. Row
+  // identity (keyed by id) and order stay stable, so nothing jumps.
   useEffect(() => {
-    if (stemStatus.done.size > 0) void refresh();
-  }, [stemStatus.done, refresh]);
+    if (stemStatus.done.size === 0) return;
+    setTracks((prev) => {
+      let changed = false;
+      const next = prev.map((t) => {
+        if (stemStatus.done.has(t.id) && !t.stemsGeneratedAt && !t.stemPath) {
+          changed = true;
+          return { ...t, stemsGeneratedAt: Date.now() };
+        }
+        return t;
+      });
+      return changed ? next : prev; // keep the same array if nothing changed (no re-render)
+    });
+  }, [stemStatus.done]);
 
   useEffect(() => {
     // Guard: if the IPC bridge is missing (e.g. served the wrong entry), don't
@@ -309,29 +338,38 @@ export function Library(): React.JSX.Element {
 
       <div className="library-table-wrap">
         <table className="library-table">
+          <colgroup>
+            <col className="col-wave" />
+            {COLUMNS.map((c) => (
+              <col key={c.id} style={{ width: `${widths[c.id]}px` }} />
+            ))}
+            <col className="col-load" />
+          </colgroup>
           <thead>
             <tr>
               <th className="th-wave">WAVE</th>
-              {(['artist', 'title', 'album', 'genre', 'bpm'] as SortCol[]).map((c) => (
-                <th key={c} onClick={() => toggleSort(c)} className={sortCol === c ? 'sorted' : ''}>
-                  {c.toUpperCase()}
-                  {sortCol === c ? (sortDesc ? ' ▼' : ' ▲') : ''}
+              {COLUMNS.map((c) => (
+                <th
+                  key={c.id}
+                  onClick={c.sort ? () => toggleSort(c.sort!) : undefined}
+                  className={c.sort && sortCol === c.sort ? 'sorted' : ''}
+                  title={c.id === 'stems' ? 'Sort tracks with stems first, then by name' : undefined}
+                >
+                  {c.label}
+                  {c.sort && sortCol === c.sort ? (sortDesc ? ' ▼' : ' ▲') : ''}
+                  {/* drag the right edge to resize; double-click to reset all widths */}
+                  <span
+                    className="col-resize"
+                    onPointerDown={(e) => onResizeStart(c.id, e)}
+                    onClick={(e) => e.stopPropagation()} // don't trigger sort
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      resetColumns();
+                    }}
+                    title="Drag to resize · double-click to reset"
+                  />
                 </th>
               ))}
-              <th>KEY</th>
-              <th
-                onClick={() => toggleSort('duration')}
-                className={sortCol === 'duration' ? 'sorted' : ''}
-              >
-                TIME{sortCol === 'duration' ? (sortDesc ? ' ▼' : ' ▲') : ''}
-              </th>
-              <th
-                onClick={() => toggleSort('stems')}
-                className={sortCol === 'stems' ? 'sorted' : ''}
-                title="Sort tracks with stems first, then by name"
-              >
-                STEMS{sortCol === 'stems' ? (sortDesc ? ' ▼' : ' ▲') : ''}
-              </th>
               <th>LOAD</th>
             </tr>
           </thead>

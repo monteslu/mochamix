@@ -10,6 +10,7 @@ import { memo, useEffect, useRef } from 'react';
 import { MASTER, MasterKeys } from '@dj/control-bus';
 import { useDj } from '../dj-context.js';
 import { WaveformLaneController, ZOOM_PRESETS } from '../waveform-lane.js';
+import { applyWaveHeight, startWaveResize } from '../panel-sizes.js';
 
 // Thin shell: mount a canvas, hand it to the controller (which owns all the GPU
 // render logic + rAF loop). No render logic in the JSX.
@@ -63,11 +64,30 @@ function ZoomControl(): React.JSX.Element {
 }
 
 export function WaveformBand(): React.JSX.Element {
+  // Restore the persisted waveform height on mount.
+  useEffect(() => {
+    const app = document.querySelector('.app') as HTMLElement | null;
+    if (app) applyWaveHeight(app);
+  }, []);
+
+  const onResize = (e: React.PointerEvent) => {
+    const app = document.querySelector('.app') as HTMLElement | null;
+    if (app) {
+      e.preventDefault();
+      startWaveResize(app, e.clientY);
+    }
+  };
+
   return (
     <section className="waveform-band" aria-label="Waveforms">
       <ZoomControl />
       <DeckLane deckIndex={0} framesPerPx={90} />
       <DeckLane deckIndex={1} framesPerPx={90} />
+      <span
+        className="wf-resize"
+        onPointerDown={onResize}
+        title="Drag to resize the waveforms"
+      />
     </section>
   );
 }
