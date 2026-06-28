@@ -1,22 +1,54 @@
 /* dj-app — dark DJ console aesthetic. Resizable / responsive throughout. */
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   THEME TOKENS. :root holds the DEFAULT theme ("Nightclub"). Alternate themes
-   override these via [data-theme="id"] on .app (see theme.ts). Everything visual
-   should reference these tokens — not raw colors — so a theme recolors the whole UI.
+   THEME TOKENS. :root holds the DEFAULT theme ("Mocha" — warm espresso + amber/gold).
+   Alternate themes override these via [data-theme="id"] on .app (see theme.ts).
+   Everything visual should reference these tokens — not raw colors — so a theme
+   recolors the whole UI.
    ───────────────────────────────────────────────────────────────────────────── */
 :root,
+[data-theme='mocha'] {
+  /* darks scale: deepest → lightest panel (warm espresso). Use these, not one-off hex. */
+  --bg: #14100c;
+  --bg-2: #1a1510;
+  --panel: #221b14;
+  --panel-2: #2c241a;
+  --panel-3: #392f22;
+  --sunken: #100c08; /* recessed wells: waveform/overview/table/search backgrounds */
+  --sunken-2: #0a0705; /* deepest gradient stop */
+  --raised: #261e16; /* button/pad gradient bottom stop */
+  --edge: #43372a; /* bronze-tinted borders */
+  --edge-bright: #5a4a37;
+  --text: #f0e6d6; /* warm off-white */
+  --text-dim: #b09a7d;
+  --text-faint: #7c6a52;
+  --accent: #e0a44a; /* amber/gold */
+  --accent-2: #6e4a1c; /* deep bronze */
+  --accent-glow: rgba(224, 164, 74, 0.38);
+  --on-accent: #2a1a02; /* text/icon on an accent-filled surface */
+  --play: #6fcf8e;
+  --on-play: #06250f; /* text on a green/playing fill */
+  --cue: #ffcf6b;
+  --cue-glow: rgba(255, 207, 107, 0.38);
+  --on-cue: #2a1d02; /* text on an amber/cue fill */
+  --danger: #e8634f;
+  --deck-a: #e0a44a;
+  --deck-b: #c97b3a;
+  --radius: 10px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* "Nightclub" — the original dark cyan/orange scheme. */
 [data-theme='nightclub'] {
-  /* darks scale: deepest → lightest panel. Use these, not one-off hex. */
   --bg: #0a0c10;
   --bg-2: #0e1116;
   --panel: #161b24;
   --panel-2: #1c2230;
   --panel-3: #232b3a;
-  /* extra darks the audit found hardcoded everywhere (gradients/tracks/scrims) */
-  --sunken: #0b0e14; /* recessed wells: waveform/overview/table/search backgrounds */
-  --sunken-2: #06090e; /* deepest gradient stop */
-  --raised: #141923; /* button/pad gradient bottom stop */
+  --sunken: #0b0e14;
+  --sunken-2: #06090e;
+  --raised: #141923;
   --edge: #2c3444;
   --edge-bright: #3a4456;
   --text: #d7dde8;
@@ -25,18 +57,15 @@
   --accent: #38b6ff;
   --accent-2: #1d5e80;
   --accent-glow: rgba(56, 182, 255, 0.35);
-  --on-accent: #00121f; /* text/icon on an accent-filled surface */
+  --on-accent: #00121f;
   --play: #45e08a;
-  --on-play: #062512; /* text on a green/playing fill */
+  --on-play: #062512;
   --cue: #ffb43d;
   --cue-glow: rgba(255, 180, 61, 0.35);
-  --on-cue: #2a1a02; /* text on an amber/cue fill */
+  --on-cue: #2a1a02;
   --danger: #ff5066;
   --deck-a: #38b6ff;
   --deck-b: #ff7a3d;
-  --radius: 10px;
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 /* Non-themed sizing / scale tokens (same in every theme). */
@@ -161,8 +190,14 @@ body,
   grid-template-rows: auto auto var(--console-h) auto minmax(var(--library-min), var(--library-fr)) auto;
   grid-template-areas: 'top' 'waveband' 'console' 'split' 'library' 'status';
   height: 100%;
+  /* RE-ASSERT color here: [data-theme] lives on .app, but `color: var(--text)` is set on
+     body/#root (ancestors) where the token resolves to the :root (default) value and
+     inherits down — so a theme's --text override was ignored and text stayed light-on-light.
+     Resolving color at .app (where the override lives) fixes every theme, incl. Daylight. */
+  color: var(--text);
   background:
-    radial-gradient(1400px 600px at 50% -10%, #141a26 0%, transparent 70%), var(--bg);
+    radial-gradient(1400px 600px at 50% -10%, color-mix(in srgb, var(--accent) 12%, var(--bg)) 0%, transparent 70%),
+    var(--bg);
 }
 
 /* drag handle between the decks and the library */

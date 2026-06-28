@@ -3,7 +3,7 @@
  * token block in styles.css ([data-theme='id']); applying a theme sets that attribute on
  * the .app element and the CSS tokens cascade. The choice persists in localStorage.
  *
- * Default ("nightclub") is the original dark cyan/orange scheme (:root). Adding a theme =
+ * Default ("mocha", a warm espresso + amber/gold scheme) lives in :root. Adding a theme =
  * a new token block in styles.css + an entry here.
  */
 
@@ -18,6 +18,7 @@ export interface ThemeDef {
 
 /** Available themes, in picker order. The first is the default. */
 export const THEMES: ThemeDef[] = [
+  { id: 'mocha', label: 'Mocha', swatch: '#e0a44a' },
   { id: 'nightclub', label: 'Nightclub', swatch: '#38b6ff' },
   { id: 'graphite', label: 'Graphite', swatch: '#e0479e' },
   { id: 'daylight', label: 'Daylight', swatch: '#0b84e6' },
