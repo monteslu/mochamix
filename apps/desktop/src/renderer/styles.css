@@ -723,7 +723,7 @@ body,
 .pfl-btn {
   flex: 0 0 auto;
   font-size: 15px;
-  padding: 12px 14px;
+  padding: 12px 8px;
 }
 .pfl-btn.active {
   background: var(--accent-2);
