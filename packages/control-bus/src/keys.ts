@@ -138,8 +138,13 @@ export const DeckKeys = {
   playIndicator: 'play_indicator',
   cueDefault: 'cue_default',
   cueGoto: 'cue_goto',
+  cueGotoAndPlay: 'cue_gotoandplay', // seek to cue + play
+  cuePreview: 'cue_preview', // play-from-cue while held (preview)
   start: 'start',
-  startPlay: 'start_play',
+  startPlay: 'start_play', // go to track start + play
+  startStop: 'start_stop', // go to track start + stop
+  playStutter: 'play_stutter', // restart from cue and play (stutter)
+  reverseRoll: 'reverseroll', // reverse (censor) while held; resume on release
   stop: 'stop',
 
   // position / state (read-mostly, published from the engine)
@@ -321,6 +326,7 @@ export const MasterKeys = {
   boothGain: 'booth_gain',
   headGain: 'headGain',
   headMix: 'headMix', // -1 (main) .. 1 (pfl)
+  headVolume: 'headVolume', // Mixxx alias of headGain (controllers use both names)
   headSplit: 'headSplit',
   balance: 'balance',
   vuMeterL: 'vu_meter_left',

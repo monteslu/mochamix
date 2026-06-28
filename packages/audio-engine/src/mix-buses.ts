@@ -88,6 +88,10 @@ export function createMixBuses(ctx: BaseAudioContext, bus: ControlBus): {
     bus.connect(MASTER, MasterKeys.headGain, (v) =>
       headphone.gain.setTargetAtTime(v, now(), RAMP / 3),
     ),
+    // headVolume is Mixxx's alias for headGain — drive the same headphone gain.
+    bus.connect(MASTER, MasterKeys.headVolume, (v) =>
+      headphone.gain.setTargetAtTime(v, now(), RAMP / 3),
+    ),
     bus.connect(MASTER, MasterKeys.headMix, setHeadMix),
   ];
 

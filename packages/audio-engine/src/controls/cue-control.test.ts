@@ -118,4 +118,45 @@ describe('CueControl', () => {
       expect(s.bus.get(s.g, DeckKeys.cuePoint)).toBe(42000);
     });
   });
+
+  describe('transport + cue variants', () => {
+    it('cue_gotoandplay seeks to cue and plays', () => {
+      s.bus.set(s.g, DeckKeys.cuePoint, 8000);
+      s.bus.set(s.g, DeckKeys.cueGotoAndPlay, 1);
+      expect(s.seeks).toContain(8000);
+      expect(s.bus.get(s.g, DeckKeys.play)).toBe(1);
+    });
+
+    it('start_stop goes to track start and stops', () => {
+      s.bus.set(s.g, DeckKeys.play, 1);
+      s.setPos(50000);
+      s.bus.set(s.g, DeckKeys.startStop, 1);
+      expect(s.seeks).toContain(0);
+      expect(s.bus.get(s.g, DeckKeys.play)).toBe(0);
+    });
+
+    it('start_play goes to start and plays', () => {
+      s.setPos(50000);
+      s.bus.set(s.g, DeckKeys.startPlay, 1);
+      expect(s.seeks).toContain(0);
+      expect(s.bus.get(s.g, DeckKeys.play)).toBe(1);
+    });
+
+    it('play_stutter restarts from the cue and plays', () => {
+      s.bus.set(s.g, DeckKeys.cuePoint, 3000);
+      s.setPos(50000);
+      s.bus.set(s.g, DeckKeys.playStutter, 1);
+      expect(s.seeks).toContain(3000);
+      expect(s.bus.get(s.g, DeckKeys.play)).toBe(1);
+    });
+
+    it('cue_preview plays from cue while held; release stops + returns', () => {
+      s.bus.set(s.g, DeckKeys.cuePoint, 7000);
+      s.bus.set(s.g, DeckKeys.cuePreview, 1); // hold
+      expect(s.seeks).toContain(7000);
+      expect(s.bus.get(s.g, DeckKeys.play)).toBe(1);
+      s.bus.set(s.g, DeckKeys.cuePreview, 0); // release
+      expect(s.bus.get(s.g, DeckKeys.play)).toBe(0);
+    });
+  });
 });

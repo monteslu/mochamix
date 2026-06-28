@@ -64,6 +64,49 @@ export class CueControl {
       }
     });
 
+    // cue_gotoandplay: seek to the cue and play.
+    this.on(DeckKeys.cueGotoAndPlay, () => {
+      const cue = bus.get(group, DeckKeys.cuePoint);
+      if (cue >= 0) {
+        deps.seekFrames(cue);
+        deps.play?.();
+      }
+    });
+
+    // Transport-to-start variants (Mixxx): start = seek to track start; start_stop =
+    // start + stop; start_play = start + play; play_stutter = restart from cue and play.
+    this.on(DeckKeys.start, () => deps.seekFrames(0));
+    this.on(DeckKeys.startStop, () => {
+      deps.stop();
+      deps.seekFrames(0);
+    });
+    this.on(DeckKeys.startPlay, () => {
+      deps.seekFrames(0);
+      deps.play?.();
+    });
+    this.on(DeckKeys.playStutter, () => {
+      const cue = bus.get(group, DeckKeys.cuePoint);
+      deps.seekFrames(cue >= 0 ? cue : 0);
+      deps.play?.();
+    });
+
+    // cue_preview: play from the cue while held; on release stop + return to cue.
+    this.offs.push(
+      bus.connect(group, DeckKeys.cuePreview, (v) => {
+        const cue = bus.get(group, DeckKeys.cuePoint);
+        if (cue < 0) return;
+        if (v > 0.5) {
+          this.previewing = true;
+          deps.seekFrames(cue);
+          deps.play?.();
+        } else if (this.previewing) {
+          this.previewing = false;
+          deps.stop();
+          deps.seekFrames(cue);
+        }
+      }),
+    );
+
     // cue_default — the combined CDJ/Pioneer cue button real controllers send (the
     // DJ2GO2 CueButton drives this). Faithful port of Mixxx CueControl::cueCDJ:
     //   press while freely playing      → stop + seek to cue
