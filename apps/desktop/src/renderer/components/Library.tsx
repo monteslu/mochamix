@@ -93,7 +93,7 @@ export function Library(): React.JSX.Element {
   const [sortDesc, setSortDesc] = useState(false);
   const [scanning, setScanning] = useState<string | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
-  const { widths, onResizeStart, reset: resetColumns } = useColumns();
+  const { widths, onResizeStart, reset: resetColumns, didJustResize } = useColumns();
 
   const [dbError, setDbError] = useState<string | null>(null);
 
@@ -387,7 +387,7 @@ export function Library(): React.JSX.Element {
               {COLUMNS.map((c) => (
                 <th
                   key={c.id}
-                  onClick={c.sort ? () => toggleSort(c.sort!) : undefined}
+                  onClick={c.sort ? () => { if (!didJustResize()) toggleSort(c.sort!); } : undefined}
                   className={c.sort && sortCol === c.sort ? 'sorted' : ''}
                   title={c.id === 'stems' ? 'Sort tracks with stems first, then by name' : undefined}
                 >

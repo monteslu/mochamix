@@ -84,15 +84,32 @@ export function useColumnWidths(): ColumnWidths {
   );
 }
 
+// True for a tick after a resize drag ends, so the header's click→sort handler can ignore
+// the synthetic click that fires on pointerup at the end of a drag.
+let justResized = false;
+/** Did a column resize just happen? (clears itself on the next event loop turn) */
+export function didJustResize(): boolean {
+  return justResized;
+}
+
 /**
- * Begin resizing column `id` from a pointerdown on its handle. Updates the width live,
- * rAF-throttled (one DOM/state update per frame regardless of pointermove rate), and
- * persists once on release. Returns nothing; wires + cleans up its own listeners.
+ * Begin resizing column `id` from a pointerdown on its handle. Captures the pointer on the
+ * handle element (so the drag tracks even if the cursor leaves the 10px grip), updates the
+ * width live (rAF-throttled), and persists once on release.
  */
-export function startColumnResize(id: ColumnId, startX: number): void {
+export function startColumnResize(id: ColumnId, startX: number, handle: HTMLElement, pointerId: number): void {
   const startW = current[id];
   let pending = 0;
   let frame = 0;
+  let moved = false;
+
+  // Pointer capture: all subsequent move/up events go to `handle` regardless of where the
+  // cursor is — the key to a drag that doesn't drop when you leave the tiny grip.
+  try {
+    handle.setPointerCapture(pointerId);
+  } catch {
+    /* not all envs support capture; window listeners below still work */
+  }
 
   const flush = () => {
     frame = 0;
@@ -100,18 +117,32 @@ export function startColumnResize(id: ColumnId, startX: number): void {
   };
   const move = (ev: PointerEvent) => {
     pending = ev.clientX - startX;
-    // Throttle: coalesce all pointermoves within a frame into one width update.
+    if (Math.abs(pending) > 2) moved = true;
     if (!frame) frame = requestAnimationFrame(flush);
   };
   const up = () => {
     if (frame) cancelAnimationFrame(frame);
     setColumnWidth(id, startW + pending);
     persist();
-    window.removeEventListener('pointermove', move);
-    window.removeEventListener('pointerup', up);
+    handle.removeEventListener('pointermove', move);
+    handle.removeEventListener('pointerup', up);
+    handle.removeEventListener('pointercancel', up);
+    try {
+      handle.releasePointerCapture(pointerId);
+    } catch {
+      /* ignore */
+    }
+    // Suppress the click→sort that fires right after a real drag.
+    if (moved) {
+      justResized = true;
+      setTimeout(() => {
+        justResized = false;
+      }, 0);
+    }
   };
-  window.addEventListener('pointermove', move);
-  window.addEventListener('pointerup', up);
+  handle.addEventListener('pointermove', move);
+  handle.addEventListener('pointerup', up);
+  handle.addEventListener('pointercancel', up);
 }
 
 /** Reset all columns to defaults (double-click a handle). */
@@ -127,7 +158,7 @@ export function useColumns() {
   const onResizeStart = useCallback((id: ColumnId, e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation(); // don't trigger the header's sort click
-    startColumnResize(id, e.clientX);
+    startColumnResize(id, e.clientX, e.currentTarget as HTMLElement, e.pointerId);
   }, []);
-  return { widths, onResizeStart, reset: resetColumnWidths };
+  return { widths, onResizeStart, reset: resetColumnWidths, didJustResize };
 }

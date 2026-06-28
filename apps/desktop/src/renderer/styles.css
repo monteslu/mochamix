@@ -1420,11 +1420,13 @@ input[type='range'].xfader-slider::-webkit-slider-thumb {
 .library-table th .col-resize {
   position: absolute;
   top: 0;
-  right: 0; /* fully inside this column's right edge so the hit area is unambiguous */
-  width: 10px;
+  /* straddle the column's right edge (overhang both sides) so the grip is easy to hit and
+     isn't hidden under the next header cell. */
+  right: -5px;
+  width: 12px;
   height: 100%;
   cursor: col-resize;
-  z-index: 5;
+  z-index: 6;
   touch-action: none;
   /* keep it interactive even though the th sets user-select:none */
   user-select: none;
