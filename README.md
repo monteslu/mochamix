@@ -128,6 +128,18 @@ Issues and PRs welcome. Run `npm test`, `npm run typecheck`, and `npm run lint` 
 a PR. The project is pre-1.0, so the architecture is still moving in places — open an issue to
 discuss bigger changes first.
 
+## Credits
+
+Huge thanks to the **[Mixxx](https://mixxx.org) project** and its Development Team. MochaMix's
+controller support is built directly on Mixxx: we reuse Mixxx's community-maintained controller
+mappings (the `.midi.xml` files + their scripts) and implement the Mixxx `engine`/`midi`
+scripting API, so the hundreds of controllers Mixxx supports work in MochaMix too.
+
+- **Supported controllers** → the [Mixxx hardware manual](https://manual.mixxx.org/2.6/en/hardware/manuals#controllers)
+- The bundled mappings are licensed under the **GNU GPL** by their respective authors; the GPL
+  text ships alongside them (`resources/controllers/MIXXX-LICENSE`).
+
 ## License
 
-MIT.
+MochaMix's own code is MIT (see [LICENSE](LICENSE)). The bundled Mixxx controller mappings under
+`resources/controllers/` are GPL, licensed by their authors (see `MIXXX-LICENSE` there).
