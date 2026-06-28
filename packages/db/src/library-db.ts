@@ -126,6 +126,8 @@ export class LibraryDb {
       /** Packed Int32 downbeat frames (real measures from DownBeat). */
       downbeats?: Uint8Array;
       analyzedAt?: number;
+      /** 1 = user locked the BPM/beatgrid; re-analysis skips it. */
+      bpmLocked?: number;
     },
   ): void {
     const sets: string[] = [];
@@ -133,6 +135,10 @@ export class LibraryDb {
     if (a.bpm !== undefined) {
       sets.push('bpm = @bpm');
       params.bpm = a.bpm;
+    }
+    if (a.bpmLocked !== undefined) {
+      sets.push('bpm_locked = @lock');
+      params.lock = a.bpmLocked ? 1 : 0;
     }
     if (a.firstBeatFrame !== undefined) {
       sets.push('first_beat_frame = @fbf');
@@ -282,7 +288,8 @@ export class LibraryDb {
       .prepare(
         `UPDATE library SET analyzed_at = 0
          WHERE location IN (SELECT id FROM track_locations WHERE fs_deleted = 0)
-           AND mixxx_deleted = 0`,
+           AND mixxx_deleted = 0
+           AND COALESCE(bpm_locked, 0) = 0`, // never re-analyze a user-locked BPM/grid
       )
       .run();
     return info.changes;

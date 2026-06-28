@@ -127,6 +127,7 @@ export async function loadTrackToDeck(
     album: m.album ?? null,
     key: m.key ?? null,
     coverUrl: null,
+    libraryId: src.libraryId ?? null,
   });
 
   engine.loadTrack(deckIndex, decoded);
@@ -262,6 +263,7 @@ async function loadStemFile(
       album: m.album ?? null,
       key: m.key ?? null,
       coverUrl: null,
+      libraryId: src.libraryId ?? null,
     });
 
     engine.loadStems(deckIndex, stems, { bpm: m.bpm });

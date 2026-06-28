@@ -22,11 +22,12 @@ interface Props {
 }
 
 export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
-  const { engine, bus, analysis, started, start } = useDj();
+  const { engine, bus, analysis, started, start, bpmControl } = useDj();
   const grp = deckGroup(deckIndex + 1);
 
   const [play, setPlay] = useControl(grp, DeckKeys.play);
   const [keylock, setKeylock] = useControl(grp, DeckKeys.keylock);
+  const [bpmLock, setBpmLock] = useControl(grp, DeckKeys.bpmLock);
   const [pfl, setPfl] = useControl(grp, DeckKeys.pfl);
   const [sync, setSync] = useControl(grp, DeckKeys.syncEnabled);
   const [quantize, setQuantize] = useControl(grp, DeckKeys.quantize);
@@ -196,6 +197,22 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
             <span className="deck-rate">
               {rateRatio >= 1 ? '+' : ''}
               {((rateRatio - 1) * 100).toFixed(1)}%
+            </span>
+            {/* BPM edit (Mixxx Adjust BPM): halve/double fix octave errors, lock freezes it */}
+            <span className="bpm-edit" role="group" aria-label="Adjust BPM">
+              <button className="tiny" title="Halve BPM (/2)" onClick={() => bpmControl.scale(deckIndex, 0.5)}>
+                /2
+              </button>
+              <button className="tiny" title="Double BPM (x2)" onClick={() => bpmControl.scale(deckIndex, 2)}>
+                x2
+              </button>
+              <button
+                className={`tiny ${bpmLock > 0.5 ? 'active' : ''}`}
+                title="Lock BPM (re-analysis won't change it)"
+                onClick={() => setBpmLock(bpmLock > 0.5 ? 0 : 1)}
+              >
+                {bpmLock > 0.5 ? '🔒' : '🔓'}
+              </button>
             </span>
           </div>
         </div>

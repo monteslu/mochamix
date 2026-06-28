@@ -440,7 +440,14 @@ ipcMain.handle(
   (
     _e,
     id: number,
-    a: { bpm?: number; firstBeatFrame?: number; key?: string; waveform?: Uint8Array; analyzedAt?: number },
+    a: {
+      bpm?: number;
+      firstBeatFrame?: number;
+      key?: string;
+      waveform?: Uint8Array;
+      analyzedAt?: number;
+      bpmLocked?: number;
+    },
   ) => getLibrary().setAnalysis(id, a),
 );
 ipcMain.handle('library:waveform', (_e, id: number) => getLibrary().getWaveform(id));

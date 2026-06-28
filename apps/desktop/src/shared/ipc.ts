@@ -120,6 +120,8 @@ export interface DjApi {
       waveform?: Uint8Array;
       downbeats?: Uint8Array;
       analyzedAt?: number;
+      /** 1 = lock BPM/grid so re-analysis skips this track. */
+      bpmLocked?: number;
     },
   ) => Promise<void>;
   /** Cached overview peaks (Uint8 per bucket) for a track, or null. */

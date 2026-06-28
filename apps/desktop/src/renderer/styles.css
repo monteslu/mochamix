@@ -1334,6 +1334,55 @@ input[type='range'].xfader-slider::-webkit-slider-thumb {
   font-variant-numeric: tabular-nums;
   color: var(--text-dim);
 }
+/* editable BPM cell: number + hover-revealed octave (/2 x2) buttons */
+.library-table td.bpm-cell {
+  position: relative;
+  white-space: nowrap;
+}
+.bpm-oct {
+  display: none;
+  margin-left: 6px;
+}
+.library-table td.bpm-cell:hover .bpm-oct {
+  display: inline-flex;
+  gap: 2px;
+}
+.bpm-oct .micro {
+  font-size: 9px;
+  line-height: 14px;
+  padding: 0 4px;
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  background: #1b2130;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.bpm-oct .micro:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.bpm-input {
+  width: 52px;
+  text-align: right;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  background: #0c0f14;
+  color: var(--text);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+/* deck BPM edit cluster (halve/double/lock) */
+.bpm-edit {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 6px;
+}
+.bpm-edit .tiny {
+  padding: 0 5px;
+  line-height: 16px;
+  font-size: 10px;
+}
 .library-table td.lib-key {
   font-variant-numeric: tabular-nums;
   color: var(--cue);

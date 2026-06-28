@@ -178,6 +178,10 @@ export const DeckKeys = {
   fileBpm: 'file_bpm', // analyzed/original BPM (used by sync + smart fader)
   firstBeatFrame: 'beat_first_frame', // grid phase: frame of the first beat (-1 = unknown)
   keylock: 'keylock',
+  // BPM editing (Mixxx-style). bpmLock freezes the grid; the *_set_* pulses rescale it.
+  bpmLock: 'bpm_lock', // 1 = locked (re-analysis skips it)
+  beatsSetDouble: 'beats_set_double', // pulse: BPM × 2
+  beatsSetHalve: 'beats_set_halve', // pulse: BPM ÷ 2
 
   // slip mode (Mixxx slip_enabled): playback continues underneath loops/scratch; on
   // disable, snap to where the song would be.

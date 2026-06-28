@@ -24,6 +24,9 @@ export interface DeckTrackState {
   key: string | null;
   /** Object URL of the cover art image, or null. */
   coverUrl: string | null;
+  /** Library row id of the loaded track (null if loaded outside the library, e.g. a raw
+   *  file drop). Lets a deck-side BPM edit persist back to the DB. */
+  libraryId: number | null;
 }
 
 const empty: DeckTrackState = {
@@ -36,6 +39,7 @@ const empty: DeckTrackState = {
   album: null,
   key: null,
   coverUrl: null,
+  libraryId: null,
 };
 
 const state: DeckTrackState[] = [empty, empty, empty, empty];

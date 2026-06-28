@@ -27,6 +27,7 @@ import { onFrame } from './frame-loop.js';
 import { ControllerService } from './controller-service.js';
 import { RecordingService } from './recording-service.js';
 import { OutputEmitter } from './output-emitter.js';
+import { BpmControl } from './bpm-control.js';
 import { loadTrackToDeck } from './track-loader.js';
 
 export const NUM_DECKS = 2;
@@ -44,6 +45,7 @@ export interface DjRuntime {
   controllers: ControllerService;
   recording: RecordingService;
   outputEmitter: OutputEmitter;
+  bpmControl: BpmControl;
   /** True once the AudioContext has been started (needs a user gesture). */
   started: boolean;
   start: () => Promise<void>;
@@ -61,6 +63,7 @@ function buildRuntime(): {
   controllers: ControllerService;
   recording: RecordingService;
   outputEmitter: OutputEmitter;
+  bpmControl: BpmControl;
 } {
   // Persist `persist:true` controls (keylock, smart fader, crossfader curve, etc.)
   // to localStorage so they survive restarts.
@@ -114,6 +117,14 @@ function buildRuntime(): {
   const controllers = new ControllerService(bus);
   const recording = new RecordingService(engine);
   const outputEmitter = new OutputEmitter(engine, bus, NUM_DECKS);
+  // BPM editing (Double/Halve/set/lock) → persists each edit to the library row.
+  const bpmControl = new BpmControl({
+    bus,
+    numDecks: NUM_DECKS,
+    persist: (libraryId, bpm, locked) => {
+      void window.dj?.librarySetAnalysis?.(libraryId, { bpm, bpmLocked: locked ? 1 : 0 });
+    },
+  });
   const runtime = {
     bus,
     engine,
@@ -124,6 +135,7 @@ function buildRuntime(): {
     controllers,
     recording,
     outputEmitter,
+    bpmControl,
   };
   // Expose the runtime for e2e/debugging (drive sync, read positions, inspect the
   // bus from the page). Harmless in prod; invaluable for the Playwright loop. The
@@ -208,6 +220,7 @@ export function DjProvider({ children }: { children: ReactNode }): React.JSX.Ele
       runtime.stemThumbnails.dispose();
       runtime.controllers.dispose();
       runtime.outputEmitter.dispose();
+      runtime.bpmControl.dispose();
     };
   }, [runtime]);
 
@@ -223,6 +236,7 @@ export function DjProvider({ children }: { children: ReactNode }): React.JSX.Ele
         controllers: runtime.controllers,
         recording: runtime.recording,
         outputEmitter: runtime.outputEmitter,
+        bpmControl: runtime.bpmControl,
         started,
         start,
       }}

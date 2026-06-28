@@ -13,6 +13,7 @@ import { camelotToKey, areKeysCompatible } from '@dj/analysis';
 import { loadTrackToDeck } from '../track-loader.js';
 import { LibraryControl } from '../library-control.js';
 import { useColumns, type ColumnId } from '../library-columns.js';
+import { getDeckTrack } from '../deck-state.js';
 import { RowWaveform } from './RowWaveform.js';
 
 // Resizable columns, in table order. `sort` is the SortCol they sort by (null = no sort).
@@ -199,6 +200,23 @@ export function Library(): React.JSX.Element {
     setScanning(null);
     if (n > 0) await refresh();
   }, [analysisQueue, refresh, started, start]);
+
+  // Edit a track's BPM (Mixxx Adjust BPM): persist to the library row, lock it so
+  // re-analysis won't undo it, and patch the row IN PLACE (no full refresh → no jump).
+  // If the track is loaded on a deck, push the new BPM live too.
+  const updateRowBpm = useCallback(
+    async (id: number, bpm: number) => {
+      if (!(bpm > 0) || !Number.isFinite(bpm)) return;
+      const clamped = Math.max(1, Math.min(500, bpm));
+      await window.dj?.librarySetAnalysis?.(id, { bpm: clamped, bpmLocked: 1 });
+      setTracks((prev) => prev.map((t) => (t.id === id ? { ...t, bpm: clamped } : t)));
+      // live update any deck currently playing this library track
+      for (let d = 0; d < NUM_DECKS; d++) {
+        if (getDeckTrack(d).libraryId === id) bus.set(deckGroup(d + 1), DeckKeys.fileBpm, clamped);
+      }
+    },
+    [bus],
+  );
 
   // Double-click target: first STOPPED deck (Mixxx behavior), else deck 1. Avoids
   // clobbering a deck that's currently playing out.
@@ -414,7 +432,8 @@ export function Library(): React.JSX.Element {
                 <td>{t.title}</td>
                 <td>{t.album}</td>
                 <td>{t.genre}</td>
-                <td className="num">{t.bpm > 0 ? t.bpm.toFixed(0) : ''}</td>
+                <BpmCell bpm={t.bpm} onSet={(v) => void updateRowBpm(t.id, v)} />
+
                 <td className={`lib-key${keyCompatible(t.key) ? ' key-compatible' : ''}`}>
                   {t.key ?? ''}
                 </td>
@@ -451,6 +470,74 @@ function fmtDur(s: number | null): string {
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
   return `${m}:${sec.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Editable BPM cell (Mixxx Adjust BPM). Double-click to type an exact value; hover shows
+ * ½ / ×2 buttons to fix octave errors. Every edit persists + locks the BPM via onSet.
+ */
+function BpmCell({ bpm, onSet }: { bpm: number; onSet: (v: number) => void }): React.JSX.Element {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState('');
+  if (editing) {
+    const commit = () => {
+      const v = parseFloat(text);
+      if (v > 0) onSet(v);
+      setEditing(false);
+    };
+    return (
+      <td className="num bpm-cell">
+        <input
+          className="bpm-input"
+          autoFocus
+          defaultValue={bpm > 0 ? bpm.toFixed(1) : ''}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commit();
+            else if (e.key === 'Escape') setEditing(false);
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+        />
+      </td>
+    );
+  }
+  return (
+    <td
+      className="num bpm-cell"
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        setText('');
+        setEditing(true);
+      }}
+      title="Double-click to edit BPM"
+    >
+      <span className="bpm-val">{bpm > 0 ? bpm.toFixed(0) : ''}</span>
+      <span className="bpm-oct">
+        <button
+          className="micro"
+          title="Halve BPM"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (bpm > 0) onSet(bpm / 2);
+          }}
+        >
+          /2
+        </button>
+        <button
+          className="micro"
+          title="Double BPM"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (bpm > 0) onSet(bpm * 2);
+          }}
+        >
+          x2
+        </button>
+      </span>
+    </td>
+  );
 }
 
 /**
