@@ -11,10 +11,10 @@ if (!root) {
 // Boot guard: we require cross-origin isolation (SAB) and WebGPU (no fallback —
 // 10-electron-feasibility.md §0a). Fail loud rather than degrade.
 if (!crossOriginIsolated || typeof SharedArrayBuffer === 'undefined') {
-  console.error('[MochaMix] not cross-origin isolated — SharedArrayBuffer unavailable');
+  console.error('[MochaMix] not cross-origin isolated: SharedArrayBuffer unavailable');
 }
 if (!('gpu' in navigator)) {
-  console.error('[MochaMix] WebGPU unavailable — required, no fallback');
+  console.error('[MochaMix] WebGPU unavailable: required, no fallback');
 }
 
 createRoot(root).render(

@@ -81,7 +81,7 @@ export function Mixer(): React.JSX.Element {
             onChange={(e) => setXfader(Number(e.target.value))}
             className="xfader-slider"
             onDoubleClick={() => setXfader(0)}
-            title="Crossfader — blends deck 1 and deck 2. Double-click to center."
+            title="Crossfader: blends deck 1 and deck 2. Double-click to center."
           />
           <span className="xfader-end b">2</span>
         </div>

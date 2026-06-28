@@ -125,7 +125,7 @@ function Stage(): React.JSX.Element {
       <footer className="statusbar">
         <span>{NUM_DECKS} decks · 48 kHz</span>
         <span className={started ? 'status-live' : ''}>
-          {started ? '● audio running' : 'audio idle — load a track to start'}
+          {started ? '● audio running' : 'audio idle, load a track to start'}
         </span>
       </footer>
     </div>

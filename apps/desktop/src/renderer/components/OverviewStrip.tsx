@@ -29,7 +29,7 @@ export function OverviewStrip({ deckIndex }: { deckIndex: number }): React.JSX.E
       className="overview-strip"
       height={30}
       onClick={onSeek}
-      title="Full track — click to seek"
+      title="Full track. Click to seek"
     />
   );
 }

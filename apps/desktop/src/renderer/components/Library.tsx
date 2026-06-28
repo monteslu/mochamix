@@ -220,7 +220,7 @@ export function Library(): React.JSX.Element {
       try {
         await start();
       } catch {
-        window.alert('Could not start audio — press ▶ start audio, then try again.');
+        window.alert('Could not start audio. Press ▶ start audio, then try again.');
         return;
       }
     }
@@ -443,10 +443,10 @@ export function Library(): React.JSX.Element {
           label: 'Adjust BPM',
           icon: '♩',
           items: [
-            { label: `Double  (${bpm ? Math.round(bpm * 2) : '—'})`, disabled: !bpm, onClick: () => void updateRowBpm(t.id, bpm * 2) },
-            { label: `Halve  (${bpm ? Math.round(bpm / 2) : '—'})`, disabled: !bpm, onClick: () => void updateRowBpm(t.id, bpm / 2) },
-            { label: `×2/3  (${bpm ? Math.round((bpm * 2) / 3) : '—'})`, disabled: !bpm, onClick: () => void updateRowBpm(t.id, (bpm * 2) / 3) },
-            { label: `×3/4  (${bpm ? Math.round((bpm * 3) / 4) : '—'})`, disabled: !bpm, onClick: () => void updateRowBpm(t.id, (bpm * 3) / 4) },
+            { label: `Double  (${bpm ? Math.round(bpm * 2) : '-'})`, disabled: !bpm, onClick: () => void updateRowBpm(t.id, bpm * 2) },
+            { label: `Halve  (${bpm ? Math.round(bpm / 2) : '-'})`, disabled: !bpm, onClick: () => void updateRowBpm(t.id, bpm / 2) },
+            { label: `×2/3  (${bpm ? Math.round((bpm * 2) / 3) : '-'})`, disabled: !bpm, onClick: () => void updateRowBpm(t.id, (bpm * 2) / 3) },
+            { label: `×3/4  (${bpm ? Math.round((bpm * 3) / 4) : '-'})`, disabled: !bpm, onClick: () => void updateRowBpm(t.id, (bpm * 3) / 4) },
           ],
         },
         { label: 'Re-analyze', icon: '↻', onClick: () => void reanalyzeTrack(t) },
@@ -819,7 +819,7 @@ function StemCell({
           e.stopPropagation();
           onGenerate(track);
         }}
-        title="Stem generation failed — click to retry"
+        title="Stem generation failed. Click to retry"
       >
         ↻ retry
       </button>

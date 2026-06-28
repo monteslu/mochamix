@@ -81,7 +81,7 @@ export function LibrarySettings(): React.JSX.Element {
       </p>
 
       <ul className="prefs-dirs">
-        {dirs.length === 0 && <li className="prefs-dir-empty">No folders yet — add one below.</li>}
+        {dirs.length === 0 && <li className="prefs-dir-empty">No folders yet. Add one below.</li>}
         {dirs.map((d) => (
           <li key={d} className="prefs-dir">
             <span className="prefs-dir-path" title={d}>

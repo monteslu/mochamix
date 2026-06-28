@@ -96,7 +96,7 @@ export function Knob({ group, ckey, label, min, max, center, big, hint }: Props)
   return (
     <div
       className={`knob ${big ? 'knob-big' : ''}`}
-      title={`${hint ? hint + ' — ' : ''}${label}: ${value.toFixed(2)} (drag to adjust, double-click to reset)`}
+      title={`${hint ? hint + ': ' : ''}${label}: ${value.toFixed(2)} (drag to adjust, double-click to reset)`}
     >
       <svg
         viewBox="0 0 48 48"
