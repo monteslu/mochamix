@@ -69,11 +69,13 @@ describe('pad modes', () => {
     expect(cue1.isActive(s.bus)).toBe(true);
   });
 
-  it('beatjump pads jump signed beats', () => {
+  it('beatjump pads jump signed beats, paired back/forward, most-useful first', () => {
     const pads = s.mode('beatjump').pads(0);
-    pads[0]!.press(s.bus); // -8
-    expect(s.bus.get(s.g, DeckKeys.beatjump)).toBe(-8);
-    pads.at(-1)!.press(s.bus); // +8
-    expect(s.bus.get(s.g, DeckKeys.beatjump)).toBe(8);
+    // order: ◀4 4▶ ◀8 8▶ ◀1 1▶ ◀2 2▶ (so pads 1-4 give a 4-pad controller both directions)
+    pads[0]!.press(s.bus); // ◀4
+    expect(s.bus.get(s.g, DeckKeys.beatjump)).toBe(-4);
+    pads[1]!.press(s.bus); // 4▶
+    expect(s.bus.get(s.g, DeckKeys.beatjump)).toBe(4);
+    expect(pads).toHaveLength(8);
   });
 });

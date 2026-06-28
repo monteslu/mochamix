@@ -760,22 +760,30 @@ body,
   cursor: default;
 }
 .pads {
+  /* 4x2 block (Serato/rekordbox pad layout) — bigger, squarer, more tappable pads. */
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 4px;
 }
 .pad {
   /* default accent (used for the lit state) — modes override via --pad (e.g. stem color) */
   --pad: var(--accent);
-  padding: 8px 0;
+  /* taller, squarer pads in the 4x2 block; centered label that can hold an icon + word
+     ("🎹 INSTRUMENTAL") without overflowing — wrap + shrink as needed. */
+  min-height: 32px;
+  padding: 6px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   font-size: 10px;
   font-weight: 600;
+  line-height: 1.15;
   background: linear-gradient(180deg, var(--panel-2), #141923);
   border: 1px solid var(--edge);
   color: var(--text-faint);
   border-radius: 6px;
   cursor: pointer;
-  white-space: nowrap;
   overflow: hidden;
 }
 .pad.active {

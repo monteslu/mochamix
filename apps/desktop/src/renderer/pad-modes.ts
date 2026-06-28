@@ -42,18 +42,20 @@ export interface PadSpec {
 export interface PadMode {
   id: string;
   label: string; // mode-selector button text
+  hint: string; // mode-selector tooltip
   /** Pads for a deck. Length ≤ 8; fewer pads (stems = 4) render in the first slots. */
   pads: (deckIndex: number) => PadSpec[];
   /** When false, the mode is unavailable for this deck (e.g. Stems on a non-stem track). */
   available?: (bus: ControlBus, deckIndex: number) => boolean;
 }
 
-// Canonical stem order + colors (match StemRow + the waveform coloring so pad == wave == fader).
+// Canonical stem order + colors (match StemRow + the waveform coloring so pad == wave ==
+// fader) + an icon per stem (stems are the primary identity → icon + name on the pad).
 const STEMS = [
-  { gain: DeckKeys.stemGain0, name: 'DRUMS', color: '#ff5d5d' },
-  { gain: DeckKeys.stemGain1, name: 'BASS', color: '#ffd24d' },
-  { gain: DeckKeys.stemGain2, name: 'OTHER', color: '#5dff9e' },
-  { gain: DeckKeys.stemGain3, name: 'VOCAL', color: '#5db8ff' },
+  { gain: DeckKeys.stemGain0, name: 'DRUMS', icon: '🥁', color: '#ff5d5d' },
+  { gain: DeckKeys.stemGain1, name: 'BASS', icon: '🎸', color: '#ffd24d' },
+  { gain: DeckKeys.stemGain2, name: 'OTHER', icon: '🎹', color: '#5dff9e' },
+  { gain: DeckKeys.stemGain3, name: 'VOCAL', icon: '🎤', color: '#5db8ff' },
 ] as const;
 
 const muted = (bus: ControlBus, g: Group, key: Key) => bus.get(g, key) <= 0.001;
@@ -64,6 +66,7 @@ const muted = (bus: ControlBus, g: Group, key: Key) => bus.get(g, key) <= 0.001;
 const stemsMode: PadMode = {
   id: 'stems',
   label: 'STEMS',
+  hint: 'Stems — mute/solo drums/bass/other/vocals + acapella/instrumental combos (needs a stems track)',
   available: (bus, d) => bus.get(deckGroup(d + 1), DeckKeys.hasStems) > 0.5,
   pads: (d) => {
     const g = deckGroup(d + 1);
@@ -74,9 +77,9 @@ const stemsMode: PadMode = {
       !muted(bus, g, allGains[i]!) && allGains.every((k, j) => (j === i ? !muted(bus, g, k) : muted(bus, g, k)));
 
     const stemPads: PadSpec[] = STEMS.map((s, i) => ({
-      label: s.name,
+      label: `${s.icon} ${s.name}`, // icon + name — stems are the primary identity
       color: s.color,
-      title: `Toggle ${s.name} mute (shift: solo)`,
+      title: `${s.name} stem — click to mute/unmute, shift-click to solo (mutes the others)`,
       watch: allGains.map((k) => ({ group: g, key: k })),
       isActive: (bus) => !muted(bus, g, s.gain), // lit = playing
       press: (bus) => bus.set(g, s.gain, muted(bus, g, s.gain) ? 1 : 0),
@@ -86,12 +89,12 @@ const stemsMode: PadMode = {
       },
     }));
 
-    // combo pads (one-press stem mixes)
+    // combo pads (one-press stem mixes). 4x2 pads have room for full words.
     const combos: Array<{ label: string; title: string; on: boolean[] }> = [
-      { label: '🎤 ACAP', title: 'Acapella — vocals only', on: [false, false, false, true] },
-      { label: '🎹 INST', title: 'Instrumental — no vocals', on: [true, true, true, false] },
-      { label: '🥁 DRUMS', title: 'Drums only', on: [true, false, false, false] },
-      { label: 'NO 🥁', title: 'Drumless — everything but drums', on: [false, true, true, true] },
+      { label: '🎤 ACAPELLA', title: 'Acapella — vocals only (mutes drums, bass, other)', on: [false, false, false, true] },
+      { label: '🎹 INSTRUMENTAL', title: 'Instrumental — everything but vocals', on: [true, true, true, false] },
+      { label: '🥁 DRUMS ONLY', title: 'Drums only (mutes bass, other, vocals)', on: [true, false, false, false] },
+      { label: '🚫🥁 DRUMLESS', title: 'Drumless — everything but drums', on: [false, true, true, true] },
     ];
     const comboPads: PadSpec[] = combos.map((c) => ({
       label: c.label,
@@ -109,13 +112,14 @@ const stemsMode: PadMode = {
 const hotcueMode: PadMode = {
   id: 'hotcue',
   label: 'CUES',
+  hint: 'Hot Cues — set / jump to 8 cue points (shift-click a pad to clear)',
   pads: (d) => {
     const g = deckGroup(d + 1);
     return Array.from({ length: 8 }, (_, i): PadSpec => {
       const n = i + 1;
       return {
         label: String(n),
-        title: `Hot cue ${n}: set / jump (shift: clear)`,
+        title: `Hot cue ${n} — click an empty pad to SET a cue here; click a set pad to JUMP to it; shift-click to CLEAR`,
         watch: [{ group: g, key: hotcueEnabledKey(n) }],
         isActive: (bus) => bus.get(g, hotcueEnabledKey(n)) > 0.5,
         press: (bus) =>
@@ -133,11 +137,12 @@ const BEATLOOP_SIZES = [0.25, 0.5, 1, 2, 4, 8, 16, 32] as const;
 const beatloopMode: PadMode = {
   id: 'beatloop',
   label: 'LOOP',
+  hint: 'Beat Loops — one-press loops from 1/4 to 32 beats',
   pads: (d) => {
     const g = deckGroup(d + 1);
     return BEATLOOP_SIZES.map((size): PadSpec => ({
       label: size < 1 ? `1/${1 / size}` : String(size),
-      title: `${size}-beat loop`,
+      title: `${size < 1 ? `1/${1 / size}` : size}-beat loop — click to set + enable; lights while looping at this size`,
       watch: [
         { group: g, key: DeckKeys.loopEnabled },
         { group: g, key: DeckKeys.beatloopSize },
@@ -149,20 +154,28 @@ const beatloopMode: PadMode = {
   },
 };
 
-/** Beat Jump mode: 8 pads = back/forward by 1/2/4/8 beats (momentary). */
-const BEATJUMP = [-8, -4, -2, -1, 1, 2, 4, 8] as const;
+/** Beat Jump mode: back/forward PAIRS next to each other (rekordbox style), ordered so the
+ *  most-useful jumps come FIRST — a 4-pad controller (which only reaches pads 1-4) then gets
+ *  ◀4 4▶ ◀8 8▶ (both directions, the common sizes); an 8-pad unit also gets the small ◀1 1▶
+ *  ◀2 2▶. In the 4-col grid that lays out as:
+ *    row1: ◀4  4▶  ◀8  8▶
+ *    row2: ◀1  1▶  ◀2  2▶  */
+const BEATJUMP_ORDER = [4, 8, 1, 2] as const; // size order: most-useful first
 const beatjumpMode: PadMode = {
   id: 'beatjump',
   label: 'JUMP',
+  hint: 'Beat Jump — skip back/forward by N beats while playing (pads paired ◀ N / N ▶; biggest/most-useful first for 4-pad controllers)',
   pads: (d) => {
     const g = deckGroup(d + 1);
-    return BEATJUMP.map((beats): PadSpec => ({
-      label: `${beats > 0 ? '+' : ''}${beats}`,
-      title: `Jump ${Math.abs(beats)} beat(s) ${beats > 0 ? 'forward' : 'back'}`,
+    const pad = (beats: number): PadSpec => ({
+      label: beats < 0 ? `◀ ${-beats}` : `${beats} ▶`,
+      title: `Beat jump — skip ${Math.abs(beats)} beat${Math.abs(beats) === 1 ? '' : 's'} ${beats > 0 ? 'forward ▶' : '◀ back'} (keeps playing, no loop)`,
       watch: [],
       isActive: () => false,
       press: (bus) => bus.set(g, DeckKeys.beatjump, beats),
-    }));
+    });
+    // back/forward pair per size, most-useful sizes first → 4-pad units get the best subset.
+    return BEATJUMP_ORDER.flatMap((s) => [pad(-s), pad(s)]);
   },
 };
 

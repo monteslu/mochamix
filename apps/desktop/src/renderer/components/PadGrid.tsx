@@ -84,7 +84,7 @@ export function PadGrid({ deckIndex }: { deckIndex: number }): React.JSX.Element
               className={`pad-mode ${m.id === mode.id ? 'active' : ''}`}
               disabled={!avail}
               onClick={() => setModeId(m.id)}
-              title={avail ? `${m.label} pad mode` : `${m.label} (needs stems)`}
+              title={avail ? m.hint : `${m.hint} — unavailable: load a stems track`}
             >
               {m.label}
             </button>
