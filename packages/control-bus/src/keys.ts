@@ -52,6 +52,38 @@ export function effectSlot(unit: number, slot: number): Group {
   return `[EffectRack1_EffectUnit${unit}_Effect${slot}]`;
 }
 
+/** Number of effect units + slots per unit (Mixxx defaults). */
+export const NUM_EFFECT_UNITS = 4;
+export const EFFECT_SLOTS_PER_UNIT = 3;
+
+/** Controls on an effect-UNIT group ([EffectRack1_EffectUnitN]). */
+export const EffectUnitKeys = {
+  super1: 'super1', // the unit metaknob (0..1) — the main FX knob controllers turn
+  mix: 'mix', // wet/dry (0..1)
+  enabled: 'group_enabled', // unit on/off (synthetic; mappings often use mix)
+  nextChain: 'next_chain',
+  // per-channel routing: assign deck N through this unit. Built as group_[ChannelN]_enable.
+} as const;
+
+/** The "route deck `deckGroup` through this unit" control on a unit group. */
+export function effectGroupEnableKey(deckGroup: Group): Key {
+  return `group_${deckGroup}_enable`;
+}
+
+/** Controls on an effect-SLOT group ([EffectRack1_EffectUnitN_EffectM]). */
+export const EffectKeys = {
+  enabled: 'enabled', // this effect on/off
+  meta: 'meta', // this effect's metaknob
+  param1: 'parameter1',
+  param2: 'parameter2',
+  param3: 'parameter3',
+  buttonParam1: 'button_parameter1',
+  buttonParam2: 'button_parameter2',
+  buttonParam3: 'button_parameter3',
+  nextEffect: 'next_effect',
+  effectSelector: 'effect_selector',
+} as const;
+
 /** Per-deck QuickEffect group: `[QuickEffectRack1_[Channel1]]`. */
 export function quickEffect(deckGroup: Group): Group {
   return `[QuickEffectRack1_${deckGroup}]`;

@@ -133,6 +133,14 @@ export class EffectUnit {
     this.applyMeta();
   }
 
+  /** Set a manual param by INDEX (parameter1/2/3 → the 1st/2nd/3rd manifest param). A
+   * no-op if the slot has no effect or fewer params. Used by EffectUnitControl. */
+  setManualParamByIndex(slot: number, index: number, normalized: number): void {
+    const s = this.slots[slot];
+    const key = s?.instance?.manifest.params[index]?.key;
+    if (key !== undefined) this.setManualParam(slot, key, normalized);
+  }
+
   /** Recompute every effect param from the metaknob + links + manual values. */
   private applyMeta(): void {
     for (const s of this.slots) {

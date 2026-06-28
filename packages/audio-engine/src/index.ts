@@ -14,6 +14,7 @@ export type { Scaler, SourcePull } from './scaler.js';
 export { CueControl } from './controls/cue-control.js';
 export { LoopControl } from './controls/loop-control.js';
 export { RateControl } from './controls/rate-control.js';
+export { EffectUnitControl } from './effects/effect-unit-control.js';
 export {
   SyncEngine,
   shortestBeatError,

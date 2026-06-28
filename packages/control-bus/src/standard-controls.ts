@@ -11,6 +11,13 @@ import {
   LIBRARY,
   PLAYLIST,
   LibraryKeys,
+  effectUnit,
+  effectSlot,
+  effectGroupEnableKey,
+  EffectUnitKeys,
+  EffectKeys,
+  NUM_EFFECT_UNITS,
+  EFFECT_SLOTS_PER_UNIT,
   deck,
   DeckKeys,
   MASTER,
@@ -226,6 +233,41 @@ function appControls(numDecks: number): ControlDef[] {
   ];
 }
 
+/** Effect rack: N units, each with super1/mix/enabled + per-deck routing, and M effect
+ * slots each with enabled/meta/parameter1-3. The controls 60+ mappings drive. */
+function effectRackControls(numDecks: number): ControlDef[] {
+  const defs: ControlDef[] = [];
+  for (let u = 1; u <= NUM_EFFECT_UNITS; u++) {
+    const ug = effectUnit(u);
+    defs.push(
+      { group: ug, key: EffectUnitKeys.super1, default: 0, description: 'Unit metaknob' },
+      { group: ug, key: EffectUnitKeys.mix, default: 0, description: 'Unit wet/dry' },
+      { group: ug, key: EffectUnitKeys.enabled, default: 0 },
+      { group: ug, key: EffectUnitKeys.nextChain, default: 0 },
+    );
+    // per-deck routing: route deck d through unit u
+    for (let d = 1; d <= numDecks; d++) {
+      defs.push({ group: ug, key: effectGroupEnableKey(deck(d)), default: 0 });
+    }
+    for (let s = 1; s <= EFFECT_SLOTS_PER_UNIT; s++) {
+      const sg = effectSlot(u, s);
+      defs.push(
+        { group: sg, key: EffectKeys.enabled, default: s === 1 ? 1 : 0 },
+        { group: sg, key: EffectKeys.meta, default: 0 },
+        { group: sg, key: EffectKeys.param1, default: 0.5 },
+        { group: sg, key: EffectKeys.param2, default: 0.5 },
+        { group: sg, key: EffectKeys.param3, default: 0.5 },
+        { group: sg, key: EffectKeys.buttonParam1, default: 0 },
+        { group: sg, key: EffectKeys.buttonParam2, default: 0 },
+        { group: sg, key: EffectKeys.buttonParam3, default: 0 },
+        { group: sg, key: EffectKeys.nextEffect, default: 0 },
+        { group: sg, key: EffectKeys.effectSelector, default: 0 },
+      );
+    }
+  }
+  return defs;
+}
+
 /** Library/browse controls — same set under [Library] and [Playlist] (old mappings use
  * [Playlist] for the track-list nav). selectedIndex persists the highlight. */
 function libraryControls(): ControlDef[] {
@@ -255,7 +297,12 @@ function libraryControls(): ControlDef[] {
  * `bus.defineAll(...)` at boot.
  */
 export function standardControls(numDecks: number): ControlDef[] {
-  const defs: ControlDef[] = [...appControls(numDecks), ...masterControls(), ...libraryControls()];
+  const defs: ControlDef[] = [
+    ...appControls(numDecks),
+    ...masterControls(),
+    ...libraryControls(),
+    ...effectRackControls(numDecks),
+  ];
   for (let i = 1; i <= numDecks; i++) {
     defs.push(...deckControls(deck(i)));
   }

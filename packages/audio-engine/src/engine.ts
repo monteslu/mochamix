@@ -19,6 +19,9 @@ import {
   DeckKeys,
   MASTER,
   MasterKeys,
+  effectUnit,
+  effectGroupEnableKey,
+  NUM_EFFECT_UNITS,
   type RegisteredControl,
 } from '@dj/control-bus';
 import { createDeckGraph, eqKnobToDb, type DeckGraphNodes } from './deck-graph.js';
@@ -35,6 +38,7 @@ import { SmartFader } from './sync/smart-fader.js';
 import { SyncController } from './sync/sync-controller.js';
 import { makeGrid, nearestBeatFrame } from './sync/beatgrid.js';
 import { EffectUnit } from './effects/effect-unit.js';
+import { EffectUnitControl } from './effects/effect-unit-control.js';
 
 export interface EngineOptions {
   bus: ControlBus;
@@ -71,6 +75,8 @@ export class Engine {
   private rateControl: RateControl | null = null;
   private syncTimer: ReturnType<typeof setInterval> | null = null;
   private quickEffects: EffectUnit[] = [];
+  private effectUnits: EffectUnit[] = [];
+  private effectUnitControls: EffectUnitControl[] = [];
 
   constructor(opts: EngineOptions) {
     this.bus = opts.bus;
@@ -124,6 +130,9 @@ export class Engine {
       this.installDeckControls(d, ctx.sampleRate);
       this.installQuickEffect(d, ctx, deckGroup(d + 1));
     }
+
+    // Effect rack: N send/return units fed by any deck routed through them.
+    this.installEffectRack(ctx, buses.masterIn);
 
     // Publish the real AudioContext sample rate so the waveform grid math uses it
     // (not a hardcoded 48000) — wrong SR drifts the beat grid out of alignment.
@@ -385,6 +394,39 @@ export class Engine {
     );
   }
 
+  /**
+   * Install the effect rack: NUM_EFFECT_UNITS send/return units. Each deck's post-fader
+   * signal taps into a unit when that unit's group_[ChannelD]_enable is set; the unit's
+   * wet output returns to master. super1/mix/params are bus-wired by EffectUnitControl.
+   * This is what makes the FX section of real controller mappings do something.
+   */
+  private installEffectRack(ctx: AudioContext, masterIn: AudioNode): void {
+    for (let u = 1; u <= NUM_EFFECT_UNITS; u++) {
+      const fx = new EffectUnit(ctx);
+      fx.output.connect(masterIn); // wet return → master
+      this.effectUnits.push(fx);
+      // Bus-wire super1/mix/params/effect-selection.
+      this.effectUnitControls.push(new EffectUnitControl({ bus: this.bus, unit: u, fx }));
+
+      // Per-deck routing: tap deck d's post-fader output into this unit on group_enable.
+      const ug = effectUnit(u);
+      for (let d = 0; d < this.numDecks; d++) {
+        const tap = this.deckGraphs[d]!.crossfader; // post-fader, pre-master
+        const key = effectGroupEnableKey(deckGroup(d + 1));
+        const route = (on: boolean) => {
+          try {
+            tap.disconnect(fx.input);
+          } catch {
+            /* wasn't connected */
+          }
+          if (on) tap.connect(fx.input);
+        };
+        route(this.bus.get(ug, key) > 0.5);
+        this.disconnects.push(this.bus.connect(ug, key, (v) => route(v > 0.5)));
+      }
+    }
+  }
+
   /** Install the per-deck EngineControl stack (cue + loop). */
   private installDeckControls(d: number, sampleRate: number): void {
     const g = deckGroup(d + 1);
@@ -542,6 +584,14 @@ export class Engine {
       fx.dispose();
     }
     this.quickEffects = [];
+    for (const c of this.effectUnitControls) {
+      c.dispose();
+    }
+    this.effectUnitControls = [];
+    for (const fx of this.effectUnits) {
+      fx.dispose();
+    }
+    this.effectUnits = [];
     this.cueControls = [];
     this.loopControls = [];
     this.disconnects = [];
