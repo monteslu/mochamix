@@ -1270,7 +1270,11 @@ input[type='range'].xfader-slider::-webkit-slider-thumb {
   min-height: 0;
 }
 .library-table {
-  width: 100%;
+  /* width = sum of the column widths (not 100%), so table-layout:fixed honors each
+     <col>'s px width literally instead of rescaling them to fit the pane. min-width
+     keeps it filling the pane when columns are narrow; the wrap scrolls when wider. */
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
   font-size: 13px;
   /* fixed layout so the <colgroup> px widths are authoritative (resizable columns) */
@@ -1287,16 +1291,18 @@ input[type='range'].xfader-slider::-webkit-slider-thumb {
 .library-table th .col-resize {
   position: absolute;
   top: 0;
-  right: -3px;
-  width: 7px;
+  right: 0; /* fully inside this column's right edge so the hit area is unambiguous */
+  width: 10px;
   height: 100%;
   cursor: col-resize;
-  z-index: 1;
+  z-index: 5;
   touch-action: none;
+  /* keep it interactive even though the th sets user-select:none */
+  user-select: none;
 }
 .library-table th .col-resize:hover {
-  background: var(--accent);
-  opacity: 0.6;
+  /* a visible grab line on the right edge */
+  box-shadow: inset -2px 0 0 0 var(--accent);
 }
 .library-table thead th {
   position: sticky;
