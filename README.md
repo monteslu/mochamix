@@ -4,7 +4,7 @@ A Mixxx-class, open-source DJ application built in Electron + Web Audio + WASM +
 Modern, stem-native performance workflow (like VirtualDJ) with the freedom of open source, and free.
 Built for the love of it.
 
-![MochaMix — two decks with live stem pads, beatgrids, EQ/crossfader, and a searchable library](mochamix_screenshot.png)
+![MochaMix — two decks with live stem pads, beatgrids, EQ/crossfader, and a searchable library](https://raw.githubusercontent.com/monteslu/mochamix/main/mochamix_screenshot.png)
 
 ## Status
 
@@ -21,7 +21,10 @@ on the GPU, then mix each stem independently per deck. Stems are first-class via
 **performance-pad grid** (Hot Cue / Beat Loop / Beat Jump / **Stems** modes): the Stems mode
 puts drums/bass/other/vocals on colored pads (tap = mute, shift = solo) plus one-press combos
 (drums-only / drumless / instrumental / acapella) — a stems-on-pads workflow Mixxx itself
-doesn't have.
+doesn't have. The stem-separation model (htdemucs, ~80 MB) and its WebGPU runtime are NOT
+bundled — they download once on first use and are cached locally (`~/.cache/mochamix/` etc.),
+so the install stays small and only people who use stems pay for the model. (First stem
+generation needs an internet connection.)
 
 **Selectable color themes** (Mocha / Nightclub / Graphite / Daylight) in Preferences → Appearance.
 

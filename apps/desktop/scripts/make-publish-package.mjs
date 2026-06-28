@@ -39,10 +39,9 @@ for (const d of ['dist-main', 'dist-renderer', 'resources', 'bin']) {
 for (const f of ['README.md', 'LICENSE']) {
   if (existsSync(join(repoRoot, f))) cpSync(join(repoRoot, f), join(out, f));
 }
-// the hero screenshot the README references
-if (existsSync(join(repoRoot, 'mochamix_screenshot.png'))) {
-  cpSync(join(repoRoot, 'mochamix_screenshot.png'), join(out, 'mochamix_screenshot.png'));
-}
+// NOTE: the README's hero screenshot is intentionally NOT shipped in the tarball — it's a
+// repo-only asset (renders on GitHub) and would bloat the install for no runtime value, per
+// convention. The <img> link still resolves on GitHub via the repo's raw URL.
 
 // Read the workspace manifest to pull the REAL runtime deps (the externals the bundle
 // leaves unbundled). @dj/* and build/dev deps are intentionally dropped.
@@ -65,7 +64,7 @@ const pkg = {
   type: 'module',
   bin: { mochamix: 'bin/mochamix.mjs' },
   main: 'dist-main/main.js',
-  files: ['dist-main', 'dist-renderer', 'resources', 'bin', 'README.md', 'LICENSE', 'mochamix_screenshot.png'],
+  files: ['dist-main', 'dist-renderer', 'resources', 'bin', 'README.md', 'LICENSE'],
   engines: { node: '>=22' },
   dependencies,
   homepage: 'https://github.com/monteslu/mochamix',
