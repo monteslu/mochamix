@@ -729,6 +729,66 @@ body,
 }
 
 /* ── hotcues ──────────────────────────────────────────────── */
+/* ── performance pad grid (mode selector + 8 pads, data-driven by pad-modes.ts) ── */
+.pad-grid {
+  margin-bottom: 6px;
+}
+.pad-modes {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 5px;
+}
+.pad-mode {
+  flex: 1;
+  padding: 3px 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  background: linear-gradient(180deg, var(--panel-2), #141923);
+  border: 1px solid var(--edge);
+  color: var(--text-faint);
+  border-radius: 5px;
+  cursor: pointer;
+}
+.pad-mode.active {
+  background: linear-gradient(180deg, #2a3344, #1a2230);
+  color: var(--text);
+  border-color: var(--accent);
+}
+.pad-mode:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.pads {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+.pad {
+  /* default accent (used for the lit state) — modes override via --pad (e.g. stem color) */
+  --pad: var(--accent);
+  padding: 8px 0;
+  font-size: 10px;
+  font-weight: 600;
+  background: linear-gradient(180deg, var(--panel-2), #141923);
+  border: 1px solid var(--edge);
+  color: var(--text-faint);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.pad.active {
+  background: color-mix(in srgb, var(--pad) 28%, #141923);
+  color: var(--text);
+  border-color: var(--pad);
+  box-shadow: 0 0 9px color-mix(in srgb, var(--pad) 45%, transparent);
+}
+/* stem pads (and other colored pads) tint their label to the accent even when idle */
+.pad[style*='--pad'] {
+  color: color-mix(in srgb, var(--pad) 70%, var(--text-faint));
+}
+
 .hotcue-row {
   display: grid;
   /* 8 pads in ONE row (was repeat(4) = two rows, doubling deck height and eating

@@ -7,9 +7,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { deck as deckGroup, DeckKeys } from '@dj/control-bus';
 import { useDj, useControl, useControlValue } from '../dj-context.js';
-import { HotcueRow } from './HotcueRow.js';
-import { LoopRow } from './LoopRow.js';
-import { StemRow } from './StemRow.js';
+import { PadGrid } from './PadGrid.js';
 import { Platter } from './Platter.js';
 import { OverviewStrip } from './OverviewStrip.js';
 import { KeyShift } from './KeyShift.js';
@@ -263,9 +261,7 @@ export function Deck({ deckIndex, side = 'left' }: Props): React.JSX.Element {
         </button>
       </div>
 
-      <HotcueRow deckIndex={deckIndex} />
-      <LoopRow deckIndex={deckIndex} />
-      <StemRow deckIndex={deckIndex} />
+      <PadGrid deckIndex={deckIndex} />
     </section>
   );
 }
