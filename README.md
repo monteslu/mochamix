@@ -1,5 +1,8 @@
 # MochaMix
 
+[![npm](https://img.shields.io/npm/v/mochamix-app)](https://www.npmjs.com/package/mochamix-app)
+[![license](https://img.shields.io/npm/l/mochamix-app)](LICENSE)
+
 A modern, open-source, **stem-native DJ application** built entirely in web tech:
 Electron + Web Audio + WASM + WebGPU. The performance workflow of apps like VirtualDJ
 (live stem mashups, stems-on-pads, beat sync) with the freedom of open source, and free.
