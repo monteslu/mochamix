@@ -19,6 +19,9 @@ import { ContextMenu, type ContextMenuState, type MenuItem } from './ContextMenu
 import { usePrompt } from './PromptModal.js';
 import { TrackInfoModal } from './TrackInfoModal.js';
 
+// Web demo build (no Electron file layer): swaps "+ add folder" for "+ add track", etc.
+const IS_WEB = (window as unknown as { __DJ_WEB__?: boolean }).__DJ_WEB__ === true;
+
 // Resizable columns, in table order. `sort` is the SortCol they sort by (null = no sort).
 const COLUMNS: { id: ColumnId; label: string; sort: SortCol | null }[] = [
   { id: 'artist', label: 'ARTIST', sort: 'artist' },
@@ -205,6 +208,16 @@ export function Library(): React.JSX.Element {
       void stemThumbnails.run();
     }
   }, [refresh, analysisQueue, stemThumbnails]);
+
+  // Web demo: there's no persistent folder library, so the toolbar offers "+ add track"
+  // (open one file) instead of "+ add folder" (scan a directory). openTrack() reads the
+  // chosen file into the session library; refresh shows it, then we analyze it.
+  const onAddTrack = useCallback(async () => {
+    const file = await window.dj.openTrack();
+    if (!file) return;
+    await refresh();
+    void analysisQueue.enqueueUnanalyzed();
+  }, [refresh, analysisQueue]);
 
   const onSync = useCallback(async () => {
     setScanning('syncing…');
@@ -542,16 +555,24 @@ export function Library(): React.JSX.Element {
           onChange={(e) => setSearch(e.target.value)}
           className="library-search"
         />
-        <button onClick={onScan} disabled={!!scanning}>
-          {scanning ? scanning : '+ add folder'}
-        </button>
-        <button
-          onClick={onSync}
-          disabled={!!scanning}
-          title="Rescan all watched folders: add new songs, remove deleted ones"
-        >
-          ↻ sync
-        </button>
+        {IS_WEB ? (
+          <button onClick={() => void onAddTrack()} title="Open an audio file to mix">
+            + add track
+          </button>
+        ) : (
+          <button onClick={onScan} disabled={!!scanning}>
+            {scanning ? scanning : '+ add folder'}
+          </button>
+        )}
+        {!IS_WEB && (
+          <button
+            onClick={onSync}
+            disabled={!!scanning}
+            title="Rescan all watched folders: add new songs, remove deleted ones"
+          >
+            ↻ sync
+          </button>
+        )}
         <button
           onClick={onReanalyze}
           disabled={!!scanning || analysisStatus.remaining > 0}

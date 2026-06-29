@@ -101,7 +101,7 @@ export function RowWaveform({
   /** Track has a generated .stem.mp4 → render the colored 4-stem thumbnail. */
   hasStems?: boolean;
 }): React.JSX.Element {
-  const { engine } = useDj();
+  const { engine, started } = useDj();
   const [url, setUrl] = useState<string>(() => cache.get(trackId) ?? '');
 
   useEffect(() => {
@@ -186,7 +186,10 @@ export function RowWaveform({
       cancelled = true;
     };
     // re-fetch when this track just finished analyzing (peaks now exist) or gains stems
-  }, [trackId, done, hasStems, engine]);
+    // `started` is a dep so the web build (where the AudioContext only exists after the
+    // user gesture) re-runs the stem-thumbnail compute once audio starts — otherwise the
+    // demo rows render with no thumbnail because engine.audioContext was null on mount.
+  }, [trackId, done, hasStems, engine, started]);
 
   if (analyzing) {
     return (
