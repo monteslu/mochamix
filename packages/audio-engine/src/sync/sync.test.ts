@@ -46,6 +46,20 @@ describe('SmartFader', () => {
     expect(aligns()).toBe(1); // activate() snaps once
   });
 
+  it('forces keylock ON both decks while active, restores prior state on deactivate', () => {
+    const { bus } = setup(120, 128);
+    // user had keylock off on deck 1, on on deck 2
+    bus.set(deck(1), DeckKeys.keylock, 0);
+    bus.set(deck(2), DeckKeys.keylock, 1);
+    bus.set(MASTER, MasterKeys.smartFaderEnabled, 1); // activate
+    // Smart Fader changes tempo, so keylock must be on for BOTH (else chipmunk).
+    expect(bus.get(deck(1), DeckKeys.keylock)).toBe(1);
+    expect(bus.get(deck(2), DeckKeys.keylock)).toBe(1);
+    bus.set(MASTER, MasterKeys.smartFaderEnabled, 0); // deactivate
+    expect(bus.get(deck(1), DeckKeys.keylock)).toBe(0); // restored to prior (off)
+    expect(bus.get(deck(2), DeckKeys.keylock)).toBe(1); // restored to prior (on)
+  });
+
   it('a RESTORED enabled=1 at construction does NOT align (no playing deck yet)', () => {
     // Regression: a persisted smartFaderEnabled=1 must reflect state but not fire the
     // beat-snap at engine start (it would be eaten + latch active, killing the real snap).

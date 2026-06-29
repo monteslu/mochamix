@@ -42,6 +42,8 @@ const RIGHT = 1;
 export class SmartFader {
   private readonly offs: Array<() => void> = [];
   private active = false;
+  // each deck's keylock state before Smart Fader forced it on (restored on deactivate)
+  private priorKeylock: [boolean, boolean] | null = null;
 
   constructor(private readonly deps: SmartFaderDeps) {
     const { bus } = deps;
@@ -89,6 +91,15 @@ export class SmartFader {
     bus.set(MASTER, MasterKeys.smartFaderActive, 1);
     bus.set(MASTER, MasterKeys.smartFaderLeftBpm, this.leftBpm());
     bus.set(MASTER, MasterKeys.smartFaderRightBpm, this.rightBpm());
+    // Smart Fader continuously CHANGES tempo, so keylock MUST be on or the pitch rides the
+    // blend (chipmunk). Force it on both decks while active; remember each deck's prior state
+    // so we can restore it on deactivate (don't leave keylock on if the user had it off).
+    this.priorKeylock = [
+      bus.get(deckGroup(1), DeckKeys.keylock) > 0.5,
+      bus.get(deckGroup(2), DeckKeys.keylock) > 0.5,
+    ];
+    bus.set(deckGroup(1), DeckKeys.keylock, 1);
+    bus.set(deckGroup(2), DeckKeys.keylock, 1);
     // Beat-align the two decks so the blend starts phase-matched, then blend tempo.
     this.deps.alignDecks?.();
     this.tick();
@@ -99,6 +110,12 @@ export class SmartFader {
     const { bus } = this.deps;
     bus.set(MASTER, MasterKeys.smartFaderActive, 0);
     bus.set(MASTER, MasterKeys.smartFaderTargetBpm, 0);
+    // Restore each deck's keylock to what it was before Smart Fader forced it on.
+    if (this.priorKeylock) {
+      bus.set(deckGroup(1), DeckKeys.keylock, this.priorKeylock[0] ? 1 : 0);
+      bus.set(deckGroup(2), DeckKeys.keylock, this.priorKeylock[1] ? 1 : 0);
+      this.priorKeylock = null;
+    }
     // Reset both decks to their file tempo.
     this.deps.setRateRatio(LEFT, 1);
     this.deps.setRateRatio(RIGHT, 1);
