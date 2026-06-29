@@ -124,11 +124,16 @@ export class SyncController {
   /** When SYNC toggles on a deck: match tempo + instantly phase-snap. */
   private onSyncToggle(deckIndex: number): void {
     if (!this.isFollower(deckIndex)) {
+      console.log(`[syncdbg] deck${deckIndex} SYNC off → release`);
       this.deps.setRateRatio(deckIndex, 0); // release override
       return;
     }
     const leaderIdx = this.pickLeader(deckIndex);
-    if (leaderIdx < 0 || leaderIdx === deckIndex) return;
+    console.log(`[syncdbg] deck${deckIndex} SYNC on → leader=${leaderIdx}`);
+    if (leaderIdx < 0 || leaderIdx === deckIndex) {
+      console.log('[syncdbg]   NO LEADER → no tempo match (this is the bug if it prints)');
+      return;
+    }
 
     const fg = this.grid(deckIndex);
     const lg = this.grid(leaderIdx);
@@ -137,7 +142,9 @@ export class SyncController {
     const followerBpm = this.deps.bus.get(deckGroup(deckIndex + 1), DeckKeys.fileBpm);
     if (followerBpm <= 0 || leaderBpm <= 0) return;
     const factor = this.halfDoubleFactor(followerBpm, leaderBpm);
-    this.deps.setRateRatio(deckIndex, leaderBpm / (followerBpm * factor));
+    const ratio = leaderBpm / (followerBpm * factor);
+    console.log(`[syncdbg]   leaderBpm=${leaderBpm} followerBpm=${followerBpm} → ratio=${ratio.toFixed(4)} (override=${ratio === 1 ? 0 : ratio})`);
+    this.deps.setRateRatio(deckIndex, ratio);
 
     // NOTE: the PHASE SNAP now happens in the AudioWorklet (engine.worklet
     // phaseSnap), using each deck's SAMPLE-ACCURATE position — not here. Doing it
