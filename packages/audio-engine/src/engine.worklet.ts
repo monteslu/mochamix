@@ -204,13 +204,19 @@ class EngineProcessor extends AudioWorkletProcessor {
       let quantizeTrigger = false;
       if (synced && playing && !slot.lastPlay) syncTrigger = true; // play / resume
       if (!scratching && slot.lastScratching) quantizeTrigger = true; // platter released
+      // SYNC button engaged (syncEnabled 0→1): snap the grids NOW, even when the deck is
+      // already playing (the common case: both decks running, you press SYNC to lock). This
+      // is what made plain Sync only snap in Smart-Fader mode — Smart Fader fired a
+      // syncRequest pulse, but the latching SYNC toggle had no edge handler here.
+      const syncOn = idx.syncEnabled !== undefined && sabRead(control, idx.syncEnabled) > 0.5;
+      if (syncOn && !slot.lastSyncEnabled) syncTrigger = true;
       if (idx.syncRequest !== undefined && sabRead(control, idx.syncRequest) > 0.5) {
         syncTrigger = true;
         sabWrite(control, idx.syncRequest, 0); // consume the pulse
       }
       slot.lastPlay = playing;
       slot.lastScratching = scratching;
-      if (idx.syncEnabled !== undefined) slot.lastSyncEnabled = sabRead(control, idx.syncEnabled) > 0.5;
+      slot.lastSyncEnabled = syncOn;
 
       // Platter-release behavior is configurable (platterReleaseMode):
       //   0 = stay where the hand left it (no snap)
