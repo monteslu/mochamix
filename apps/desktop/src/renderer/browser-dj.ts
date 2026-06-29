@@ -50,14 +50,21 @@ interface DemoManifestTrack {
 /** Load the bundled demo library (public/demo-songs/manifest.json). Returns the LibTrack
  * rows + a map id→stem URL. Empty if the manifest isn't deployed (then we fall back to the
  * synth DEMO_TRACKS). */
-export async function loadDemoLibrary(): Promise<{ rows: LibTrack[]; stemUrl: Map<number, string> }> {
+export async function loadDemoLibrary(): Promise<{
+  rows: LibTrack[];
+  stemUrl: Map<number, string>;
+  peaksUrl: Map<number, string>;
+}> {
   const stemUrl = new Map<number, string>();
+  const peaksUrl = new Map<number, string>();
   try {
     const res = await fetch('/demo-songs/manifest.json');
-    if (!res.ok) return { rows: [], stemUrl };
+    if (!res.ok) return { rows: [], stemUrl, peaksUrl };
     const data = (await res.json()) as { tracks: DemoManifestTrack[] };
     const rows = data.tracks.map((t): LibTrack => {
       stemUrl.set(t.id, `/demo-songs/${t.stemFile}`);
+      // pre-baked stem-waveform thumbnail (pregen-demo-thumbnails.mjs) → instant rows
+      peaksUrl.set(t.id, `/demo-songs/${t.stemFile.replace(/\.stem\.mp4$/, '')}.peaks`);
       return {
         id: t.id,
         location: `/demo-songs/${t.stemFile}`,
@@ -81,9 +88,9 @@ export async function loadDemoLibrary(): Promise<{ rows: LibTrack[]; stemUrl: Ma
         stemsGeneratedAt: 1,
       };
     });
-    return { rows, stemUrl };
+    return { rows, stemUrl, peaksUrl };
   } catch {
-    return { rows: [], stemUrl };
+    return { rows: [], stemUrl, peaksUrl };
   }
 }
 
@@ -149,12 +156,17 @@ async function pickAudioFile(): Promise<File | null> {
   });
 }
 
-export function makeBrowserDj(demo?: { rows: LibTrack[]; stemUrl: Map<number, string> }): DjApi {
+export function makeBrowserDj(demo?: {
+  rows: LibTrack[];
+  stemUrl: Map<number, string>;
+  peaksUrl?: Map<number, string>;
+}): DjApi {
   // Use the bundled pre-processed demo songs when present; otherwise the synth fallback.
   const useDemo = !!demo && demo.rows.length > 0;
   const seed: Array<LibTrack & { mp3File?: string }> = useDemo ? demo!.rows : DEMO_TRACKS;
   const lib = new Map(seed.map((t) => [t.id, t]));
   const stemUrl = demo?.stemUrl ?? new Map<number, string>();
+  const peaksUrl = demo?.peaksUrl ?? new Map<number, string>();
   // user-uploaded files (web demo "open your own"), keyed by their synthetic id
   const uploads = new Map<number, LoadedFile>();
   let nextUploadId = 100000;
@@ -247,7 +259,19 @@ export function makeBrowserDj(demo?: { rows: LibTrack[]; stemUrl: Map<number, st
     librarySetAnalysis: async () => {},
     libraryWaveform: async () => null,
     libraryDownbeats: async () => null,
-    libraryStemWaveforms: async () => null,
+    // Serve the pre-baked stem thumbnail (pregen-demo-thumbnails.mjs) so the demo rows
+    // render instantly — no in-browser decode of the 4 stem files on first paint.
+    libraryStemWaveforms: async (id: number) => {
+      const pu = peaksUrl.get(id);
+      if (!pu) return null;
+      try {
+        const res = await fetch(pu);
+        if (!res.ok) return null;
+        return new Uint8Array(await res.arrayBuffer());
+      } catch {
+        return null;
+      }
+    },
     librarySetStemWaveforms: async () => {},
     libraryStemsNeedingWaveforms: async () => [],
     libraryUnanalyzed: async () => [],
