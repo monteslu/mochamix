@@ -1,39 +1,54 @@
-# Demo song candidates: licenses + attribution
+# Demo songs: licenses + attribution
 
-Source: blocSonic netBloc Volume 24 "tiuqottigeloot" (BSCOMP0024)
-Release page: https://blocsonic.com/releases/various-artists/netbloc-volume-24-tiuqottigeloot/
+The four tracks bundled with the MochaMix web demo come from blocSonic's netBloc Volume 24
+"tiuqottigeloot" (BSCOMP0024), a free/Creative Commons compilation.
 
-These 6 are the REMIXABLE tracks from that release (we deliberately excluded the 6
-NoDerivatives/ND tracks, since stem separation creates a derivative work and ND forbids that).
-The ones below are CC BY or CC BY-NC-SA, all of which permit remixing/derivatives.
+- Release page: https://blocsonic.com/releases/various-artists/netbloc-volume-24-tiuqottigeloot/
 
-Important per-track obligations:
-- ALL require ATTRIBUTION (credit the artist + license, link the source).
-- The BY-NC-SA tracks additionally require: NonCommercial use only, and any derivative
-  (our generated stems / .stem.mp4) must be released under the SAME license (ShareAlike) with
-  attribution. MochaMix is free + open-source (non-commercial), so NC is acceptable here.
-- The single CC BY track (Juanitos) has no NC or SA restriction (attribution only) and is the
-  safest of the set.
+**These files are modified.** We separated each original track into four stems
+(drums / bass / other / vocals) and re-encoded the result as a `.stem.mp4` (the open Native
+Instruments Stems format). That is a derivative work, which the licenses below permit.
 
-| # | Artist | Title | License | Notes |
-|---|--------|-------|---------|-------|
-| 02 | Eclectek | We Are Going To Eclecfunk Your Ass | CC BY-NC-SA 3.0 Unported | funk, vocals |
-| 04 | Muha | Microphone | CC BY-NC-SA 3.0 Unported | hip-hop, vocals |
-| 07 | Juanitos | Hola Hola Bossa Nova | CC BY 2.0 France | bossa, vocals; cleanest license |
-| 08 | Entertainment for the Braindead | Resolutions (Chris Summer Remix) | CC BY-NC-SA 3.0 Unported | |
-| 10 | Paper Navy | Tongue Tied | CC BY-NC-SA 3.0 Unported | vocals |
-| 11 | 60 Tigres | Garage | CC BY-NC-SA 2.5 Mexico | |
+All four require **attribution**. Three are **BY-NC-SA**, which additionally require
+**NonCommercial** use and that derivatives be shared under the **same license (ShareAlike)**.
+MochaMix is free and open-source (non-commercial), and these stem files are redistributed
+under each track's original license, with attribution, satisfying ShareAlike.
 
-EXCLUDED (NoDerivatives — cannot stem-separate):
-- 01 Diablo Swing Orchestra - Heroines (BY-NC-ND)
-- 03 Auto-Pilot - Seventeen (BY-NC-ND)
-- 05 Just Plain Ant - Stumble (BY-ND)
-- 06 The Honorable Sleaze - God Damn (BY-ND)
-- 09 Nobara Hayakawa - Trail (BY-NC-ND)
-- 12 CM aka Creative - The Cycle (BY-NC-ND)
+## Bundled tracks
 
-TODO before shipping any of these in the web demo:
-- Pick the final ~4 (mix well + have vocals).
-- Pre-separate stems + analyze (so the demo loads instantly, no live separation).
-- Put the attribution + license + source link in the demo UI (and keep ShareAlike-licensed
-  outputs under BY-NC-SA with credit).
+### eclectek-eclecfunk.stem.mp4
+- Title: "We Are Going To Eclecfunk Your Ass"
+- Artist: Eclectek
+- License: CC BY-NC-SA 3.0 Unported (https://creativecommons.org/licenses/by-nc-sa/3.0/)
+- Source: blocSonic netBloc Vol. 24
+- Modification: separated into 4 stems, re-encoded as .stem.mp4
+
+### 60tigres-garage.stem.mp4
+- Title: "Garage"
+- Artist: 60 Tigres
+- License: CC BY-NC-SA 2.5 Mexico (https://creativecommons.org/licenses/by-nc-sa/2.5/mx/)
+- Source: blocSonic netBloc Vol. 24
+- Modification: separated into 4 stems, re-encoded as .stem.mp4
+
+### entertainment-resolutions.stem.mp4
+- Title: "Resolutions (Chris Summer Remix)"
+- Artist: Entertainment For The Braindead
+- License: CC BY-NC-SA 3.0 Unported (https://creativecommons.org/licenses/by-nc-sa/3.0/)
+- Source: blocSonic netBloc Vol. 24
+- Modification: separated into 4 stems, re-encoded as .stem.mp4
+
+### juanitos-holahola.stem.mp4
+- Title: "Hola Hola Bossa Nova"
+- Artist: Juanitos
+- License: CC BY 2.0 France (https://creativecommons.org/licenses/by/2.0/fr/)
+- Source: blocSonic netBloc Vol. 24
+- Modification: separated into 4 stems, re-encoded as .stem.mp4
+
+## Why these four
+
+Picked to mix well and show off Smart Fader: a wide tempo spread (104 / 125 / 128 / 150 BPM)
+and all four have real vocals (so the stem / acapella demo is compelling). Juanitos is the
+only pure CC BY track (attribution only, no NC/SA) and adds genre variety (bossa nova).
+
+We deliberately did NOT use the release's NoDerivatives (ND) tracks, since stem separation
+creates a derivative work, which ND forbids.
